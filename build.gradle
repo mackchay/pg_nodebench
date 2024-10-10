@@ -1,0 +1,22 @@
+plugins {
+    id 'java'
+}
+
+group = 'com.haskov'
+version = '1.0-SNAPSHOT'
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    // Зависимости для вашего проекта
+    implementation 'org.apache.commons:commons-lang3:3.12.0'
+
+    // Зависимости для тестирования
+    testImplementation 'junit:junit:4.13.2'
+}
+
+test {
+    useJUnitPlatform()       // Настройка тестов с использованием JUnit
+}
