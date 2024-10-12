@@ -3,9 +3,6 @@ package bench;
 import bench.v2.*;
 import bench.v2.Configuration.Phase;
 import bench.v2.Database.CallableStatement;
-import bench.v2.strategy.Strategies.StrategyName;
-import com.haskov.Cmd;
-import org.apache.commons.cli.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -99,16 +96,15 @@ public class V2 {
 			log.info("Actual plan \n{}\n{}\n{}", lineSep, String.join("\n", lines), lineSep);
 	}
 	
-	private static void preinit() {
+	private static void preInit() {
 		Thread.setDefaultUncaughtExceptionHandler((t, e) -> {
 			log.error("Test stopped due to error:", unwrap(e));
 		});
 	}
 
-	public static void args(String[] args) {
-		preinit();
-
-		params = Cmd.args(args);
+	public static void init(Configuration conf) {
+		preInit();
+		params = conf;
 
 		db = new Database(params.host,
 					params.port,

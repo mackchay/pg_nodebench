@@ -83,7 +83,7 @@ public class QueryBuilder {
                 .select("id", "name", "age")
                 .from("users")
                 .where("age > 18")
-                .where("name LIKE 'John%'")
+                .where("name LIKE 'John%'").where("age < 30")
                 .orderBy("age", "name")
                 .limit(10);
 
