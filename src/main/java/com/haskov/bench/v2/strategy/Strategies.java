@@ -1,4 +1,4 @@
-package bench.v2.strategy;
+package com.haskov.bench.v2.strategy;
 
 import java.util.HashMap;
 import java.util.Map;

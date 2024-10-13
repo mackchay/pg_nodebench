@@ -1,6 +1,6 @@
-package bench.v2;
+package com.haskov.bench.v2;
 
-import bench.V2;
+import com.haskov.bench.V2;
 
 import java.io.IOException;
 import java.io.InputStream;

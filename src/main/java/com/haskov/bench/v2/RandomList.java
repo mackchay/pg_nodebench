@@ -1,4 +1,4 @@
-package bench.v2;
+package com.haskov.bench.v2;
 
 import java.util.ArrayList;
 import java.util.Arrays;

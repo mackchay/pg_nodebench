@@ -1,8 +1,8 @@
-package bench.v2.strategy;
+package com.haskov.bench.v2.strategy;
 
-import bench.v2.DataContext;
-import bench.v2.Database;
-import bench.v2.strategy.Strategies.StrategyName;
+import com.haskov.bench.v2.DataContext;
+import com.haskov.bench.v2.Database;
+import com.haskov.bench.v2.strategy.Strategies.StrategyName;
 
 public class PinningStrategy implements IDistributionStrategy {
 	

@@ -1,4 +1,4 @@
-package bench.v2.strategy.shardman;
+package com.haskov.bench.v2.strategy.shardman;
 
 /**
  * @author Ivan Frolkov

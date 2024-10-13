@@ -1,6 +1,6 @@
-package bench.v2;
+package com.haskov.bench.v2;
 
-import bench.v2.strategy.Strategies.StrategyName;
+import com.haskov.bench.v2.strategy.Strategies;
 
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -30,5 +30,5 @@ public class Configuration {
 
 	public Integer volume;
 	public Phase runType;
-	public StrategyName strategy;
+	public Strategies.StrategyName strategy;
 }

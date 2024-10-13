@@ -1,8 +1,8 @@
-package bench.v2;
+package com.haskov.bench.v2;
 
-import bench.V2;
-import bench.v2.strategy.IDistributionStrategy;
-import bench.v2.strategy.Strategies;
+import com.haskov.bench.V2;
+import com.haskov.bench.v2.strategy.IDistributionStrategy;
+import com.haskov.bench.v2.strategy.Strategies;
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 import org.postgresql.ds.PGSimpleDataSource;

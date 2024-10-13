@@ -1,19 +1,12 @@
-package bench;
+package com.haskov.bench;
 
-import bench.v2.*;
-import bench.v2.Configuration.Phase;
-import bench.v2.Database.CallableStatement;
+import com.haskov.bench.v2.Configuration.Phase;
+import com.haskov.bench.v2.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.SQLException;
-import java.sql.Statement;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Objects;
-import java.util.Random;
+import java.sql.*;
+import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
@@ -68,7 +61,7 @@ public class V2 {
 		});
 	}
 	
-	public static <V> V sqlCustom(CallableStatement<V> custom) {
+	public static <V> V sqlCustom(Database.CallableStatement<V> custom) {
 		return db.execute(custom);
 	}
 	
@@ -473,7 +466,7 @@ public class V2 {
 			}
 		}
 		
-		CallableStatement<Boolean> checkStmt = (conn) -> {
+		Database.CallableStatement<Boolean> checkStmt = (conn) -> {
 			try(PreparedStatement pstmt = conn.prepareStatement(checkSQL);) {
 				return pstmt.execute();
 			}
@@ -504,6 +497,24 @@ public class V2 {
 	
 	public static void logResults(Results res) {
 		log.info("Test results: last 5 sec {} tps, overall {} tps, {} iterations", res.tpsLast5sec, res.tps, res.iterations);
+	}
+
+	public static Map<String, String> getColumnsAndTypes(String tableName) throws SQLException {
+		Map<String, String> columnsAndTypes = new HashMap<>();
+
+		// Get metadata from table
+		try (Connection conn = db.getDataSource().getConnection()) {
+			DatabaseMetaData metaData = conn.getMetaData();
+			try (ResultSet columns = metaData.getColumns(null, null, tableName, null)) {
+				while (columns.next()) {
+					String columnName = columns.getString("COLUMN_NAME");
+					String columnType = columns.getString("TYPE_NAME");
+					columnsAndTypes.put(columnName, columnType);
+				}
+			}
+		}
+
+		return columnsAndTypes;
 	}
 
 	public static void closeConnection() {

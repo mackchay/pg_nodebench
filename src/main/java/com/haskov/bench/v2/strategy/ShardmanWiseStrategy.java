@@ -1,9 +1,8 @@
-package bench.v2.strategy;
+package com.haskov.bench.v2.strategy;
 
-import bench.v2.DataContext;
-import bench.v2.Database;
-import bench.v2.strategy.Strategies.StrategyName;
-import bench.v2.strategy.shardman.Hash;
+import com.haskov.bench.v2.DataContext;
+import com.haskov.bench.v2.Database;
+import com.haskov.bench.v2.strategy.shardman.Hash;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -68,7 +67,7 @@ public class ShardmanWiseStrategy implements IDistributionStrategy {
 
 	@Override
 	public void init(Database db) {
-		noneStrategy = db.dataSourceStrategies.getStrategy(StrategyName.NONE);
+		noneStrategy = db.dataSourceStrategies.getStrategy(Strategies.StrategyName.NONE);
 		
 		for (int i = 0; i < db.ds.size(); i++) {
 			//log.info("DS#{}", i);
