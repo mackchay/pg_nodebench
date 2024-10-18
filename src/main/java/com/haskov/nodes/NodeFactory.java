@@ -8,10 +8,7 @@ public class NodeFactory {
     private static final Map<String, Class<? extends Node>> nodeMap = new HashMap<>();
 
     static {
-        nodeMap.put("select", SelectNode.class);
-        nodeMap.put("insert", InsertNode.class);
-        nodeMap.put("update", UpdateNode.class);
-        nodeMap.put("delete", DeleteNode.class);
+        nodeMap.put("SeqScan", SeqScan.class);
     }
 
     // Метод для создания узла

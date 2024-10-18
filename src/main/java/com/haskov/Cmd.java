@@ -68,10 +68,7 @@ public class Cmd {
 
         opt.addOption(Option.builder("n").hasArg().argName("node").
                 desc("node type in query").build());
-        opt.addOption((Option.builder("C").hasArg().
-                argName("Cardinality").desc("Cardinality for table data").build()));
-        opt.addOption(Option.builder("S").hasArg().argName("Selectivity").
-                desc("Selectivity of query").build());
+
 
         params = new Configuration();
         try {
@@ -93,8 +90,7 @@ public class Cmd {
             params.timeLimit = Long.parseLong(cmd.getOptionValue("l", "0")) * 1000L;
 
             params.node = cmd.getOptionValue("n");
-            params.selectivity = Integer.parseInt(cmd.getOptionValue("S"));
-            params.cardinality = Long.parseLong(cmd.getOptionValue("C"));
+            params.sizeOfTable = Long.parseLong(cmd.getOptionValue("S"));
 
 
         } catch (ParseException e) {

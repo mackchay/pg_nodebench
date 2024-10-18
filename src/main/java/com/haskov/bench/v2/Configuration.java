@@ -5,8 +5,8 @@ import com.haskov.bench.v2.strategy.Strategies;
 import java.util.concurrent.atomic.AtomicLong;
 
 public class Configuration {
-	
-	public enum Phase {
+
+    public enum Phase {
 		GENERATE,
 		EXECUTE
 	}
@@ -31,4 +31,5 @@ public class Configuration {
 	public Integer volume;
 	public Phase runType;
 	public Strategies.StrategyName strategy;
+	public Long sizeOfTable;
 }

@@ -7,7 +7,7 @@ import java.util.List;
 
 public class TableBuilder {
 
-    public List<String> prepareTables(Node node, Long cardinality, Integer selectivity) {
+    public List<String> prepareTables() {
 
         return new ArrayList<>();
     }
