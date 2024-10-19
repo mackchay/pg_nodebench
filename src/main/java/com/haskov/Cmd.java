@@ -17,6 +17,7 @@ public class Cmd {
     private static final String DEF_VOLUME = "10";
     private static final String DEF_RUNTYPE = Configuration.Phase.EXECUTE.toString();
     private static final String DEF_STRATEGY = "none";
+    private static final String DEF_TABLE_SIZE = "1000";
 
     public static Configuration args(String[] args) {
         Options opt = new Options();
@@ -90,7 +91,7 @@ public class Cmd {
             params.timeLimit = Long.parseLong(cmd.getOptionValue("l", "0")) * 1000L;
 
             params.node = cmd.getOptionValue("n");
-            params.sizeOfTable = Long.parseLong(cmd.getOptionValue("S"));
+            params.sizeOfTable = Long.parseLong(cmd.getOptionValue("S", DEF_TABLE_SIZE));
 
 
         } catch (ParseException e) {

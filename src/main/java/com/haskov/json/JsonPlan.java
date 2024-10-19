@@ -13,7 +13,7 @@ public class JsonPlan {
         this.json = json;
     }
 
-    public String getPlanElement() {
+    public String getNodeType() {
         return nodeType;
     }
 
