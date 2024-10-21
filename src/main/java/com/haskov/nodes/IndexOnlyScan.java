@@ -9,6 +9,7 @@ import java.util.*;
 
 public class IndexOnlyScan implements Node{
 
+
     //TODO make dependency of selectivity.
     @Override
     public String buildQuery(List<String> tables) {
