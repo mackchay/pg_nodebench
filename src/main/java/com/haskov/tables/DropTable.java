@@ -8,7 +8,7 @@ public class DropTable {
 
     public static void dropTable(String... tableNames) {
         for (String table : tableNames) {
-            V2.sql("DROP TABLE IF EXISTS " + tableNames);
+            V2.sql("DROP TABLE IF EXISTS " + table);
         }
     }
 }

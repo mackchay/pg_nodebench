@@ -3,6 +3,7 @@ package com.haskov;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Random;
 
 public class QueryBuilder {
 
@@ -11,6 +12,7 @@ public class QueryBuilder {
     private List<String> whereConditions = new ArrayList<>();
     private List<String> orderByColumns = new ArrayList<>();
     private Integer limitValue;
+    private final Random random = new Random();
 
     // Метод для указания таблицы
     public QueryBuilder from(String table) {
@@ -24,10 +26,59 @@ public class QueryBuilder {
         return this;
     }
 
+    // Метод для указания столбцов в SELECT
+    public QueryBuilder select(List<String> columns) {
+        this.selectColumns.addAll(columns);
+        return this;
+    }
+
     // Метод для добавления условий WHERE
     public QueryBuilder where(String condition) {
         this.whereConditions.add(condition);
         return this;
+    }
+
+    //TODO make an operators =, <, >
+    public QueryBuilder randomWhere(String table, String column, String type) {
+        StringBuilder whereClause = new StringBuilder();
+        whereClause.append(table).append(".").append(column).append(" ");
+        this.whereConditions.add(randomWhereTypes(whereClause, type));
+        return this;
+    }
+
+    private String randomWhereTypes(StringBuilder whereClause, String type) {
+        switch (type.toLowerCase()) {
+            case "int4":
+            case "integer":
+            case "int":
+                whereClause.append("= ").append(random.nextInt(Integer.MIN_VALUE, Integer.MAX_VALUE));
+                break;
+
+            case "varchar":
+            case "text":
+                whereClause.append("LIKE '%").append(getRandomString(random.nextInt(1, 50))).append("%'");
+                break;
+
+            case "bool":
+            case "boolean":
+                whereClause.append("= ").append(random.nextBoolean());
+                break;
+
+            default:
+                whereClause.append("IS NOT NULL");
+        }
+
+        return whereClause.toString();
+    }
+
+    // Генератор случайной строки
+    private String getRandomString(int length) {
+        String characters = "abcdefghijklmnopqrstuvwxyz";
+        StringBuilder result = new StringBuilder(length);
+        for (int i = 0; i < length; i++) {
+            result.append(characters.charAt(random.nextInt(characters.length())));
+        }
+        return result.toString();
     }
 
     // Метод для указания сортировки ORDER BY

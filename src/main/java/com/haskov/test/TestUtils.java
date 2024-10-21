@@ -16,17 +16,19 @@ public class TestUtils {
     private final static Logger logger = LoggerFactory.getLogger(TestUtils.class);
 
     public static void testQuery(String query, Object... binds) {
+        logger.info("Testing query: {}", query);
         Results parallelState = parallel((state) -> sql(query, binds));
     }
 
     //Test queries for node types.
     public static void testQueriesOnNode(String[] queries, String expectedNodeType) {
+        expectedNodeType = String.join(" ", expectedNodeType.split("(?=[A-Z])"));
         for (String query : queries) {
             explain(logger, query);
             JsonObject resultsJson = explainResultsJson(query);
             JsonPlan jsonPlan = findNode(resultsJson, expectedNodeType);
             if (jsonPlan == null) {
-                throw new RuntimeException("Could not find expected node " + expectedNodeType);
+                throw new RuntimeException("Query: " + query + ". Could not find expected node " + expectedNodeType);
             }
             TestUtils.testQuery(query);
         }
@@ -35,12 +37,13 @@ public class TestUtils {
     //Test queries for node type and parameters
     public static void testQueriesOnNode(String[] queries, String expectedNodeType,
                                          String nodeParameter, String expectedNodeParameterData) {
+        expectedNodeType = String.join(" ", expectedNodeType.split("(?=[A-Z])"));
         for (String query : queries) {
             explain(logger, query);
             JsonObject resultsJson = explainResultsJson(query);
             JsonPlan jsonPlan = findNode(resultsJson, expectedNodeType, nodeParameter, expectedNodeParameterData);
             if (jsonPlan == null) {
-                throw new RuntimeException("Could not find expected node: " + expectedNodeType +
+                throw new RuntimeException("Query: " + query + ". Could not find expected node: " + expectedNodeType +
                         " , expected node parameter " + nodeParameter + " and expected node parameter data "
                         + expectedNodeParameterData);
             }

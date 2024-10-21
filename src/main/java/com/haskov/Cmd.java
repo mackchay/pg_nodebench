@@ -69,7 +69,8 @@ public class Cmd {
 
         opt.addOption(Option.builder("n").hasArg().argName("node").
                 desc("node type in query").build());
-
+        opt.addOption(Option.builder("S").hasArg().argName("tableSize").
+                desc("Size of tables. Default 1000").build());
 
         params = new Configuration();
         try {

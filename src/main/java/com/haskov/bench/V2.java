@@ -499,7 +499,7 @@ public class V2 {
 		log.info("Test results: last 5 sec {} tps, overall {} tps, {} iterations", res.tpsLast5sec, res.tps, res.iterations);
 	}
 
-	public static Map<String, String> getColumnsAndTypes(String tableName) throws SQLException {
+	public static Map<String, String> getColumnsAndTypes(String tableName) {
 		Map<String, String> columnsAndTypes = new HashMap<>();
 
 		// Get metadata from table
@@ -512,6 +512,9 @@ public class V2 {
 					columnsAndTypes.put(columnName, columnType);
 				}
 			}
+		} catch (Exception e) {
+			log.error("Some error", e);
+			throw new RuntimeException("Exception occured during error handling...", e);
 		}
 
 		return columnsAndTypes;
