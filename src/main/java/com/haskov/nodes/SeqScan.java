@@ -37,7 +37,7 @@ public class SeqScan implements Node{
         V2.sql("create table " + tableName + " ( x integer)");
         V2.sql("insert into " + tableName + " (x) select generate_series(1, ?)",
                 tableSize);
-        V2.sql("analyze " + tableName);
+        V2.sql("vacuum freeze analyze " + tableName);
         return List.of(tableName);
     }
 }

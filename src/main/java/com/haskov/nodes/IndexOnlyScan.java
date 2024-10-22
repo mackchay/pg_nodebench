@@ -28,7 +28,19 @@ public class IndexOnlyScan implements Node{
             for (int j = 0; j < columnsCount; j++) {
                 String column = columnsAndTypes.keySet().iterator().next();
                 qb.select(tables.get(i) + "." + column);
-                qb.randomWhere(tables.get(i), column, columnsAndTypes.get(column));
+                //qb.randomWhere(tables.get(i), column, columnsAndTypes.get(column));
+                long min = Long.parseLong(SQLUtils.getMin(tables.get(i), column));
+                long max = Long.parseLong(SQLUtils.getMax(tables.get(i), column));
+
+                Long maxTuples = SQLUtils.calculateIndexScanMaxTuples(tables.get(i), column);
+                if (maxTuples <= 0) {
+                    continue;
+                }
+                Long tuples = random.nextLong(0, maxTuples);
+                Long radius = random.nextLong(min, max);
+                qb.where(tables.get(i) + "." + column + ">" + radius).
+                        where(tables.get(i) + "." + column + "<" + (radius + tuples));
+
             }
             for (String column : columnsAndTypes.keySet()) {
                 if (random.nextBoolean() || columnsCount == 0) {
@@ -48,7 +60,7 @@ public class IndexOnlyScan implements Node{
         V2.sql("insert into " + tableName + " (x) select generate_series(1, ?)",
                 tableSize);
         V2.sql("create index if not exists pg_indexscan_idx on " + tableName + " (x)");
-        V2.sql("analyze " + tableName);
+        V2.sql("vacuum freeze analyze " + tableName);
         return List.of(tableName);
     }
 }

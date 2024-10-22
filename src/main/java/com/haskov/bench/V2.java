@@ -75,16 +75,29 @@ public class V2 {
 	}
 	
 	@SuppressWarnings("unchecked")
-	public static <E> List<E> select(String sql, Object... binds) {
+	public static <E> List<E> selectColumn(String sql, Object... binds) {
 		return db.list((rs) -> {return (E) rs.getObject(1);}, sql, binds);
+	}
+
+	public static List<List<String>> select(String sql, Object... binds) {
+		return db.list(rs -> {
+			int columnCount = rs.getMetaData().getColumnCount();
+			List<String> row = new ArrayList<>(columnCount);
+
+			for (int i = 1; i <= columnCount; i++) {
+				row.add(rs.getObject(i).toString());
+			}
+
+			return row;
+		}, sql, binds);
 	}
 	
 	public static List<String> explainResults(String sql, Object... binds) {
-		return select("explain (analyze, verbose, buffers, costs off) " + sql, binds);
+		return selectColumn("explain (analyze, verbose, buffers, costs off) " + sql, binds);
 	}
 
 	public static void explain(Logger log, String sql, Object... binds) {
-		List<String> lines = select("explain (analyze, verbose, buffers) " + sql, binds);
+		List<String> lines = selectColumn("explain (analyze, verbose, buffers) " + sql, binds);
 		if (log != null)
 			log.info("Actual plan \n{}\n{}\n{}", lineSep, String.join("\n", lines), lineSep);
 	}
