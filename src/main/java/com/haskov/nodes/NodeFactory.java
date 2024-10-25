@@ -9,7 +9,7 @@ public class NodeFactory {
 
     static {
         nodeMap.put("SeqScan", SeqScan.class);
-        //nodeMap.put("IndexScan", IndexScan.class);
+        nodeMap.put("IndexScan", IndexScan.class);
         nodeMap.put("IndexOnlyScan", IndexOnlyScan.class);
     }
 
