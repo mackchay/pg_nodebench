@@ -9,23 +9,6 @@ import java.util.*;
 
 public class IndexScan implements Node {
 
-
-    private void addRandomWhereCondition(QueryBuilder qb, String table, String column) {
-        Random random = new Random();
-        qb.select(table + "." + column);
-        long min = Long.parseLong(SQLUtils.getMin(table, column));
-        long max = Long.parseLong(SQLUtils.getMax(table, column));
-
-        Long maxTuples = SQLUtils.calculateIndexScanMaxTuples(table, column);
-        if (maxTuples <= 0) {
-            return;
-        }
-        Long tuples = random.nextLong(0, maxTuples);
-        Long radius = random.nextLong(min, max);
-        qb.where(table+ "." + column + ">" + radius).
-                where(table + "." + column + "<" + (radius + tuples));
-    }
-
     //TODO fix IndexScan
     @Override
     public String buildQuery(List<String> tables) {
@@ -34,37 +17,56 @@ public class IndexScan implements Node {
         int tableCount = random.nextInt(tables.size()) + 1;
         Collections.shuffle(tables);
 
-        String indexedColumn = "", nonIndexedColumn = "";
+        List<String> indexedColumns = new ArrayList<>();
+        List<String> nonIndexedColumns = new ArrayList<>();
         for (int i = 0; i < tableCount; i++) {
             Map<String, String> columnsAndTypes = V2.getColumnsAndTypes(tables.get(i));
             Collections.shuffle(Arrays.asList(columnsAndTypes.keySet().toArray()));
             for (String column : columnsAndTypes.keySet()) {
                 if (SQLUtils.hasIndexOnColumn(tables.get(i), column)) {
-                    indexedColumn =  column;
+                    indexedColumns.add(column);
                 }
                 else {
-                    nonIndexedColumn = column;
+                    nonIndexedColumns.add(column);
                 }
             }
             qb.from(tables.get(i));
-            for (String column : columnsAndTypes.keySet()) {
-                if (random.nextBoolean()) {
-                    qb.orderBy(column);
-                }
+//            for (String column : columnsAndTypes.keySet()) {
+//                if (random.nextBoolean()) {
+//                    qb.orderBy(column);
+//                }
+//            }
+            int indexedColumnIndex = random.nextInt(indexedColumns.size());
+            int nonIndexedColumnIndex = random.nextInt(nonIndexedColumns.size());
+
+            //33% шанс вызвать addRandomWhere для обоих столбцов, и по 33 для каждого столбца по отедльности
+            boolean useIndexedWhere = random.nextBoolean();
+            boolean useBothWhere = random.nextDouble() < 0.33;
+
+            if (useBothWhere) {
+                qb.addRandomWhere(tables.get(i), indexedColumns.get(indexedColumnIndex), this.getClass().getSimpleName());
+                qb.addRandomWhere(tables.get(i), nonIndexedColumns.get(nonIndexedColumnIndex), this.getClass().getSimpleName());
+            } else if (useIndexedWhere) {
+                qb.addRandomWhere(tables.get(i), indexedColumns.get(indexedColumnIndex), this.getClass().getSimpleName());
+                qb.select(tables.get(i) + "." + nonIndexedColumns.get(nonIndexedColumnIndex));
+            } else {
+                qb.addRandomWhere(tables.get(i), nonIndexedColumns.get(nonIndexedColumnIndex), this.getClass().getSimpleName());
+                qb.select(tables.get(i) + "." + indexedColumns.get(indexedColumnIndex));
             }
 
-            columnsAndTypes.remove(indexedColumn);
-            columnsAndTypes.remove(nonIndexedColumn);
-            addRandomWhereCondition(qb, tables.get(i), indexedColumn);
-            addRandomWhereCondition(qb, tables.get(i), nonIndexedColumn);
+            columnsAndTypes.remove(indexedColumns.get(indexedColumnIndex));
+            columnsAndTypes.remove(nonIndexedColumns.get(nonIndexedColumnIndex));
 
             int columnsCount = random.nextInt(0, columnsAndTypes.size() + 1);
             Collections.shuffle(Arrays.asList(columnsAndTypes.keySet().toArray()));
 
-
+            Iterator<String> columnIterator = columnsAndTypes.keySet().iterator();
             for (int j = 0; j < columnsCount; j++) {
-                String column = columnsAndTypes.keySet().iterator().next();
-                addRandomWhereCondition(qb, tables.get(i), column);
+                if (!columnIterator.hasNext()) {
+                    columnIterator = columnsAndTypes.keySet().iterator();
+                }
+                String column = columnIterator.next();
+                qb.addRandomWhere(tables.get(i), column, this.getClass().getSimpleName());
             }
         }
 
@@ -75,9 +77,11 @@ public class IndexScan implements Node {
     public List<String> prepareTables(Long tableSize) {
         String tableName = "pg_indexscan";
         DropTable.dropTable(tableName);
-        V2.sql("create table " + tableName + " ( x integer, y integer )");
-        V2.sql("insert into " + tableName + " (x, y) select generate_series(1, ?), floor(random() * ?) + 1",
-                tableSize, tableSize);
+        V2.sql("create table " + tableName + " ( x integer, y integer, z integer, w integer)");
+        V2.sql("insert into " + tableName + " (x, y, z, w) select generate_series(1, ?), floor(random() * ?) + 1, " +
+                        "generate_series(1, ?), floor(random() * ?) + 1",
+                tableSize, tableSize, tableSize, tableSize);
+        V2.sql("create index if not exists pg_indexscan_idz on " + tableName + " (z)");
         V2.sql("create index if not exists pg_indexscan_idx on " + tableName + " (x)");
         V2.sql("vacuum freeze analyze " + tableName);
         return List.of(tableName);

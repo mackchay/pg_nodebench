@@ -1,5 +1,7 @@
 package com.haskov;
 
+import com.haskov.utils.SQLUtils;
+
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -44,6 +46,42 @@ public class QueryBuilder {
         whereClause.append(table).append(".").append(column).append(" ");
         this.whereConditions.add(randomWhereTypes(whereClause, type));
         return this;
+    }
+
+    public QueryBuilder addRandomWhere(String table, String column, String nodeType) {
+        switch (nodeType) {
+            case "IndexOnlyScan":
+            case "IndexOnly":
+                return addRandomWhereConditionForIndexScan(table, column);
+            default:
+                return addRandomWhereCondition(table, column);
+        }
+    }
+
+    private QueryBuilder addRandomWhereCondition(String table, String column) {
+        this.select(table + "." + column);
+        long min = Long.parseLong(SQLUtils.getMin(table, column));
+        long max = Long.parseLong(SQLUtils.getMax(table, column));
+        Long maxTuples = SQLUtils.getTableSize(tableName);
+        Long tuples = random.nextLong(0, maxTuples);
+        Long radius = random.nextLong(min, max);
+        return this.where(table+ "." + column + ">" + radius).
+                where(table + "." + column + "<" + (radius + tuples));
+    }
+
+    private QueryBuilder addRandomWhereConditionForIndexScan(String table, String column) {
+        this.select(table + "." + column);
+        long min = Long.parseLong(SQLUtils.getMin(table, column));
+        long max = Long.parseLong(SQLUtils.getMax(table, column));
+
+        Long maxTuples = SQLUtils.calculateIndexScanMaxTuples(table, column);
+        if (maxTuples <= 0) {
+            return this;
+        }
+        Long tuples = random.nextLong(0, maxTuples);
+        Long radius = random.nextLong(min, max);
+        return this.where(table+ "." + column + ">" + radius).
+                where(table + "." + column + "<" + (radius + tuples));
     }
 
     private String randomWhereTypes(StringBuilder whereClause, String type) {

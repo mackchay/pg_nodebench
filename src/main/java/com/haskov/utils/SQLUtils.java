@@ -4,8 +4,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import static com.haskov.bench.V2.select;
-import static com.haskov.bench.V2.selectColumn;
+import static com.haskov.bench.V2.*;
 
 public class SQLUtils {
 
@@ -128,5 +127,10 @@ public class SQLUtils {
         String query = "select min(" + tableName + "." + columnName + ") from " + tableName;
         List<Object> result = selectColumn(query);
         return result.getFirst().toString();
+    }
+
+    public static Long getTableSize(String tableName) {
+        String query = "SELECT COUNT(*) AS row_count FROM " + tableName;
+        return selectOne(query);
     }
 }

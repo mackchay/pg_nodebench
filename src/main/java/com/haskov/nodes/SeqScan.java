@@ -23,7 +23,11 @@ public class SeqScan implements Node{
             Collections.shuffle(columns);
             qb.from(tables.get(i));
             for (int j = 0; j < columnsCount; j++) {
-                qb.select(tables.get(i) + "." + columns.get(j));
+                if (random.nextBoolean()) {
+                    qb.addRandomWhere(tables.get(i), columns.get(j), this.getClass().getSimpleName());
+                } else {
+                    qb.select(tables.get(i) + "." + columns.get(j));
+                }
             }
         }
 
@@ -34,8 +38,9 @@ public class SeqScan implements Node{
     public List<String> prepareTables(Long tableSize) {
         String tableName = "pg_seqscan";
         DropTable.dropTable(tableName);
-        V2.sql("create table " + tableName + " ( x integer)");
-        V2.sql("insert into " + tableName + " (x) select generate_series(1, ?)",
+        V2.sql("create table " + tableName + " ( x integer, y integer, z integer)");
+        V2.sql("insert into " + tableName + " (x, y, z) select generate_series(1, ?), generate_series(1, ?)," +
+                        " generate_series(1, ?)",
                 tableSize);
         V2.sql("vacuum freeze analyze " + tableName);
         return List.of(tableName);
