@@ -4,11 +4,15 @@ import com.haskov.QueryBuilder;
 import com.haskov.bench.V2;
 import com.haskov.tables.DropTable;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Random;
 
 import static com.haskov.bench.V2.getColumnsAndTypes;
+import static com.haskov.bench.V2.sql;
 
-public class SeqScan implements Node{
+public class BitmapScan implements Node{
 
     @Override
     public String buildQuery(List<String> tables) {
@@ -23,11 +27,7 @@ public class SeqScan implements Node{
             Collections.shuffle(columns);
             qb.from(tables.get(i));
             for (int j = 0; j < columnsCount; j++) {
-                if (random.nextBoolean()) {
-                    qb.addRandomWhere(tables.get(i), columns.get(j), this.getClass().getSimpleName());
-                } else {
-                    qb.select(tables.get(i) + "." + columns.get(j));
-                }
+                qb.addRandomWhere(tables.get(i), columns.get(j), this.getClass().getSimpleName());
             }
         }
 
@@ -36,12 +36,20 @@ public class SeqScan implements Node{
 
     @Override
     public List<String> prepareTables(Long tableSize) {
-        String tableName = "pg_seqscan";
+        String tableName = "pg_bitmapscan";
         DropTable.dropTable(tableName);
-        V2.sql("create table " + tableName + " ( x integer, y integer, z integer)");
-        V2.sql("insert into " + tableName + " (x, y, z) select generate_series(1, ?), generate_series(1, ?)," +
-                        " generate_series(1, ?)",
-                tableSize, tableSize, tableSize);
+        sql("create table " + tableName + " (x integer, y integer)");
+        sql("insert into " + tableName + " (x) select generate_series(1, ?)"
+                , tableSize);
+        sql("CREATE TEMP TABLE temp_random_numbers AS " +
+                "SELECT generate_series(1, ?) AS num " +
+                "ORDER BY RANDOM()", tableSize);
+        sql("UPDATE " + tableName +
+                " SET y = temp.num " +
+                "FROM temp_random_numbers AS temp " +
+                "WHERE " + tableName + ".x = temp.num");
+        
+        sql("create index if not exists pg_bitmapscan_idx on " + tableName + "(x, y)");
         V2.sql("vacuum freeze analyze " + tableName);
         return List.of(tableName);
     }

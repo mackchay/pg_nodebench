@@ -19,6 +19,7 @@ public class IndexOnlyScan implements Node{
         for (int i = 0; i < tableCount; i++) {
             Map<String, String> columnsAndTypes = V2.getColumnsAndTypes(tables.get(i));
             int columnsCount = random.nextInt(columnsAndTypes.size()) + 1;
+            qb.setConditionCount(columnsCount * 2);
             Collections.shuffle(Arrays.asList(columnsAndTypes.keySet().toArray()));
             qb.from(tables.get(i));
             
@@ -43,12 +44,12 @@ public class IndexOnlyScan implements Node{
 
     @Override
     public List<String> prepareTables(Long tableSize) {
-        String tableName = "pg_indexscan";
+        String tableName = "pg_indexonlyscan";
         DropTable.dropTable(tableName);
         V2.sql("create table " + tableName + " ( x integer, y integer)");
         V2.sql("insert into " + tableName + " (x, y) select generate_series(1, ?), generate_series(1, ?)",
                 tableSize, tableSize);
-        V2.sql("create index if not exists pg_indexscan_idx on " + tableName + " (x, y)");
+        V2.sql("create index if not exists pg_indexonlyscan_idx on " + tableName + " (x, y)");
         V2.sql("vacuum freeze analyze " + tableName);
         return List.of(tableName);
     }

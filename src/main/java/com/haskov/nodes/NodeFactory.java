@@ -11,6 +11,7 @@ public class NodeFactory {
         nodeMap.put("SeqScan", SeqScan.class);
         nodeMap.put("IndexScan", IndexScan.class);
         nodeMap.put("IndexOnlyScan", IndexOnlyScan.class);
+        nodeMap.put("BitmapScan", BitmapScan.class);
     }
 
     // Метод для создания узла

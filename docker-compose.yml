@@ -1,0 +1,17 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:17
+    container_name: my_postgres
+    environment:
+      POSTGRES_USER: postgres         # Имя пользователя
+      POSTGRES_PASSWORD: postgres   # Пароль пользователя
+      POSTGRES_DB: postgres         # Имя базы данных
+    ports:
+      - "5432:5432"                   # Пробрасываем порт для подключения
+    volumes:
+      - postgres_data:/var/lib/postgresql/data  # Сохранение данных
+
+volumes:
+  postgres_data:

@@ -1,6 +1,8 @@
 package com.haskov;
 
 import com.haskov.utils.SQLUtils;
+import lombok.Getter;
+import lombok.Setter;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -15,6 +17,10 @@ public class QueryBuilder {
     private List<String> orderByColumns = new ArrayList<>();
     private Integer limitValue;
     private final Random random = new Random();
+
+
+    @Setter
+    private int conditionCount = 0;
 
     // Метод для указания таблицы
     public QueryBuilder from(String table) {
@@ -51,8 +57,11 @@ public class QueryBuilder {
     public QueryBuilder addRandomWhere(String table, String column, String nodeType) {
         switch (nodeType) {
             case "IndexOnlyScan":
-            case "IndexOnly":
+                return addRandomWhereConditionForIndexOnlyScan(table, column);
+            case "IndexScan":
                 return addRandomWhereConditionForIndexScan(table, column);
+            case "BitmapScan":
+                return addRandomWhereConditionForBitmapScan(table, column);
             default:
                 return addRandomWhereCondition(table, column);
         }
@@ -62,7 +71,7 @@ public class QueryBuilder {
         this.select(table + "." + column);
         long min = Long.parseLong(SQLUtils.getMin(table, column));
         long max = Long.parseLong(SQLUtils.getMax(table, column));
-        Long maxTuples = SQLUtils.getTableSize(tableName);
+        Long maxTuples = SQLUtils.getTableRowCount(tableName);
         Long tuples = random.nextLong(0, maxTuples);
         Long radius = random.nextLong(min, max);
         return this.where(table+ "." + column + ">" + radius).
@@ -74,14 +83,44 @@ public class QueryBuilder {
         long min = Long.parseLong(SQLUtils.getMin(table, column));
         long max = Long.parseLong(SQLUtils.getMax(table, column));
 
-        Long maxTuples = SQLUtils.calculateIndexScanMaxTuples(table, column);
+        long maxTuples = SQLUtils.calculateIndexScanMaxTuples(table, column, conditionCount);
         if (maxTuples <= 0) {
             return this;
         }
-        Long tuples = random.nextLong(0, maxTuples);
-        Long radius = random.nextLong(min, max);
-        return this.where(table+ "." + column + ">" + radius).
+        long tuples = random.nextLong(0, maxTuples);
+        long radius = maxTuples < max - min ? random.nextLong(min, max - tuples + 1) : 0;
+        return this.where(table + "." + column + ">" + radius).
                 where(table + "." + column + "<" + (radius + tuples));
+    }
+
+    private QueryBuilder addRandomWhereConditionForIndexOnlyScan(String table, String column) {
+        this.select(table + "." + column);
+        long min = Long.parseLong(SQLUtils.getMin(table, column));
+        long max = Long.parseLong(SQLUtils.getMax(table, column));
+
+        long maxTuples = SQLUtils.calculateIndexOnlyScanMaxTuples(table, column, conditionCount);
+        if (maxTuples <= 0) {
+            return this;
+        }
+        long tuples = random.nextLong(0, maxTuples);
+        long radius = random.nextLong(min, max - tuples);
+        return this.where(table + "." + column + ">" + radius).
+                where(table + "." + column + "<" + (radius + tuples));
+    }
+
+    private QueryBuilder addRandomWhereConditionForBitmapScan(String table, String column) {
+        this.select(table + "." + column);
+        long min = Long.parseLong(SQLUtils.getMin(table, column));
+        long max = Long.parseLong(SQLUtils.getMax(table, column));
+
+        long maxTuples = SQLUtils.calculateIndexOnlyScanMaxTuples(table, column, conditionCount);
+        if (maxTuples <= 0) {
+            return this;
+        }
+        long lowTuples = random.nextLong(0, maxTuples);
+        long highTuples = maxTuples - lowTuples;
+        return this.where(table+ "." + column + "<" + (min + lowTuples) +
+                " or " + table + "." + column + ">" + (max - highTuples));
     }
 
     private String randomWhereTypes(StringBuilder whereClause, String type) {
@@ -151,7 +190,7 @@ public class QueryBuilder {
 
         // WHERE part
         if (!whereConditions.isEmpty()) {
-            query.append(" WHERE ").append(String.join(" AND ", whereConditions));
+            query.append(" WHERE (").append(String.join(") AND (", whereConditions)).append(")");
         }
 
         // ORDER BY part
