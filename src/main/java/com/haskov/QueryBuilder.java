@@ -3,6 +3,7 @@ package com.haskov;
 import com.haskov.utils.SQLUtils;
 import lombok.Getter;
 import lombok.Setter;
+import org.apache.commons.lang3.tuple.Pair;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -113,14 +114,15 @@ public class QueryBuilder {
         long min = Long.parseLong(SQLUtils.getMin(table, column));
         long max = Long.parseLong(SQLUtils.getMax(table, column));
 
-        long maxTuples = SQLUtils.calculateIndexOnlyScanMaxTuples(table, column, conditionCount);
-        if (maxTuples <= 0) {
+        Pair<Long, Long> tuplesRange = SQLUtils.calculateBitmapScanTuplesRange(table, column, conditionCount);
+        assert tuplesRange != null;
+        if (Math.max(tuplesRange.getLeft(), tuplesRange.getRight()) <= 0) {
             return this;
         }
-        long lowTuples = random.nextLong(0, maxTuples);
-        long highTuples = maxTuples - lowTuples;
-        return this.where(table+ "." + column + "<" + (min + lowTuples) +
-                " or " + table + "." + column + ">" + (max - highTuples));
+        long tuples = random.nextLong(tuplesRange.getLeft(), tuplesRange.getRight());
+        long radius = random.nextLong(min, max - tuples);
+        return this.where(table + "." + column + ">" + radius).
+                where(table + "." + column + "<" + (radius + tuples));
     }
 
     private String randomWhereTypes(StringBuilder whereClause, String type) {

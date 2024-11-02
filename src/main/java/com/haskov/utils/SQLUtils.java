@@ -1,9 +1,11 @@
 package com.haskov.utils;
 
+import org.apache.commons.lang3.tuple.ImmutablePair;
+import org.apache.commons.lang3.tuple.Pair;
+
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 
 import static com.haskov.bench.V2.*;
 
@@ -119,24 +121,65 @@ public class SQLUtils {
                 0.01 * getTableRowCount(tableName));
     }
 
-    public static String findBTreeIndexOnColumn(String tableName, String columnName) {
+    public static double calculateBitmapScanCost(String tableName, String indexedColumn, int conditionCount) {
+        Map<String, String> costParameters = getCostParameters();
+        double randomPageCost = Double.parseDouble(costParameters.get("random_page_cost"));
+        double cpuIndexTupleCost = Double.parseDouble(costParameters.get("cpu_index_tuple_cost"));
+        double cpuOperatorCost = Double.parseDouble(costParameters.get("cpu_operator_cost"));
+        double idxScanCost = 0;
+
         String query = """
-            SELECT i.relname as index_name, a.attname as column_name, t.relname as table_name
-            FROM pg_class t
-            JOIN pg_index ix ON t.oid = ix.indrelid
-            JOIN pg_class i ON i.oid = ix.indexrelid
-            JOIN pg_attribute a ON a.attrelid = t.oid
-            JOIN pg_am am ON i.relam = am.oid
-            WHERE a.attnum = ANY(ix.indkey)
-            AND t.relname = ?
-            AND a.attname = ?
-            AND am.amname = 'btree'
+            SELECT relpages, reltuples
+            FROM pg_class
+            WHERE relname = ?
         """;
 
-        List<String> result = selectColumn(query, tableName, columnName);
-        if (!result.isEmpty()) {
-            return result.getFirst();
+        List<List<String>> resultIndex = select(query, getIndexOnColumn(tableName, indexedColumn));
+        if (!resultIndex.isEmpty()) {
+            double numPages = Double.parseDouble(resultIndex.getFirst().getFirst());
+            double numTuples = Double.parseDouble(resultIndex.getFirst().getLast());
+            idxScanCost = (randomPageCost * numPages) + (cpuIndexTupleCost * numTuples) +
+                    (cpuOperatorCost * conditionCount * numTuples);
         }
+
+        return idxScanCost;
+    }
+
+    public static Pair<Long, Long> calculateBitmapScanTuplesRange(String tableName, String indexedColumn, int conditionCount) {
+        Map<String, String> costParameters = getCostParameters();
+        double cpuTupleCost = Double.parseDouble(costParameters.get("cpu_tuple_cost"));
+        double seqPageCost = Double.parseDouble(costParameters.get("seq_page_cost"));
+        double randomPageCost = Double.parseDouble(costParameters.get("random_page_cost"));
+        
+        double bitmapScanCost = 0, seqScanCost = 0;
+
+        String query = """
+            SELECT relpages, reltuples
+            FROM pg_class
+            WHERE relname = ?
+        """;
+
+        bitmapScanCost = calculateBitmapScanCost(tableName, indexedColumn, conditionCount);
+        seqScanCost = calculateSeqScanCost(tableName, conditionCount);
+
+        List<List<String>> resultTable = select(query, tableName);
+        if (!resultTable.isEmpty()) {
+            double numPages = Double.parseDouble(resultTable.getFirst().getFirst());
+            double numTuples = Double.parseDouble(resultTable.getFirst().getLast());
+
+            // HERE GOES MATH :)
+
+            double d = seqScanCost - bitmapScanCost;
+            double a = d * d * numTuples;
+            double b = d * d * 2 * numPages
+                    + 4 * numPages * numPages * numTuples * numTuples * randomPageCost * randomPageCost;
+            double c = (randomPageCost - seqPageCost) * (randomPageCost - seqPageCost) * 2 * numTuples
+                    + 4 * numPages * numTuples * randomPageCost;
+
+            Pair<Double, Double> res = MathUtils.getQuadraticRoots(a, b, c);
+            return new ImmutablePair<>((long) (res.getLeft() * numTuples), (long) (res.getRight() * numTuples));
+        }
+
         return null;
     }
 
@@ -224,5 +267,26 @@ public class SQLUtils {
                 FROM pg_class WHERE relname = ?
                 """;
         return selectOne(query, tableName);
+    }
+
+    public static String findBTreeIndexOnColumn(String tableName, String columnName) {
+        String query = """
+            SELECT i.relname as index_name, a.attname as column_name, t.relname as table_name
+            FROM pg_class t
+            JOIN pg_index ix ON t.oid = ix.indrelid
+            JOIN pg_class i ON i.oid = ix.indexrelid
+            JOIN pg_attribute a ON a.attrelid = t.oid
+            JOIN pg_am am ON i.relam = am.oid
+            WHERE a.attnum = ANY(ix.indkey)
+            AND t.relname = ?
+            AND a.attname = ?
+            AND am.amname = 'btree'
+        """;
+
+        List<String> result = selectColumn(query, tableName, columnName);
+        if (!result.isEmpty()) {
+            return result.getFirst();
+        }
+        return null;
     }
 }

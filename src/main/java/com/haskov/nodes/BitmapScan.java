@@ -12,7 +12,7 @@ import java.util.Random;
 import static com.haskov.bench.V2.getColumnsAndTypes;
 import static com.haskov.bench.V2.sql;
 
-public class BitmapScan implements Node{
+public class BitmapScan implements Node {
 
     @Override
     public String buildQuery(List<String> tables) {
@@ -41,13 +41,14 @@ public class BitmapScan implements Node{
         sql("create table " + tableName + " (x integer, y integer)");
         sql("insert into " + tableName + " (x) select generate_series(1, ?)"
                 , tableSize);
+        sql("alter table " + tableName + " add column y " + tableName + "int4 default random() * ?", tableSize);
         sql("CREATE TEMP TABLE temp_random_numbers AS " +
                 "SELECT generate_series(1, ?) AS num " +
                 "ORDER BY RANDOM()", tableSize);
         sql("UPDATE " + tableName +
                 " SET y = temp.num " +
                 "FROM temp_random_numbers AS temp " +
-                "WHERE " + tableName + ".x = temp.num");
+                "WHERE " + tableName + ".x = ? - temp.num + 1", tableSize);
         
         sql("create index if not exists pg_bitmapscan_idx on " + tableName + "(x, y)");
         V2.sql("vacuum freeze analyze " + tableName);
