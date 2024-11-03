@@ -177,11 +177,10 @@ public class SQLUtils {
                     v;
             long formula = (long) (2 * numPages * numTuples * maxSel / (2 * numPages + numTuples * maxSel));
             long minNumPages = (long) Math.min(formula, numPages);
-            double minSel = (indexScanCost - seqPageCost * numPages) /
-                    v;
+            double minSel = v / (indexScanCost - seqPageCost * numPages);
 
 
-            return new ImmutablePair<>((long)(minSel * numTuples), (long)(maxSel * numTuples));
+            return new ImmutablePair<>((long)(minSel * numTuples * maxSel), (long)(maxSel * numTuples));
 //            Pair<Double, Double> res = MathUtils.getQuadraticRoots(a, b, c);
 //            return new ImmutablePair<>((long) (res.getLeft() * numTuples), (long) (res.getRight() * numTuples));
         }
