@@ -7,8 +7,7 @@ import java.util.List;
 
 public class TableBuilder {
 
-    public List<String> prepareTables() {
+    public static void buildRandomTable(String tableName, Integer columns, Long size, boolean isIndexReq) {
 
-        return new ArrayList<>();
     }
 }

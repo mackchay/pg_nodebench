@@ -117,11 +117,10 @@ public class SQLUtils {
     public static Long calculateIndexScanMaxTuples(String tableName, String columnName, int conditionCount) {
         double seqScanCost = calculateSeqScanCost(tableName, conditionCount);
         double indexScanCost = calculateIndexScanCost(tableName, columnName, conditionCount);
-        return (Long) (long) ((seqScanCost / indexScanCost) * getTableRowCount(tableName) -
-                0.01 * getTableRowCount(tableName));
+        return (Long) (long) ((seqScanCost / indexScanCost) * getTableRowCount(tableName));
     }
 
-    public static double calculateBitmapScanCost(String tableName, String indexedColumn, int conditionCount) {
+    public static double calculateBitmapIndexScanCost(String tableName, String indexedColumn, int conditionCount) {
         Map<String, String> costParameters = getCostParameters();
         double randomPageCost = Double.parseDouble(costParameters.get("random_page_cost"));
         double cpuIndexTupleCost = Double.parseDouble(costParameters.get("cpu_index_tuple_cost"));
@@ -145,13 +144,14 @@ public class SQLUtils {
         return idxScanCost;
     }
 
-    public static Pair<Long, Long> calculateBitmapScanTuplesRange(String tableName, String indexedColumn, int conditionCount) {
+    public static Pair<Long, Long> calculateBitmapIndexScanTuplesRange(String tableName, String indexedColumn, int conditionCount) {
         Map<String, String> costParameters = getCostParameters();
         double cpuTupleCost = Double.parseDouble(costParameters.get("cpu_tuple_cost"));
         double seqPageCost = Double.parseDouble(costParameters.get("seq_page_cost"));
         double randomPageCost = Double.parseDouble(costParameters.get("random_page_cost"));
+        double cpuOperatorCost = Double.parseDouble(costParameters.get("cpu_operator_cost"));
         
-        double bitmapScanCost = 0, seqScanCost = 0;
+        double bitmapScanCost = 0, seqScanCost = 0, indexScanCost = 0;
 
         String query = """
             SELECT relpages, reltuples
@@ -159,8 +159,9 @@ public class SQLUtils {
             WHERE relname = ?
         """;
 
-        bitmapScanCost = calculateBitmapScanCost(tableName, indexedColumn, conditionCount);
+        bitmapScanCost = calculateBitmapIndexScanCost(tableName, indexedColumn, conditionCount);
         seqScanCost = calculateSeqScanCost(tableName, conditionCount);
+        indexScanCost = calculateIndexScanCost(tableName, indexedColumn, conditionCount);
 
         List<List<String>> resultTable = select(query, tableName);
         if (!resultTable.isEmpty()) {
@@ -170,14 +171,19 @@ public class SQLUtils {
             // HERE GOES MATH :)
 
             double d = seqScanCost - bitmapScanCost;
-            double a = d * d * numTuples;
-            double b = d * d * 2 * numPages
-                    + 4 * numPages * numPages * numTuples * numTuples * randomPageCost * randomPageCost;
-            double c = (randomPageCost - seqPageCost) * (randomPageCost - seqPageCost) * 2 * numTuples
-                    + 4 * numPages * numTuples * randomPageCost;
+            double v = cpuTupleCost * numTuples + cpuOperatorCost * conditionCount * numTuples + bitmapScanCost +
+                    0.1 * conditionCount * cpuOperatorCost * numTuples;
+            double maxSel = (seqScanCost - seqPageCost * numPages) /
+                    v;
+            long formula = (long) (2 * numPages * numTuples * maxSel / (2 * numPages + numTuples * maxSel));
+            long minNumPages = (long) Math.min(formula, numPages);
+            double minSel = (indexScanCost - seqPageCost * numPages) /
+                    v;
 
-            Pair<Double, Double> res = MathUtils.getQuadraticRoots(a, b, c);
-            return new ImmutablePair<>((long) (res.getLeft() * numTuples), (long) (res.getRight() * numTuples));
+
+            return new ImmutablePair<>((long)(minSel * numTuples), (long)(maxSel * numTuples));
+//            Pair<Double, Double> res = MathUtils.getQuadraticRoots(a, b, c);
+//            return new ImmutablePair<>((long) (res.getLeft() * numTuples), (long) (res.getRight() * numTuples));
         }
 
         return null;

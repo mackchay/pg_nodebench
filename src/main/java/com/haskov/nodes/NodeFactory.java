@@ -2,7 +2,6 @@ package com.haskov.nodes;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Scanner;
 
 public class NodeFactory {
     private static final Map<String, Class<? extends Node>> nodeMap = new HashMap<>();
@@ -11,7 +10,7 @@ public class NodeFactory {
         nodeMap.put("SeqScan", SeqScan.class);
         nodeMap.put("IndexScan", IndexScan.class);
         nodeMap.put("IndexOnlyScan", IndexOnlyScan.class);
-        nodeMap.put("BitmapScan", BitmapScan.class);
+        nodeMap.put("BitmapIndexScan", BitmapIndexScan.class);
     }
 
     // Метод для создания узла

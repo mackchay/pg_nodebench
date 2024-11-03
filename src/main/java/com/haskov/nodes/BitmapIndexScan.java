@@ -7,9 +7,10 @@ import com.haskov.utils.SQLUtils;
 
 import java.util.*;
 
-public class IndexScan implements Node {
+import static com.haskov.bench.V2.sql;
 
-    //TODO fix IndexScan
+public class BitmapIndexScan implements Node {
+
     @Override
     public String buildQuery(List<String> tables) {
         QueryBuilder qb = new QueryBuilder();
@@ -45,7 +46,7 @@ public class IndexScan implements Node {
                 qb.addRandomWhere(tables.get(i), indexedColumns.get(j), this.getClass().getSimpleName());
             }
             for (int j = 0; j < nonIndexedColumnIndex; j++) {
-                qb.addRandomWhere(tables.get(i), nonIndexedColumns.get(j), this.getClass().getSimpleName());
+                qb.addRandomWhere(tables.get(i), nonIndexedColumns.get(j));
             }
         }
 
@@ -54,14 +55,27 @@ public class IndexScan implements Node {
 
     @Override
     public List<String> prepareTables(Long tableSize) {
-        String tableName = "pg_indexscan";
+        String tableName = "pg_bitmapscan";
         DropTable.dropTable(tableName);
-        V2.sql("create table " + tableName + " ( x integer, y integer, z integer, w integer)");
-        V2.sql("insert into " + tableName + " (x, y, z, w) select generate_series(1, ?), generate_series(1, ?), " +
-                        "generate_series(1, ?), generate_series(1, ?)",
-                tableSize, tableSize, tableSize, tableSize);
-        V2.sql("create index if not exists pg_indexscan_idz on " + tableName + " (z)");
-        V2.sql("create index if not exists pg_indexscan_idx on " + tableName + " (x)");
+        List<Long> list1 = new ArrayList<>();
+        for (long i = 1; i <= tableSize; i++) {
+            list1.add(i);
+        }
+        Collections.shuffle(list1);
+
+        sql("create table " + tableName + " (x integer, y integer, z integer)");
+
+        StringBuilder query = new StringBuilder("insert into " + tableName + "(x, y, z) values ");
+        for (int i = 0; i < list1.size(); i++) {
+            query.append("(").append(list1.get(i)).append(",").append(list1.get(i)).append(",")
+                    .append(list1.get(i)).append(")").append(",");
+        }
+        sql(query.delete(query.length() - 1, query.length()).toString());
+        
+        sql("create index if not exists pg_bitmapscan_idx on " + tableName + "(x)");
+//        sql("create index if not exists pg_bitmapscan_idy on " + tableName + "(y)");
+//        sql("create index if not exists pg_bitmapscan_idz on " + tableName + "(z)");
+
         V2.sql("vacuum freeze analyze " + tableName);
         return List.of(tableName);
     }
