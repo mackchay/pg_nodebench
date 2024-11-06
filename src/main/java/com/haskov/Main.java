@@ -7,6 +7,7 @@ import com.haskov.json.JsonPlan;
 import com.haskov.nodes.Node;
 import com.haskov.nodes.NodeFactory;
 import com.haskov.test.TestUtils;
+import com.haskov.utils.SQLUtils;
 
 import java.util.List;
 
@@ -20,6 +21,7 @@ public class Main {
         Node node = NodeFactory.createNode(conf.node);
         List<String> tableNames = node.prepareTables(conf.sizeOfTable);
         String query = node.buildQuery(tableNames);
+
         //TestUtils.testQueriesOnNode(new String[]{query}, conf.node);
         for (int i = 0; i < 2000; i++) {
             query = node.buildQuery(tableNames);

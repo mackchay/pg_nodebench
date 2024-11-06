@@ -8,7 +8,6 @@ import java.util.*;
 
 public class IndexOnlyScan implements Node{
 
-    //TODO make dependency of selectivity.
     @Override
     public String buildQuery(List<String> tables) {
         QueryBuilder qb = new QueryBuilder();
@@ -19,7 +18,7 @@ public class IndexOnlyScan implements Node{
         for (int i = 0; i < tableCount; i++) {
             Map<String, String> columnsAndTypes = V2.getColumnsAndTypes(tables.get(i));
             int columnsCount = random.nextInt(columnsAndTypes.size()) + 1;
-            qb.setConditionCount(columnsCount * 2);
+            qb.setIndexConditionCount(columnsCount * 2);
             Collections.shuffle(Arrays.asList(columnsAndTypes.keySet().toArray()));
             qb.from(tables.get(i));
             
@@ -32,11 +31,6 @@ public class IndexOnlyScan implements Node{
                 String column = columnIterator.next();
                 qb.addRandomWhere(tables.get(i), column, this.getClass().getSimpleName());
             }
-//            for (String column : columnsAndTypes.keySet()) {
-//                if (random.nextBoolean() || columnsCount == 0) {
-//                    qb.orderBy(column);
-//                }
-//            }
         }
 
         return qb.build();

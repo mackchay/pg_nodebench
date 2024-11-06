@@ -9,6 +9,8 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Random;
 
+import static com.haskov.costs.ScanCostCalculator.*;
+
 public class QueryBuilder {
 
     private String tableName;
@@ -18,6 +20,9 @@ public class QueryBuilder {
     private Integer limitValue;
     private final Random random = new Random();
 
+
+    @Setter
+    private int indexConditionCount = 0;
 
     @Setter
     private int conditionCount = 0;
@@ -83,8 +88,9 @@ public class QueryBuilder {
         long min = Long.parseLong(SQLUtils.getMin(table, column));
         long max = Long.parseLong(SQLUtils.getMax(table, column));
 
-        long maxTuples = SQLUtils.calculateIndexScanMaxTuples(table, column, conditionCount);
-        if (maxTuples <= 0) {
+        long maxTuples = calculateIndexScanMaxTuples(table, column,
+                indexConditionCount, conditionCount);
+        if (maxTuples < 1) {
             return;
         }
         long tuples = random.nextLong(0, maxTuples);
@@ -98,8 +104,9 @@ public class QueryBuilder {
         long min = Long.parseLong(SQLUtils.getMin(table, column));
         long max = Long.parseLong(SQLUtils.getMax(table, column));
 
-        long maxTuples = SQLUtils.calculateIndexOnlyScanMaxTuples(table, column, conditionCount);
-        if (maxTuples <= 0) {
+        long maxTuples = calculateIndexOnlyScanMaxTuples(table, column,
+                indexConditionCount, conditionCount);
+        if (maxTuples < 1) {
             return;
         }
         long tuples = random.nextLong(0, maxTuples);
@@ -113,9 +120,9 @@ public class QueryBuilder {
         long min = Long.parseLong(SQLUtils.getMin(table, column));
         long max = Long.parseLong(SQLUtils.getMax(table, column));
 
-        Pair<Long, Long> tuplesRange = SQLUtils.calculateBitmapIndexScanTuplesRange(table, column, conditionCount);
-        assert tuplesRange != null;
-        if (Math.max(tuplesRange.getLeft(), tuplesRange.getRight()) <= 0) {
+        Pair<Long, Long> tuplesRange = calculateBitmapIndexScanTuplesRange(table, column,
+                indexConditionCount, conditionCount);
+        if (Math.max(tuplesRange.getLeft(), tuplesRange.getRight()) < 1) {
             return;
         }
         long tuples = random.nextLong(tuplesRange.getLeft(), tuplesRange.getRight());

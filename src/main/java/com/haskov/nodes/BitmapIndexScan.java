@@ -32,15 +32,12 @@ public class BitmapIndexScan implements Node {
                 }
             }
             qb.from(tables.get(i));
-//            for (String column : columnsAndTypes.keySet()) {
-//                if (random.nextBoolean()) {
-//                    qb.orderBy(column);
-//                }
-//            }
+
             int indexedColumnIndex = random.nextInt(indexedColumns.size()) + 1;
             int nonIndexedColumnIndex = random.nextInt(nonIndexedColumns.size()) + 1;
 
-            qb.setConditionCount((indexedColumnIndex)*2);
+            qb.setIndexConditionCount((indexedColumnIndex)*2);
+            qb.setConditionCount((nonIndexedColumnIndex)*2);
 
             for (int j = 0; j < indexedColumnIndex; j++) {
                 qb.addRandomWhere(tables.get(i), indexedColumns.get(j), this.getClass().getSimpleName());
@@ -73,8 +70,6 @@ public class BitmapIndexScan implements Node {
         sql(query.delete(query.length() - 1, query.length()).toString());
         
         sql("create index if not exists pg_bitmapscan_idx on " + tableName + "(x)");
-//        sql("create index if not exists pg_bitmapscan_idy on " + tableName + "(y)");
-//        sql("create index if not exists pg_bitmapscan_idz on " + tableName + "(z)");
 
         V2.sql("vacuum freeze analyze " + tableName);
         return List.of(tableName);

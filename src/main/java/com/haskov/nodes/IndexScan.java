@@ -31,21 +31,17 @@ public class IndexScan implements Node {
                 }
             }
             qb.from(tables.get(i));
-//            for (String column : columnsAndTypes.keySet()) {
-//                if (random.nextBoolean()) {
-//                    qb.orderBy(column);
-//                }
-//            }
             int indexedColumnIndex = random.nextInt(indexedColumns.size()) + 1;
             int nonIndexedColumnIndex = random.nextInt(nonIndexedColumns.size()) + 1;
 
-            qb.setConditionCount((indexedColumnIndex)*2);
+            qb.setIndexConditionCount((indexedColumnIndex)*2);
+            qb.setConditionCount((nonIndexedColumnIndex)*2);
 
             for (int j = 0; j < indexedColumnIndex; j++) {
                 qb.addRandomWhere(tables.get(i), indexedColumns.get(j), this.getClass().getSimpleName());
             }
             for (int j = 0; j < nonIndexedColumnIndex; j++) {
-                qb.addRandomWhere(tables.get(i), nonIndexedColumns.get(j), this.getClass().getSimpleName());
+                qb.addRandomWhere(tables.get(i), nonIndexedColumns.get(j));
             }
         }
 

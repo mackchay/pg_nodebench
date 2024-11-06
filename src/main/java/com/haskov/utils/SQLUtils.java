@@ -10,197 +10,24 @@ import java.util.Map;
 import static com.haskov.bench.V2.*;
 
 public class SQLUtils {
-
-    public static double calculateSeqScanCost(String tableName, int conditionCount) {
-        Map<String, String> costParameters = getCostParameters();
-        double pageCost = Double.parseDouble(costParameters.get("seq_page_cost"));
-        double cpuTupleCost = Double.parseDouble(costParameters.get("cpu_tuple_cost"));
-        double cpuOperatorCost = Double.parseDouble(costParameters.get("cpu_operator_cost"));
-
-        String query = """
-            SELECT relpages, reltuples
-            FROM pg_class
-            WHERE relname = ?
-        """;
-        List<List<String>> result = select(query, tableName);
-        if (!result.isEmpty()) {
-            double numPages = Double.parseDouble(result.getFirst().getFirst());
-            double numTuples = Double.parseDouble(result.getFirst().getLast());
-            return (pageCost * numPages) + (cpuTupleCost * numTuples) + (cpuOperatorCost * conditionCount * numTuples);
-        }
-        return 0;
-    }
-
-    public static double calculateIndexScanCost(String tableName, String indexedColumn, int conditionCount) {
-        Map<String, String> costParameters = getCostParameters();
-        double randomPageCost = Double.parseDouble(costParameters.get("random_page_cost"));
-        double cpuIndexTupleCost = Double.parseDouble(costParameters.get("cpu_index_tuple_cost"));
-        double cpuOperatorCost = Double.parseDouble(costParameters.get("cpu_operator_cost"));
-        double seqPageCost = Double.parseDouble(costParameters.get("seq_page_cost"));
-        double cpuTupleCost = Double.parseDouble(costParameters.get("cpu_tuple_cost"));
-        double idxCost = 0, tblCost = 0;
-
-        String query = """
-            SELECT relpages, reltuples
-            FROM pg_class
-            WHERE relname = ?
-        """;
-
-        List<List<String>> resultIndex = select(query, getIndexOnColumn(tableName, indexedColumn));
-        if (!resultIndex.isEmpty()) {
-            double numPages = Double.parseDouble(resultIndex.getFirst().getFirst());
-            double numTuples = Double.parseDouble(resultIndex.getFirst().getLast());
-            idxCost = (randomPageCost * numPages) + (cpuIndexTupleCost * numTuples) +
-                    (cpuOperatorCost * conditionCount * numTuples);
-        }
-
-        List<List<String>> resultTable = select(query, tableName);
-        if (!resultTable.isEmpty()) {
-            double numPages = Double.parseDouble(resultTable.getFirst().getFirst());
-            double numTuples = Double.parseDouble(resultTable.getFirst().getLast());
-            if (getCorrelation(tableName, indexedColumn) > 0.5) {
-                tblCost = (seqPageCost * numPages) + (cpuTupleCost * numTuples);
-            } else {
-                tblCost = (randomPageCost * numPages) + (cpuTupleCost * numTuples);
-            }
-        }
-
-        return idxCost + tblCost;
-    }
-
-    public static double calculateIndexOnlyScanCost(String tableName, String indexedColumn, int conditionCount) {
-        Map<String, String> costParameters = getCostParameters();
-        double randomPageCost = Double.parseDouble(costParameters.get("random_page_cost"));
-        double cpuIndexTupleCost = Double.parseDouble(costParameters.get("cpu_index_tuple_cost"));
-        double cpuOperatorCost = Double.parseDouble(costParameters.get("cpu_operator_cost"));
-        double seqPageCost = Double.parseDouble(costParameters.get("seq_page_cost"));
-        double cpuTupleCost = Double.parseDouble(costParameters.get("cpu_tuple_cost"));
-        double visiblePages = getVisiblePages(tableName);
-        double idxCost = 0, tblCost = 0;
-
-        String query = """
-            SELECT relpages, reltuples
-            FROM pg_class
-            WHERE relname = ?
-        """;
-
-        List<List<String>> resultIndex = select(query, getIndexOnColumn(tableName, indexedColumn));
-        if (!resultIndex.isEmpty()) {
-            double numPages = Double.parseDouble(resultIndex.getFirst().getFirst());
-            double numTuples = Double.parseDouble(resultIndex.getFirst().getLast());
-            idxCost = (randomPageCost * numPages) + (cpuIndexTupleCost * numTuples) +
-                    (cpuOperatorCost * conditionCount * numTuples);
-        }
-
-        List<List<String>> resultTable = select(query, tableName);
-        if (!resultTable.isEmpty()) {
-            double numPages = Double.parseDouble(resultTable.getFirst().getFirst());
-            double numTuples = Double.parseDouble(resultTable.getFirst().getLast());
-            double fracVisiblePages = visiblePages / numPages;
-            if (getCorrelation(tableName, indexedColumn) > 0.5) {
-                tblCost = (1 - fracVisiblePages) * (seqPageCost * numPages) + (cpuTupleCost * numTuples);
-            } else {
-                tblCost = (1 - fracVisiblePages) * (randomPageCost * numPages) + (cpuTupleCost * numTuples);
-            }
-        }
-
-        return idxCost + tblCost;
-    }
-
-    public static Long calculateIndexOnlyScanMaxTuples(String tableName, String columnName, int conditionCount) {
-        double seqScanCost = calculateSeqScanCost(tableName, conditionCount);
-        double indexOnlyScanCost = calculateIndexOnlyScanCost(tableName, columnName, conditionCount);
-        return (Long) (long) ((seqScanCost / indexOnlyScanCost) * getTableRowCount(tableName) -
-                0.01 * getTableRowCount(tableName));
-    }
-
-    public static Long calculateIndexScanMaxTuples(String tableName, String columnName, int conditionCount) {
-        double seqScanCost = calculateSeqScanCost(tableName, conditionCount);
-        double indexScanCost = calculateIndexScanCost(tableName, columnName, conditionCount);
-        return (Long) (long) ((seqScanCost / indexScanCost) * getTableRowCount(tableName));
-    }
-
-    public static double calculateBitmapIndexScanCost(String tableName, String indexedColumn, int conditionCount) {
-        Map<String, String> costParameters = getCostParameters();
-        double randomPageCost = Double.parseDouble(costParameters.get("random_page_cost"));
-        double cpuIndexTupleCost = Double.parseDouble(costParameters.get("cpu_index_tuple_cost"));
-        double cpuOperatorCost = Double.parseDouble(costParameters.get("cpu_operator_cost"));
-        double idxScanCost = 0;
-
-        String query = """
-            SELECT relpages, reltuples
-            FROM pg_class
-            WHERE relname = ?
-        """;
-
-        List<List<String>> resultIndex = select(query, getIndexOnColumn(tableName, indexedColumn));
-        if (!resultIndex.isEmpty()) {
-            double numPages = Double.parseDouble(resultIndex.getFirst().getFirst());
-            double numTuples = Double.parseDouble(resultIndex.getFirst().getLast());
-            idxScanCost = (randomPageCost * numPages) + (cpuIndexTupleCost * numTuples) +
-                    (cpuOperatorCost * conditionCount * numTuples);
-        }
-
-        return idxScanCost;
-    }
-
-    public static Pair<Long, Long> calculateBitmapIndexScanTuplesRange(String tableName, String indexedColumn, int conditionCount) {
-        Map<String, String> costParameters = getCostParameters();
-        double cpuTupleCost = Double.parseDouble(costParameters.get("cpu_tuple_cost"));
-        double seqPageCost = Double.parseDouble(costParameters.get("seq_page_cost"));
-        double randomPageCost = Double.parseDouble(costParameters.get("random_page_cost"));
-        double cpuOperatorCost = Double.parseDouble(costParameters.get("cpu_operator_cost"));
-        
-        double bitmapScanCost = 0, seqScanCost = 0, indexScanCost = 0;
-
-        String query = """
-            SELECT relpages, reltuples
-            FROM pg_class
-            WHERE relname = ?
-        """;
-
-        bitmapScanCost = calculateBitmapIndexScanCost(tableName, indexedColumn, conditionCount);
-        seqScanCost = calculateSeqScanCost(tableName, conditionCount);
-        indexScanCost = calculateIndexScanCost(tableName, indexedColumn, conditionCount);
-
-        List<List<String>> resultTable = select(query, tableName);
-        if (!resultTable.isEmpty()) {
-            double numPages = Double.parseDouble(resultTable.getFirst().getFirst());
-            double numTuples = Double.parseDouble(resultTable.getFirst().getLast());
-
-            // HERE GOES MATH :)
-
-            double d = seqScanCost - bitmapScanCost;
-            double v = cpuTupleCost * numTuples + cpuOperatorCost * conditionCount * numTuples + bitmapScanCost +
-                    0.1 * conditionCount * cpuOperatorCost * numTuples;
-            double maxSel = (seqScanCost - seqPageCost * numPages) /
-                    v;
-            long formula = (long) (2 * numPages * numTuples * maxSel / (2 * numPages + numTuples * maxSel));
-            long minNumPages = (long) Math.min(formula, numPages);
-            double minSel = v / (indexScanCost - seqPageCost * numPages);
-
-
-            return new ImmutablePair<>((long)(minSel * numTuples * maxSel), (long)(maxSel * numTuples));
-//            Pair<Double, Double> res = MathUtils.getQuadraticRoots(a, b, c);
-//            return new ImmutablePair<>((long) (res.getLeft() * numTuples), (long) (res.getRight() * numTuples));
-        }
-
-        return null;
-    }
-
-
     /*
 
     Helpful functions.
 
      */
 
+    /**
+     * @return max element in column of table.
+     */
     public static String getMax(String tableName, String columnName) {
         String query = "select max(" + tableName + "." + columnName + ") from " + tableName;
         List<Object> result = selectColumn(query);
         return result.getFirst().toString();
     }
 
+    /**
+     * @return min element in column of table.
+     */
     public static String getMin(String tableName, String columnName) {
         String query = "select min(" + tableName + "." + columnName + ") from " + tableName;
         List<Object> result = selectColumn(query);
@@ -208,8 +35,28 @@ public class SQLUtils {
     }
 
     public static Long getTableRowCount(String tableName) {
-        String query = "SELECT COUNT(*) AS row_count FROM " + tableName;
-        return selectOne(query);
+        String query = """
+            SELECT reltuples
+            FROM pg_class
+            WHERE relname = ?
+        """;
+        return (long) Math.round(selectOne(query, tableName));
+    }
+
+    public static Pair<Long, Long> getTablePagesAndRowsCount(String tableName) {
+        String query = """
+            SELECT relpages, reltuples
+            FROM pg_class
+            WHERE relname = ?
+        """;
+        List<List<String>> result = select(query, tableName);
+        if (result.isEmpty()) {
+            throw new RuntimeException("Table " + tableName + " doesn't exists!");
+        }
+        return new ImmutablePair<>(
+                Math.round(Double.parseDouble(result.getFirst().getFirst())),
+                Math.round(Double.parseDouble(result.getFirst().getLast()))
+        );
     }
 
     public static boolean hasIndexOnColumn(String tableName, String columnName) {
@@ -241,7 +88,9 @@ public class SQLUtils {
         return selectOne(query, tableName, columnName);
     }
 
-
+    /**
+     * @return parameters for query plan cost calculations.
+     */
     public static Map<String, String> getCostParameters() {
         String query = """
             SELECT name, setting
@@ -251,27 +100,43 @@ public class SQLUtils {
 
         List<List<String>> result = select(query);
         Map<String, String> costParameters = new HashMap<>();
-        for (int i = 0; i < result.size(); i ++) {
-            costParameters.put(result.get(i).getFirst(), result.get(i).get(1));
+        for (List<String> strings : result) {
+            costParameters.put(strings.getFirst(), strings.get(1));
         }
         return costParameters;
     }
 
+    /**
+     * @return correlation in table.
+     */
     public static Double getCorrelation(String tableName, String columnName) {
         String query = """
                 SELECT correlation
                 FROM pg_stats WHERE tablename = ?
                 AND attname = ?
                 """;
-        return (Double) (double) (float)selectOne(query, tableName, columnName);
+        return (double) (float)selectOne(query, tableName, columnName);
     }
 
+    /**
+     * @return visible pages in table.
+     */
     public static Integer getVisiblePages(String tableName) {
         String query = """
                 SELECT relallvisible
                 FROM pg_class WHERE relname = ?
                 """;
         return selectOne(query, tableName);
+    }
+
+    /**
+     * @return work_mem in bytes.
+     */
+    public static Long getWorkMem() {
+        String query = """
+                SELECT pg_size_bytes(current_setting('work_mem'))
+                """;
+        return selectOne(query);
     }
 
     public static String findBTreeIndexOnColumn(String tableName, String columnName) {
