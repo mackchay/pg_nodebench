@@ -109,10 +109,10 @@ public class QueryBuilder {
         if (maxTuples < 1) {
             throw new RuntimeException("Table is too small for Index Only Scan node.");
         }
-        long tuples = maxTuples;
-        long radius = 0;
-//        long tuples = random.nextLong(0, maxTuples);
-//        long radius = random.nextLong(min, max - tuples);
+//        long tuples = maxTuples;
+//        long radius = 0;
+        long tuples = random.nextLong(0, maxTuples);
+        long radius = random.nextLong(min, max - tuples);
         this.where(table + "." + column + ">" + radius).
                 where(table + "." + column + "<" + (radius + tuples));
     }
@@ -125,7 +125,7 @@ public class QueryBuilder {
         Pair<Long, Long> tuplesRange = calculateBitmapIndexScanTuplesRange(table, column,
                 indexConditionCount, conditionCount);
         if (Math.max(tuplesRange.getLeft(), tuplesRange.getRight()) < 1) {
-            return;
+            throw new RuntimeException("Table size is too small for Bitmap Index Scan.");
         }
         long tuples = random.nextLong(tuplesRange.getLeft(), tuplesRange.getRight());
         long radius = random.nextLong(min, max - tuples + 1);

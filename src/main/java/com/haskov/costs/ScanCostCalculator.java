@@ -91,11 +91,11 @@ public class ScanCostCalculator {
         double indexNumTuples = getTableRowCount(getIndexOnColumn(tableName, indexedColumn)) * sel;
         double formula = 2 * numPages * numTuples / (2 * numPages + numTuples);
         double pagesFetched = Math.min(numPages, formula);
-        double costPerPage = randomPageCost - (randomPageCost * seqPageCost) * Math.sqrt(pagesFetched / numPages);
-        double startUpCost = idxCost + getInaccurateBits((long) indexNumTuples) * cpuOperatorCost
+        double costPerPage = randomPageCost - (randomPageCost - seqPageCost) * Math.sqrt(pagesFetched / numPages);
+        double startUpCost = idxCost + sel * 0.1 * cpuOperatorCost
                 * indexNumTuples;
         double runCost = costPerPage * pagesFetched + cpuTupleCost * numTuples
-                + cpuOperatorCost * conditionsCount * numTuples;
+                + cpuOperatorCost * (conditionsCount + indexConditionsCount) * numTuples;
         return startUpCost + runCost;
     }
 
@@ -113,26 +113,25 @@ public class ScanCostCalculator {
         double seqScanCost = calculateSeqScanCost(tableName, conditionsCount + indexConditionsCount);
         double indexScanCost = calculateIndexScanCost(tableName, columnName, indexConditionsCount, conditionsCount);
         double y = (seqScanCost / indexScanCost);
+        Pair<Long, Long> result = getTablePagesAndRowsCount(tableName);
+        double numPages = result.getLeft();
+        double numTuples = result.getRight();
 
         double bitmapScanCost = calculateBitmapHeapAndIndexScanCost(tableName, columnName,
                 indexConditionsCount, conditionsCount, 1);
-        double x = (bitmapScanCost) / (indexScanCost);
-
-        if (x < 1) {
-            return (long) ((x * y) * getTableRowCount(tableName));
-        }
-        return (long) ((y) * getTableRowCount(tableName));
+        double x = (indexScanCost - (bitmapScanCost - numPages * seqPageCost)) / (numPages * seqPageCost);
+        double maxSel = Math.min(x, y);
+        return (long) (maxSel * numTuples);
     }
 
     public static Pair<Long, Long> calculateBitmapIndexScanTuplesRange(String tableName, String indexedColumn,
                                                                        int indexConditionsCount, int conditionsCount) {
-        double idxScanCost, numPages, numTuples, bitmapIdxScanCost, seqScanCost, bitmapScanCost;
+        double indexScanCost, numPages, numTuples, bitmapIdxScanCost, seqScanCost, bitmapScanCost;
 
-        bitmapIdxScanCost = calculateBitmapIndexScanCost(tableName, indexedColumn, indexConditionsCount);
         bitmapScanCost = calculateBitmapHeapAndIndexScanCost(tableName, indexedColumn,
                 indexConditionsCount, conditionsCount, 1);
         seqScanCost = calculateSeqScanCost(tableName, conditionsCount + indexConditionsCount);
-        idxScanCost = calculateIndexScanCost(tableName, indexedColumn, indexConditionsCount, conditionsCount);
+        indexScanCost = calculateIndexScanCost(tableName, indexedColumn, indexConditionsCount, conditionsCount);
 
         Pair<Long, Long> resultTable = getTablePagesAndRowsCount(tableName);
         numPages = resultTable.getLeft();
@@ -140,18 +139,12 @@ public class ScanCostCalculator {
 
         // HERE GOES MATH :)
 
-//        double d = seqScanCost - bitmapIdxScanCost;
-//        double v = cpuTupleCost * numTuples + cpuOperatorCost * conditionsCount * numTuples + bitmapIdxScanCost +
-//                0.1 * conditionsCount * cpuOperatorCost * numTuples + (seqPageCost * numPages);
-        double maxSel = 1 / (bitmapScanCost / seqScanCost);
-        bitmapScanCost = calculateBitmapHeapAndIndexScanCost(tableName, indexedColumn, indexConditionsCount,
-                conditionsCount, maxSel);
-//        long formula = (long) (2 * numPages * numTuples * maxSel / (2 * numPages + numTuples * maxSel));
-//        double formulaPageCost = randomPageCost - (randomPageCost - seqPageCost) * Math.sqrt(formula / numPages);
-        //long minNumPages = (long) Math.min(formula, numPages);
-        double minSel = (bitmapScanCost) / (idxScanCost);
-
-        return new ImmutablePair<>((long) (minSel * numTuples * maxSel), (long) (maxSel * numTuples));
+        double maxSel = (seqScanCost - seqPageCost * numPages) / (bitmapScanCost - seqPageCost * numPages);
+        double minSel = (indexScanCost - (bitmapScanCost - numPages * seqPageCost)) / (numPages * seqPageCost);
+        if (minSel > 1) {
+            return new ImmutablePair<>(3L, (long) ((maxSel - 0.05) * numTuples));
+        }
+        return new ImmutablePair<>((long) (minSel  * numTuples), (long) ((maxSel - 0.05) * numTuples));
     }
 
     //Helpful Functions
