@@ -1,14 +1,15 @@
-package com.haskov.nodes;
+package com.haskov.nodes.scans;
 
 import com.haskov.QueryBuilder;
 import com.haskov.bench.V2;
+import com.haskov.nodes.Node;
 import com.haskov.tables.DropTable;
 
 import java.util.*;
 
 import static com.haskov.bench.V2.getColumnsAndTypes;
 
-public class SeqScan implements Node{
+public class SeqScan implements Node {
 
     @Override
     public String buildQuery(List<String> tables) {

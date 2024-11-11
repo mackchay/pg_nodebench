@@ -1,5 +1,11 @@
 package com.haskov.nodes;
 
+import com.haskov.nodes.joins.NestedLoop;
+import com.haskov.nodes.scans.BitmapIndexScan;
+import com.haskov.nodes.scans.IndexOnlyScan;
+import com.haskov.nodes.scans.IndexScan;
+import com.haskov.nodes.scans.SeqScan;
+
 import java.util.HashMap;
 import java.util.Map;
 
@@ -11,6 +17,7 @@ public class NodeFactory {
         nodeMap.put("IndexScan", IndexScan.class);
         nodeMap.put("IndexOnlyScan", IndexOnlyScan.class);
         nodeMap.put("BitmapIndexScan", BitmapIndexScan.class);
+        nodeMap.put("NestedLoop", NestedLoop.class);
     }
 
     // Метод для создания узла

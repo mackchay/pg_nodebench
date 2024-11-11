@@ -1,7 +1,8 @@
-package com.haskov.nodes;
+package com.haskov.nodes.scans;
 
 import com.haskov.QueryBuilder;
 import com.haskov.bench.V2;
+import com.haskov.nodes.Node;
 import com.haskov.tables.DropTable;
 import com.haskov.utils.SQLUtils;
 

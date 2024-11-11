@@ -1,12 +1,13 @@
-package com.haskov.nodes;
+package com.haskov.nodes.scans;
 
 import com.haskov.QueryBuilder;
 import com.haskov.bench.V2;
+import com.haskov.nodes.Node;
 import com.haskov.tables.DropTable;
 
 import java.util.*;
 
-public class IndexOnlyScan implements Node{
+public class IndexOnlyScan implements Node {
 
     @Override
     public String buildQuery(List<String> tables) {

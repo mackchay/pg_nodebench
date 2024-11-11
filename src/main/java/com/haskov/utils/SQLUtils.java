@@ -159,4 +159,17 @@ public class SQLUtils {
         }
         return null;
     }
+
+    public static String getPrimaryKey(String tableName) {
+        String query = """
+                SELECT a.attname AS primary_key_column
+                FROM pg_constraint AS c
+                JOIN pg_attribute AS a ON a.attnum = ANY(c.conkey)
+                JOIN pg_class AS t ON t.oid = c.conrelid
+                WHERE c.contype = 'p'
+                  AND t.relname = ?
+                  AND a.attrelid = t.oid
+                """;
+        return selectOne(query, tableName);
+    }
 }
