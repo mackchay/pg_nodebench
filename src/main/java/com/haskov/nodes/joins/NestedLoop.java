@@ -74,7 +74,7 @@ public class NestedLoop implements Node {
         Random random = new Random();
         int maxColumns = 30;
         for (int i = 0; i < 3; i++) {
-            int size = random.nextInt(0, maxColumns);
+            int size = random.nextInt(1, maxColumns);
             String tableName = "pg_nestedloop_" + i;
             tables.add(tableName);
             DropTable.dropTable(tableName);

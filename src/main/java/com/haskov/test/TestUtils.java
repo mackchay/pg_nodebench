@@ -6,6 +6,8 @@ import com.haskov.json.JsonPlan;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.List;
+
 import static com.haskov.bench.V2.*;
 import static com.haskov.json.JsonOperations.explainResultsJson;
 import static com.haskov.json.JsonOperations.findNode;
@@ -20,6 +22,11 @@ public class TestUtils {
         Results parallelState = parallel((state) -> sql(query, binds));
     }
 
+    public static void testQueries(String[] queries, Object... binds) {
+        String query = String.join("; ", queries);
+        Results parallelState = parallel((state -> sql(query, binds)));
+    }
+
     //Test queries for node types.
     public static void testQueriesOnNode(String[] queries, String expectedNodeType) {
         expectedNodeType = String.join(" ", expectedNodeType.split("(?=[A-Z])"));
@@ -30,8 +37,9 @@ public class TestUtils {
             if (jsonPlan == null) {
                 throw new RuntimeException("Query: " + query + ". Could not find expected node " + expectedNodeType);
             }
-            TestUtils.testQuery(query);
+            //TestUtils.testQuery(query);
         }
+        TestUtils.testQueries(queries, expectedNodeType);
     }
 
     //Test queries for node type and parameters

@@ -35,7 +35,6 @@ public class SeqScan implements Node {
         return qb.build();
     }
 
-    @Override
     public List<String> prepareTables(Long tableSize) {
         String tableName = "pg_seqscan";
         DropTable.dropTable(tableName);

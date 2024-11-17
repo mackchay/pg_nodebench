@@ -3,6 +3,8 @@ package com.haskov.tables;
 import com.haskov.types.TableData;
 import com.haskov.utils.SQLUtils;
 
+import java.util.List;
+
 import static com.haskov.bench.V2.*;
 
 public class TableBuilder {
@@ -70,7 +72,11 @@ public class TableBuilder {
     }
 
     public static String getIndexQuery(TableData data) {
-        if (data.isIndexRequiredList().isEmpty()) {
+        List<Boolean> isIndexRequiredList = data.isIndexRequiredList();
+        if (isIndexRequiredList.isEmpty()
+                || !isIndexRequiredList.contains(true)
+                || (data.isPrimaryKeyReq() &&
+                !isIndexRequiredList.subList(1, isIndexRequiredList.size()).contains(true))) {
             return "";
         }
         if (data.isIndexRequiredList().size() != data.columns()) {
