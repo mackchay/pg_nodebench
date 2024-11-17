@@ -1,22 +1,21 @@
 package com.haskov;
 
+import com.haskov.types.JoinData;
 import com.haskov.utils.SQLUtils;
 import lombok.Setter;
 import org.apache.commons.lang3.tuple.Pair;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Random;
+import java.util.*;
 
 import static com.haskov.costs.ScanCostCalculator.*;
 
 public class QueryBuilder {
 
-    private String tableName;
-    private List<String> selectColumns = new ArrayList<>();
-    private List<String> whereConditions = new ArrayList<>();
-    private List<String> orderByColumns = new ArrayList<>();
+    private final List<String> tableNames = new ArrayList<>();
+    private final List<String> selectColumns = new ArrayList<>();
+    private final List<String> whereConditions = new ArrayList<>();
+    private final List<String> orderByColumns = new ArrayList<>();
+    private final List<JoinData> joins = new ArrayList<>();
     private Integer limitValue;
     private final Random random = new Random();
 
@@ -29,7 +28,7 @@ public class QueryBuilder {
 
     // Метод для указания таблицы
     public QueryBuilder from(String table) {
-        this.tableName = table;
+        this.tableNames.add(table);
         return this;
     }
 
@@ -76,7 +75,7 @@ public class QueryBuilder {
         this.select(table + "." + column);
         long min = Long.parseLong(SQLUtils.getMin(table, column));
         long max = Long.parseLong(SQLUtils.getMax(table, column));
-        Long maxTuples = SQLUtils.getTableRowCount(tableName);
+        Long maxTuples = SQLUtils.getTableRowCount(table);
         Long tuples = random.nextLong(0, maxTuples);
         Long radius = random.nextLong(min, max);
         this.where(table + "." + column + ">" + radius).
@@ -97,6 +96,10 @@ public class QueryBuilder {
         long radius = maxTuples < max - min ? random.nextLong(min, max - tuples + 1) : 0;
         this.where(table + "." + column + ">" + radius).
                 where(table + "." + column + "<" + (radius + tuples));
+    }
+
+    public void join(JoinData join) {
+        joins.add(join);
     }
 
     private void addRandomWhereConditionForIndexOnlyScan(String table, String column) {
@@ -182,7 +185,7 @@ public class QueryBuilder {
 
     // Метод для сборки финального запроса
     public String build() {
-        if (tableName == null || tableName.isEmpty()) {
+        if (tableNames.isEmpty()) {
             throw new IllegalStateException("Table name must be specified");
         }
 
@@ -196,7 +199,14 @@ public class QueryBuilder {
         }
 
         // FROM part
-        query.append(" FROM ").append(tableName);
+        query.append(" FROM ").append(String.join(",", tableNames));
+
+        for (JoinData join : joins) {
+            query.append(join.joinType()).append(" ").append(join.childTable()).append(" ON ").
+                    append(join.parentTable()).append(".").append(join.parentTable()).append("_id")
+                    .append(" = ").append(join.childTable()).append(".")
+                    .append(join.parentTable()).append("_id ");
+        }
 
         // WHERE part
         if (!whereConditions.isEmpty()) {

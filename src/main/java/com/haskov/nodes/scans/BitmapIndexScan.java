@@ -73,6 +73,6 @@ public class BitmapIndexScan implements Node {
         sql("create index if not exists pg_bitmapscan_idx on " + tableName + "(x)");
 
         V2.sql("vacuum freeze analyze " + tableName);
-        return List.of(tableName);
+        return new ArrayList<>(List.of(tableName));
     }
 }

@@ -46,6 +46,6 @@ public class IndexOnlyScan implements Node {
                 tableSize, tableSize);
         V2.sql("create index if not exists pg_indexonlyscan_idx on " + tableName + " (x, y)");
         V2.sql("vacuum freeze analyze " + tableName);
-        return List.of(tableName);
+        return new ArrayList<>(List.of(tableName));
     }
 }

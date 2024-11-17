@@ -60,6 +60,6 @@ public class IndexScan implements Node {
         V2.sql("create index if not exists pg_indexscan_idz on " + tableName + " (z)");
         V2.sql("create index if not exists pg_indexscan_idx on " + tableName + " (x)");
         V2.sql("vacuum freeze analyze " + tableName);
-        return List.of(tableName);
+        return new ArrayList<>(List.of(tableName));
     }
 }

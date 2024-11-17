@@ -44,6 +44,6 @@ public class SeqScan implements Node {
                         " generate_series(1, ?)",
                 tableSize, tableSize, tableSize);
         V2.sql("vacuum freeze analyze " + tableName);
-        return List.of(tableName);
+        return new ArrayList<>(List.of(tableName));
     }
 }
