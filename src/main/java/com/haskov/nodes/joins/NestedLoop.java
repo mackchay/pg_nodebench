@@ -4,6 +4,8 @@ import com.haskov.QueryBuilder;
 import com.haskov.nodes.Node;
 import com.haskov.tables.DropTable;
 import com.haskov.tables.TableBuilder;
+import com.haskov.types.JoinData;
+import com.haskov.types.JoinType;
 import com.haskov.types.TableData;
 
 import java.util.ArrayList;
@@ -29,10 +31,13 @@ public class NestedLoop implements Node {
             List<String> column = new ArrayList<>(getColumnsAndTypes(table).keySet());
             int columnsCount = random.nextInt(column.size()) + 1;
             Collections.shuffle(column);
-            qb.from(table);
             for (int j = 0; j < columnsCount; j++) {
                 qb.addRandomWhere(table, column.get(j));
             }
+        }
+        qb.from(tables.getFirst());
+        for (String table : tables.subList(1, tables.size())) {
+            qb.join(new JoinData(null, table, JoinType.CROSS));
         }
 
         //qb.join(tables.get(0), tables.get(1));

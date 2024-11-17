@@ -1,6 +1,7 @@
 package com.haskov;
 
 import com.haskov.types.JoinData;
+import com.haskov.types.JoinType;
 import com.haskov.utils.SQLUtils;
 import lombok.Setter;
 import org.apache.commons.lang3.tuple.Pair;
@@ -98,8 +99,9 @@ public class QueryBuilder {
                 where(table + "." + column + "<" + (radius + tuples));
     }
 
-    public void join(JoinData join) {
+    public QueryBuilder join(JoinData join) {
         joins.add(join);
+        return this;
     }
 
     private void addRandomWhereConditionForIndexOnlyScan(String table, String column) {
@@ -202,7 +204,11 @@ public class QueryBuilder {
         query.append(" FROM ").append(String.join(",", tableNames));
 
         for (JoinData join : joins) {
-            query.append(join.joinType()).append(" ").append(join.childTable()).append(" ON ").
+            if (join.joinType().equals(JoinType.CROSS)) {
+                query.append(" ").append(join.joinType()).append(" JOIN ").append(join.childTable()).append(" ");
+                continue;
+            }
+            query.append(" ").append(join.joinType()).append(" JOIN ").append(join.childTable()).append(" ON ").
                     append(join.parentTable()).append(".").append(join.parentTable()).append("_id")
                     .append(" = ").append(join.childTable()).append(".")
                     .append(join.parentTable()).append("_id ");
