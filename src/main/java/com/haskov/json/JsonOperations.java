@@ -20,12 +20,12 @@ public class JsonOperations {
         return jsonArray.get(0).getAsJsonObject();
     }
 
-    public static List<JsonPlan> getAllPlans(JsonObject jsonObject) {
+    public static List<PgJsonPlan> getAllPlans(JsonObject jsonObject) {
         return getAllPlansRecursive(jsonObject, new ArrayList<>());
     }
 
-    private static List<JsonPlan> getAllPlansRecursive(JsonObject jsonObject, List<JsonPlan> list) {
-        list.add(new JsonPlan(jsonObject));
+    private static List<PgJsonPlan> getAllPlansRecursive(JsonObject jsonObject, List<PgJsonPlan> list) {
+        list.add(new PgJsonPlan(jsonObject));
         if (jsonObject.getAsJsonArray("Plans") != null) {
             JsonArray jsonArray = jsonObject.getAsJsonArray("Plans");
             for (JsonElement jsonElement : jsonArray) {
@@ -35,18 +35,18 @@ public class JsonOperations {
         return list;
     }
 
-    private static JsonPlan findNodeRecursive(JsonObject jsonObject, String nodeType, String parameterKey,
-                                              String parameterData) {
+    private static PgJsonPlan findNodeRecursive(JsonObject jsonObject, String nodeType, String parameterKey,
+                                                String parameterData) {
         if (nodeType.equals(jsonObject.get("Node Type").getAsString()) && jsonObject.has(parameterKey)
                 && parameterData.equals(jsonObject.get(parameterKey).getAsString())) {
-            return new JsonPlan(jsonObject);
+            return new PgJsonPlan(jsonObject);
         }
 
         if (jsonObject.has("Plans")) {
             JsonArray jsonArray = jsonObject.getAsJsonArray("Plans");
 
             for (JsonElement jsonElement : jsonArray) {
-                JsonPlan result = findNodeRecursive(jsonElement.getAsJsonObject(), nodeType, parameterKey, parameterData);
+                PgJsonPlan result = findNodeRecursive(jsonElement.getAsJsonObject(), nodeType, parameterKey, parameterData);
 
                 if (result != null) {
                     return result;
@@ -56,15 +56,15 @@ public class JsonOperations {
         return null;
     }
 
-    private static JsonPlan findNodeRecursive(JsonObject jsonObject, String nodeType) {
+    private static PgJsonPlan findNodeRecursive(JsonObject jsonObject, String nodeType) {
         if (nodeType.equals(jsonObject.get("Node Type").getAsString())) {
-            return new JsonPlan(jsonObject);
+            return new PgJsonPlan(jsonObject);
         }
 
         if (jsonObject.has("Plans")) {
             JsonArray jsonArray = jsonObject.getAsJsonArray("Plans");
             for (JsonElement jsonElement : jsonArray) {
-                JsonPlan result = findNodeRecursive(jsonElement.getAsJsonObject(), nodeType);
+                PgJsonPlan result = findNodeRecursive(jsonElement.getAsJsonObject(), nodeType);
                 if (result != null) {
                     return result;
                 }
@@ -73,14 +73,14 @@ public class JsonOperations {
         return null;
     }
 
-    public static JsonPlan findNode(JsonObject jsonObject, String nodeType, String parameterKey, String parameterData) {
+    public static PgJsonPlan findNode(JsonObject jsonObject, String nodeType, String parameterKey, String parameterData) {
         if (!jsonObject.has("Plan")) {
             return null;
         }
         return findNodeRecursive(jsonObject.getAsJsonObject("Plan"), nodeType, parameterKey, parameterData);
     }
 
-    public static JsonPlan findNode(JsonObject jsonObject, String nodeType) {
+    public static PgJsonPlan findNode(JsonObject jsonObject, String nodeType) {
         if (!jsonObject.has("Plan")) {
             return null;
         }

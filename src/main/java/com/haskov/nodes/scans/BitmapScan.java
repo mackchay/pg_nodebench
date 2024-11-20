@@ -10,7 +10,8 @@ import java.util.*;
 
 import static com.haskov.bench.V2.sql;
 
-public class BitmapIndexScan implements Node {
+@Scan
+public class BitmapScan implements Node {
 
     @Override
     public String buildQuery(List<String> tables) {

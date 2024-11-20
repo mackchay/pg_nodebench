@@ -1,0 +1,9 @@
+{
+  "Node Type": "Aggregate",
+  "Plans": [
+      {
+        "Node Type": "SeqScan"
+      }
+  ]
+}
+

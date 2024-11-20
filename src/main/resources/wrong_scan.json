@@ -1,0 +1,8 @@
+{
+  "Node Type": "SeqScan",
+  "Plans": [
+    {
+      "Node Type": "SeqScan"
+    }
+  ]
+}

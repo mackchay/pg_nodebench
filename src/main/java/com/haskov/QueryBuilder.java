@@ -1,7 +1,9 @@
 package com.haskov;
 
+import com.haskov.types.AggregateData;
 import com.haskov.types.JoinData;
 import com.haskov.types.JoinType;
+import com.haskov.types.ReplaceOrAdd;
 import com.haskov.utils.SQLUtils;
 import lombok.Setter;
 import org.apache.commons.lang3.tuple.Pair;
@@ -19,7 +21,12 @@ public class QueryBuilder {
     private final List<JoinData> joins = new ArrayList<>();
     private Integer limitValue;
     private final Random random = new Random();
+    private final List<String> groupByColumns = new ArrayList<>();
+    private final List<String> unionQueries = new ArrayList<>();
+    private List<String> unionSelectColumns = new ArrayList<>();
 
+    //Максимальное количество столбцов среди всех запросов с UNION ALL
+    private int maxSelectColumns = 0;
 
     @Setter
     private int indexConditionCount = 0;
@@ -43,6 +50,39 @@ public class QueryBuilder {
     public QueryBuilder select(List<String> columns) {
         this.selectColumns.addAll(columns);
         return this;
+    }
+
+    // Метод для добавления запроса с UNION ALL
+    public QueryBuilder unionAll(QueryBuilder queryBuilder) {
+        // Проверяем количество столбцов в обоих запросах и выравниваем их
+        int currentColumnsSize = this.selectColumns.size();
+        int queryColumnsSize = queryBuilder.selectColumns.size();
+
+        if (currentColumnsSize < queryColumnsSize) {
+            // Добавляем пустые столбцы (NULL) в текущий запрос
+            for (int i = currentColumnsSize; i < queryColumnsSize; i++) {
+                this.selectColumns.add("1");
+            }
+        } else if (currentColumnsSize > queryColumnsSize) {
+            // Добавляем пустые столбцы (NULL) в запрос, с которым выполняем объединение
+            for (int i = queryColumnsSize; i < currentColumnsSize; i++) {
+                queryBuilder.selectColumns.add("1");
+            }
+        }
+
+        unionQueries.add(queryBuilder.build());
+        unionSelectColumns = queryBuilder.selectColumns;
+        updateMaxSelectColumns();
+        return this;
+    }
+
+    // Метод для синхронизации всех частей запроса с максимальным количеством столбцов
+    private void updateMaxSelectColumns() {
+        maxSelectColumns = Math.max(maxSelectColumns, this.selectColumns.size());
+    }
+
+    public boolean hasSelectColumns() {
+        return !selectColumns.isEmpty();
     }
 
     // Метод для добавления условий WHERE
@@ -91,9 +131,10 @@ public class QueryBuilder {
         long maxTuples = calculateIndexScanMaxTuples(table, column,
                 indexConditionCount, conditionCount);
         if (maxTuples < 1) {
-            return;
+            throw new RuntimeException("Table is too small for Index Only Scan node.");
         }
-        long tuples = random.nextLong(0, maxTuples);
+        //long tuples = random.nextLong(0, maxTuples);
+        long tuples = maxTuples;
         long radius = maxTuples < max - min ? random.nextLong(min, max - tuples + 1) : 0;
         this.where(table + "." + column + ">" + radius).
                 where(table + "." + column + "<" + (radius + tuples));
@@ -185,6 +226,39 @@ public class QueryBuilder {
         return this;
     }
 
+    //Методы для указания столбцов, над которыми будет агрегатные операции Aggregate
+    public void count(String table, String column, ReplaceOrAdd replaceOrAdd) {
+        if (replaceOrAdd == ReplaceOrAdd.REPLACE) {
+            if (selectColumns.removeIf(e -> e.equals(table + "." + column))) {
+                selectColumns.add("COUNT(" + table + "." + column + ")");
+            }
+        } else {
+            selectColumns.add("COUNT(" + table + "." + column + ")");
+        }
+    }
+
+    public QueryBuilder max(String table, String column, ReplaceOrAdd replaceOrAdd) {
+        if (replaceOrAdd == ReplaceOrAdd.REPLACE) {
+            if (selectColumns.removeIf(e -> e.equals(table + "." + column))) {
+                selectColumns.add("MAX(" + table + "." + column + ")");
+            }
+        } else {
+            selectColumns.add("MAX(" + table + "." + column + ")");
+        }
+        return this;
+    }
+
+    public QueryBuilder min(String table, String column, ReplaceOrAdd replaceOrAdd) {
+        if (replaceOrAdd == ReplaceOrAdd.REPLACE) {
+            if (selectColumns.removeIf(e -> e.equals(table + "." + column))) {
+                selectColumns.add("MIN(" + table + "." + column + ")");
+            }
+        } else {
+            selectColumns.add("MIN(" + table + "." + column + ")");
+        }
+        return this;
+    }
+
     // Метод для сборки финального запроса
     public String build() {
         if (tableNames.isEmpty()) {
@@ -192,6 +266,18 @@ public class QueryBuilder {
         }
 
         StringBuilder query = new StringBuilder();
+
+        if (maxSelectColumns == 0) {
+            maxSelectColumns = selectColumns.size();
+        }
+
+        while (selectColumns.size() > maxSelectColumns && selectColumns.contains("1")) {
+            selectColumns.remove("1");
+        }
+
+        List<String> subList = new ArrayList<>(selectColumns.subList(0, maxSelectColumns));
+        selectColumns.clear();
+        selectColumns.addAll(subList);
 
         // SELECT part
         if (selectColumns.isEmpty()) {
@@ -227,6 +313,11 @@ public class QueryBuilder {
         // LIMIT part
         if (limitValue != null) {
             query.append(" LIMIT ").append(limitValue);
+        }
+
+        //UNION ALL part
+        for (String unionQuery : unionQueries) {
+            query.append(" UNION ALL ").append(unionQuery);
         }
 
         return query.toString();

@@ -1,0 +1,20 @@
+{
+  "Node Type": "Append",
+  "Plans": [
+    {
+      "Node Type": "SeqScan"
+    },
+    {
+      "Node Type": "IndexOnlyScan"
+    },
+    {
+      "Node Type": "SeqScan"
+    },
+    {
+      "Node Type": "SeqScan"
+    },
+    {
+      "Node Type": "IndexOnlyScan"
+    }
+  ]
+}

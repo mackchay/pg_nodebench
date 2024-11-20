@@ -1,6 +1,8 @@
 package com.haskov;
 
 import com.haskov.nodes.Node;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.*;
 
@@ -10,13 +12,17 @@ public class LoadGenerator {
         Random r = new Random();
         List<String> result = new ArrayList<>();
         Map<Node, List<String>> tables = new HashMap<>();
+        Logger logger = LoggerFactory.getLogger(LoadGenerator.class);
         for (Node node : nodes) {
             tables.put(node, node.prepareTables(tableSize));
         }
+
         for (int i = 0; i < loadSize; i++) {
             int randInt = r.nextInt(nodes.size());
             Node node = nodes.get(randInt);
-            result.add(node.buildQuery(tables.get(node)));
+            String query = node.buildQuery(tables.get(node));
+            result.add(query);
+            logger.info(query);
         }
         return result;
     }

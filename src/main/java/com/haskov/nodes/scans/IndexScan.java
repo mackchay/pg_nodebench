@@ -8,6 +8,7 @@ import com.haskov.utils.SQLUtils;
 
 import java.util.*;
 
+@Scan
 public class IndexScan implements Node {
 
     //TODO fix IndexScan
@@ -57,8 +58,8 @@ public class IndexScan implements Node {
         V2.sql("insert into " + tableName + " (x, y, z, w) select generate_series(1, ?), generate_series(1, ?), " +
                         "generate_series(1, ?), generate_series(1, ?)",
                 tableSize, tableSize, tableSize, tableSize);
-        V2.sql("create index if not exists pg_indexscan_idz on " + tableName + " (z)");
-        V2.sql("create index if not exists pg_indexscan_idx on " + tableName + " (x)");
+        V2.sql("create index if not exists pg_indexscan_idx on " + tableName + " (x, z)");
+       // V2.sql("create index if not exists pg_indexscan_idz on " + tableName + " (z)");
         V2.sql("vacuum freeze analyze " + tableName);
         return new ArrayList<>(List.of(tableName));
     }

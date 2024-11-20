@@ -219,7 +219,8 @@ public class V2 {
 		} else return null;
 	}
 	
-	private static long parallelInternal(final WorkerUnit x, long iterationLimit, int timeout, List<Snap> snaps, int period, boolean monVerbose) {
+	private static long parallelInternal(final WorkerUnit x, long iterationLimit, int timeout, List<Snap> snaps,
+										 int period, boolean monVerbose) {
 		pool = Executors.newScheduledThreadPool(params.workers);
 		ScheduledExecutorService mon = Executors.newScheduledThreadPool(1);
 

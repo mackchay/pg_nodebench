@@ -7,6 +7,7 @@ import com.haskov.tables.DropTable;
 
 import java.util.*;
 
+@Scan
 public class IndexOnlyScan implements Node {
 
     @Override
@@ -35,6 +36,32 @@ public class IndexOnlyScan implements Node {
         }
 
         return qb.build();
+    }
+
+    @Override
+    public QueryBuilder buildQuery(List<String> tables, QueryBuilder qb) {
+        Random random = new Random();
+        int tableCount = random.nextInt(tables.size()) + 1;
+        Collections.shuffle(tables);
+
+        for (int i = 0; i < tableCount; i++) {
+            Map<String, String> columnsAndTypes = V2.getColumnsAndTypes(tables.get(i));
+            int columnsCount = random.nextInt(columnsAndTypes.size()) + 1;
+            qb.setIndexConditionCount(columnsCount * 2);
+            Collections.shuffle(Arrays.asList(columnsAndTypes.keySet().toArray()));
+            qb.from(tables.get(i));
+
+            // We're expecting every column is indexed.
+            Iterator<String> columnIterator = columnsAndTypes.keySet().iterator();
+            for (int j = 0; j < columnsCount; j++) {
+                if (!columnIterator.hasNext()) {
+                    columnIterator = columnsAndTypes.keySet().iterator();
+                }
+                String column = columnIterator.next();
+                qb.addRandomWhere(tables.get(i), column, this.getClass().getSimpleName());
+            }
+        }
+        return qb;
     }
 
     @Override
