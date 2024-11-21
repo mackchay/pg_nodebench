@@ -2,10 +2,7 @@ package com.haskov.nodes;
 
 import com.haskov.nodes.functions.Aggregate;
 import com.haskov.nodes.joins.NestedLoop;
-import com.haskov.nodes.scans.BitmapScan;
-import com.haskov.nodes.scans.IndexOnlyScan;
-import com.haskov.nodes.scans.IndexScan;
-import com.haskov.nodes.scans.SeqScan;
+import com.haskov.nodes.scans.*;
 import com.haskov.nodes.unions.Append;
 
 import java.util.HashMap;
@@ -18,8 +15,8 @@ public class NodeFactory {
         nodeMap.put("SeqScan", SeqScan.class);
         nodeMap.put("IndexScan", IndexScan.class);
         nodeMap.put("IndexOnlyScan", IndexOnlyScan.class);
-        nodeMap.put("BitmapIndexScan", BitmapScan.class);
-        nodeMap.put("BitmapHeapScan", BitmapScan.class);
+        nodeMap.put("BitmapIndexScan", BitmapIndexScan.class);
+        nodeMap.put("BitmapHeapScan", BitmapHeapScan.class);
         nodeMap.put("NestedLoop", NestedLoop.class);
         nodeMap.put("Aggregate", Aggregate.class);
         nodeMap.put("Append", Append.class);

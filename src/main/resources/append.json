@@ -11,7 +11,12 @@
       "Node Type": "SeqScan"
     },
     {
-      "Node Type": "SeqScan"
+      "Node Type": "BitmapHeapScan",
+      "Plans": [
+        {
+          "Node Type": "BitmapIndexScan"
+        }
+      ]
     },
     {
       "Node Type": "IndexOnlyScan"

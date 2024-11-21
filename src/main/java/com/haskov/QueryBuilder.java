@@ -43,6 +43,7 @@ public class QueryBuilder {
     // Метод для указания столбцов в SELECT
     public QueryBuilder select(String... columns) {
         this.selectColumns.addAll(Arrays.asList(columns));
+        syncMaxSelectColumns();
         return this;
     }
 
@@ -107,7 +108,7 @@ public class QueryBuilder {
         switch (nodeType) {
             case "IndexOnlyScan" -> addRandomWhereConditionForIndexOnlyScan(table, column);
             case "IndexScan" -> addRandomWhereConditionForIndexScan(table, column);
-            case "BitmapIndexScan" -> addRandomWhereConditionForBitmapIndexScan(table, column);
+            case "BitmapHeapScan" -> addRandomWhereConditionForBitmapIndexScan(table, column);
             default -> addRandomWhereCondition(table, column);
         }
     }
@@ -259,32 +260,31 @@ public class QueryBuilder {
         return this;
     }
 
+    public void syncMaxSelectColumns() {
+        while (selectColumns.size() > maxSelectColumns && selectColumns.contains("1") && maxSelectColumns != 0) {
+            selectColumns.remove("1");
+        }
+        if (maxSelectColumns != 0) {
+            List<String> subList = new ArrayList<>(selectColumns.subList(0, maxSelectColumns));
+            selectColumns.clear();
+            selectColumns.addAll(subList);
+        }
+    }
+
     // Метод для сборки финального запроса
     public String build() {
         if (tableNames.isEmpty()) {
             throw new IllegalStateException("Table name must be specified");
         }
 
+        if (selectColumns.isEmpty()) {
+            throw new RuntimeException("Column names must be specified");
+        }
+
         StringBuilder query = new StringBuilder();
 
-        if (maxSelectColumns == 0) {
-            maxSelectColumns = selectColumns.size();
-        }
-
-        while (selectColumns.size() > maxSelectColumns && selectColumns.contains("1")) {
-            selectColumns.remove("1");
-        }
-
-        List<String> subList = new ArrayList<>(selectColumns.subList(0, maxSelectColumns));
-        selectColumns.clear();
-        selectColumns.addAll(subList);
-
-        // SELECT part
-        if (selectColumns.isEmpty()) {
-            query.append("SELECT *");
-        } else {
-            query.append("SELECT ").append(String.join(", ", selectColumns));
-        }
+        // SELECT
+        query.append("SELECT ").append(String.join(", ", selectColumns));
 
         // FROM part
         query.append(" FROM ").append(String.join(",", tableNames));

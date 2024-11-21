@@ -90,15 +90,54 @@ public class TestBuildQueryPlan {
             );
             String query = q.getQueryBuilder().build();
             System.out.println(query);
-            //V2.explain(LoggerFactory.getLogger("TestBuildQueryPlan"), query);
+            V2.explain(LoggerFactory.getLogger("TestBuildQueryPlan"), query);
             JsonObject resultsJson = explainResultsJson(query);
             PgJsonPlan pgJsonPlan1 = findNode(resultsJson, "Seq Scan");
             PgJsonPlan pgJsonPlan2 = findNode(resultsJson, "Append");
             PgJsonPlan pgJsonPlan3 = findNode(resultsJson, "Index Only Scan");
+            PgJsonPlan pgJsonPlan4 = findNode(resultsJson, "Bitmap Index Scan");
+            Assert.assertNotEquals(null, pgJsonPlan1);
+            Assert.assertNotEquals(null, pgJsonPlan2);
+            Assert.assertNotEquals(null, pgJsonPlan3);
+            Assert.assertNotEquals(null, pgJsonPlan4);
+        }
+    }
+
+    @Test
+    public void testBitmapScan() {
+        JsonPlan plan = getJsonPlan("aggregate_bitmapscan.json");
+        for (int i = 0; i < 1000; i++) {
+            QueryNodeData q = buildQuery(new QueryNodeData(
+                            new ArrayList<>(),
+                            new QueryBuilder(),
+                            10000
+                    ), plan
+            );
+            String query = q.getQueryBuilder().build();
+            System.out.println(query);
+            //V2.explain(LoggerFactory.getLogger("TestBuildQueryPlan"), query);
+            JsonObject resultsJson = explainResultsJson(query);
+            PgJsonPlan pgJsonPlan1 = findNode(resultsJson, "Aggregate");
+            PgJsonPlan pgJsonPlan2 = findNode(resultsJson, "Bitmap Heap Scan");
+            PgJsonPlan pgJsonPlan3 = findNode(resultsJson, "Bitmap Index Scan");
             Assert.assertNotEquals(null, pgJsonPlan1);
             Assert.assertNotEquals(null, pgJsonPlan2);
             Assert.assertNotEquals(null, pgJsonPlan3);
         }
+    }
+
+    @Test
+    public void testWrongBitmapScan() {
+        JsonPlan plan = getJsonPlan("wrong_bitmapscan.json");
+        RuntimeException exception = assertThrows(RuntimeException.class, () -> {
+            QueryNodeData q = buildQuery(new QueryNodeData(
+                            new ArrayList<>(),
+                            new QueryBuilder(),
+                            1000
+                    ), plan
+            );
+        });
+        assertEquals("Column names must be specified", exception.getMessage());
     }
 
 
@@ -158,7 +197,6 @@ public class TestBuildQueryPlan {
             int iterator = 1;
             for (JsonPlan nodePlan : plan.getPlans()) {
                 buildQuery(data, nodePlan);
-                String query = data.getQueryBuilder().build();
                 if (iterator != plan.getPlans().size() || plan.getPlans().size() == 1) {
                     data.setQueryBuilder(node.buildQuery(data.getTables(), data.getQueryBuilder()));
                 }

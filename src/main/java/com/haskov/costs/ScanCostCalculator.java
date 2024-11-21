@@ -88,7 +88,7 @@ public class ScanCostCalculator {
 
         idxCost = (randomPageCost * numPages) + (cpuIndexTupleCost * numTuples) +
                 (cpuOperatorCost * indexConditionsCount * numTuples);
-//        idxCost *= (double)(indexConditionsCount / 2);
+        idxCost *= (double)(indexConditionsCount / 2);
 
         return idxCost;
     }
