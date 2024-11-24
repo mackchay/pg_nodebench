@@ -14,7 +14,7 @@ import static com.haskov.bench.V2.selectColumn;
 public class JsonOperations {
 
     public static JsonObject explainResultsJson(String sql, Object... binds) {
-        List<PGobject> pGobjectList = selectColumn("explain (analyze, verbose, buffers, costs off, format json) " + sql, binds);
+        List<PGobject> pGobjectList = selectColumn("explain (analyze, verbose, buffers, format json) " + sql, binds);
         Gson gson = new Gson();
         JsonArray jsonArray = gson.fromJson(pGobjectList.getFirst().getValue(), JsonArray.class);
         return jsonArray.get(0).getAsJsonObject();

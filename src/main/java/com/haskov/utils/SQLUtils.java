@@ -95,7 +95,8 @@ public class SQLUtils {
         String query = """
             SELECT name, setting
             FROM pg_settings
-            WHERE name IN ('seq_page_cost', 'random_page_cost', 'cpu_tuple_cost', 'cpu_index_tuple_cost', 'cpu_operator_cost')
+            WHERE name IN ('seq_page_cost', 'random_page_cost', 'cpu_tuple_cost', 'cpu_index_tuple_cost', 
+            'cpu_operator_cost')
         """;
 
         List<List<String>> result = select(query);
@@ -171,5 +172,35 @@ public class SQLUtils {
                   AND a.attrelid = t.oid
                 """;
         return selectOne(query, tableName);
+    }
+
+    public static Map<String, String> getCacheParameters() {
+        String query = """
+                SELECT
+                    name,
+                    setting *
+                    CASE
+                        WHEN unit = '8kB' THEN 8192
+                        WHEN unit = 'kB' THEN 1024
+                        WHEN unit = 'MB' THEN 1024 * 1024
+                        WHEN unit = 'GB' THEN 1024 * 1024 * 1024
+                        ELSE 1
+                    END AS size_in_bytes
+                FROM pg_settings
+                WHERE name IN ('shared_buffers', 'work_mem', 'maintenance_work_mem', 'effective_cache_size')
+                """;
+        List<List<String>> result = select(query);
+        Map<String, String> cacheParameters = new HashMap<>();
+        for (List<String> strings : result) {
+            cacheParameters.put(strings.getFirst(), strings.get(1));
+        }
+        return cacheParameters;
+    }
+
+    public static Long getBtreeHeight(String indexName) {
+        String query = """
+                select level from bt_metap(?)
+                """;
+        return selectOne(query, indexName);
     }
 }

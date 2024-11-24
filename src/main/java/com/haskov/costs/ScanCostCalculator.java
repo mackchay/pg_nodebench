@@ -17,62 +17,84 @@ public class ScanCostCalculator {
     }
 
     public static double calculateIndexScanCost(String tableName, String indexedColumn,
-                                                int indexConditionsCount, int conditionsCount) {
-        double idxCost, tblCost, numPages, numTuples;
+                                                    int indexConditionsCount, int conditionsCount) {
+        return calculateIndexScanCost(tableName, indexedColumn, indexConditionsCount, conditionsCount, 1);
+    }
 
-        Pair<Long, Long> resultIndexTable = getTablePagesAndRowsCount(getIndexOnColumn(tableName, indexedColumn));
-        numPages = resultIndexTable.getLeft();
-        numTuples = resultIndexTable.getRight();
-        idxCost = (randomPageCost * numPages) + (cpuIndexTupleCost * numTuples) +
-                (cpuOperatorCost * indexConditionsCount * numTuples);
-        // WARNING: we're guessing indexConditionsCount = indexedColumns * 2 because we are using 2
-        // conditions: less(<) and greater(>) for each column.
-
-        idxCost *= (double)(indexConditionsCount / 2);
+    public static double calculateIndexScanCost(String tableName, String indexedColumn,
+                                                int indexConditionsCount, int conditionsCount, double sel) {
+        int visiblePages = getVisiblePages(tableName);
+        double idxCost, tblCost, numIndexTuples, numIndexPages, numTuples, numPages,
+                startup, runCost, idxCpuCost, tableCpuCost, indexIOCost, tableIOCost,
+                maxIOCost, minIOCost, height;
 
         Pair<Long, Long> resultTable = getTablePagesAndRowsCount(tableName);
         numPages = resultTable.getLeft();
         numTuples = resultTable.getRight();
-        if (getCorrelation(tableName, indexedColumn) > 0.5) {
-            tblCost = (seqPageCost * numPages) + (cpuTupleCost * numTuples) +
-                    (cpuOperatorCost * conditionsCount * numTuples);
-        } else {
-            tblCost = (randomPageCost * numTuples) + (cpuTupleCost * numTuples) +
-                    (cpuOperatorCost * conditionsCount * numTuples);
-        }
+        Pair<Long, Long> resultIndexTable = getTablePagesAndRowsCount(getIndexOnColumn(tableName, indexedColumn));
+        numIndexPages = resultIndexTable.getLeft();
+        numIndexTuples = resultIndexTable.getRight();
 
-        return idxCost + tblCost;
+        height = Math.ceil(Math.log(numIndexPages) / Math.log(2));
+
+        startup = Math.ceil(Math.log(numIndexTuples)/Math.log(2) + (height + 1) * 50) * cpuOperatorCost;
+
+        idxCpuCost = sel * numIndexTuples * (cpuIndexTupleCost + qualOpCost * indexConditionsCount);
+        tableCpuCost = sel * numTuples * cpuTupleCost + cpuOperatorCost * numTuples * conditionsCount;
+        indexIOCost = Math.ceil(sel * numIndexPages) * randomPageCost;
+
+        maxIOCost = numPages  * randomPageCost;
+        minIOCost = randomPageCost + (Math.ceil(sel * numPages) - 1) * seqPageCost;
+
+        tableIOCost = maxIOCost +
+                Math.pow(getCorrelation(tableName, indexedColumn), 2) * (minIOCost - maxIOCost);
+        runCost = idxCpuCost + tableCpuCost + indexIOCost + tableIOCost;
+
+        return startup + runCost;
     }
 
     public static double calculateIndexOnlyScanCost(String tableName, String indexedColumn,
                                                     int indexConditionsCount, int conditionsCount) {
+        return calculateIndexOnlyScanCost(tableName, indexedColumn, indexConditionsCount, conditionsCount, 1);
+    }
+
+    public static double calculateIndexOnlyScanCost(String tableName, String indexedColumn,
+                                                    int indexConditionsCount, int conditionsCount, double sel) {
         int visiblePages = getVisiblePages(tableName);
-        double idxCost, tblCost, numPages, numTuples;
-
-        Pair<Long, Long> resultIndexTable = getTablePagesAndRowsCount(getIndexOnColumn(tableName, indexedColumn));
-        numPages = resultIndexTable.getLeft();
-        numTuples = resultIndexTable.getRight();
-        idxCost = (randomPageCost * numPages) + (cpuIndexTupleCost * numTuples) +
-                    (cpuOperatorCost * indexConditionsCount * numTuples);
-
-        // WARNING: we're guessing indexConditionsCount = indexedColumns * 2 because we are using 2
-        // conditions: less(<) and greater(>) for each column.
-
-        idxCost *= (double)(indexConditionsCount / 2);
+        double idxCost, tblCost, numIndexTuples, numIndexPages, numTuples, numPages,
+                startup, runCost, idxCpuCost, tableCpuCost, indexIOCost, tableIOCost,
+                maxIOCost, minIOCost, height, fracVisiblePages, idxCostPerTuple;
 
         Pair<Long, Long> resultTable = getTablePagesAndRowsCount(tableName);
         numPages = resultTable.getLeft();
         numTuples = resultTable.getRight();
-        double fracVisiblePages = (double) visiblePages / numPages;
-        if (getCorrelation(tableName, indexedColumn) > 0.5) {
-            tblCost = (1 - fracVisiblePages) * (seqPageCost * numPages) + (cpuTupleCost * numTuples)
-            + (cpuOperatorCost * conditionsCount * numTuples);
+        Pair<Long, Long> resultIndexTable = getTablePagesAndRowsCount(getIndexOnColumn(tableName, indexedColumn));
+        numIndexPages = resultIndexTable.getLeft();
+        numIndexTuples = resultIndexTable.getRight();
+
+        height = getBtreeHeight(getIndexOnColumn(tableName, indexedColumn));
+
+        startup = Math.ceil(Math.log(numIndexTuples)/Math.log(2) + (height + 1) * 50) * cpuOperatorCost;
+
+        idxCostPerTuple = cpuIndexTupleCost + qualOpCost * indexConditionsCount;
+
+        idxCpuCost = sel * numIndexTuples * (idxCostPerTuple);
+        tableCpuCost = sel * numTuples * cpuTupleCost;
+        indexIOCost = Math.ceil(sel * numIndexPages) * randomPageCost;
+
+        fracVisiblePages = (1 - getVisiblePages(tableName)/ numPages);
+        maxIOCost = fracVisiblePages * numPages  * randomPageCost;
+        if (maxIOCost > 0) {
+            minIOCost = randomPageCost + (Math.ceil(sel * numPages) - 1) * seqPageCost;
         } else {
-            tblCost = (1 - fracVisiblePages) * (randomPageCost * numTuples) + (cpuTupleCost * numTuples)
-            + (cpuOperatorCost * conditionsCount * numTuples);
+            minIOCost = 0;
         }
 
-        return idxCost + tblCost;
+        tableIOCost = maxIOCost +
+                Math.pow(getCorrelation(tableName, indexedColumn), 2) * (minIOCost - maxIOCost);
+        runCost = idxCpuCost + indexIOCost + tableCpuCost + tableIOCost;
+
+        return startup + runCost;
     }
 
     public static double calculateBitmapIndexScanCost(String tableName, String indexedColumn,
@@ -121,7 +143,7 @@ public class ScanCostCalculator {
                                                        int indexConditionsCount, int conditionsCount) {
         double seqScanCost = calculateSeqScanCost(tableName, conditionsCount + indexConditionsCount);
         double indexOnlyScanCost = calculateIndexOnlyScanCost(tableName, columnName, indexConditionsCount, conditionsCount);
-        return (Long) (long) (((seqScanCost / indexOnlyScanCost) - 0.15) * getTableRowCount(tableName));
+        return (Long) (long) (((seqScanCost / indexOnlyScanCost) - 0.1) * getTableRowCount(tableName));
     }
 
     public static Long calculateIndexScanMaxTuples(String tableName, String columnName,
