@@ -16,35 +16,33 @@ public class IndexScan implements Node {
     public String buildQuery(List<String> tables) {
         QueryBuilder qb = new QueryBuilder();
         Random random = new Random();
-        int tableCount = random.nextInt(tables.size()) + 1;
-        Collections.shuffle(tables);
+        String table = tables.getFirst();
 
         List<String> indexedColumns = new ArrayList<>();
         List<String> nonIndexedColumns = new ArrayList<>();
-        for (int i = 0; i < tableCount; i++) {
-            Map<String, String> columnsAndTypes = V2.getColumnsAndTypes(tables.get(i));
-            Collections.shuffle(Arrays.asList(columnsAndTypes.keySet().toArray()));
-            for (String column : columnsAndTypes.keySet()) {
-                if (SQLUtils.hasIndexOnColumn(tables.get(i), column)) {
-                    indexedColumns.add(column);
-                }
-                else {
-                    nonIndexedColumns.add(column);
-                }
+        Map<String, String> columnsAndTypes = V2.getColumnsAndTypes(table);
+        List<String> columns = Arrays.asList(columnsAndTypes.keySet().toArray(new String[0]));
+        Collections.shuffle(columns);
+        for (String column : columns) {
+            if (SQLUtils.hasIndexOnColumn(table, column)) {
+                indexedColumns.add(column);
             }
-            qb.from(tables.get(i));
-            int indexedColumnIndex = random.nextInt(indexedColumns.size()) + 1;
-            int nonIndexedColumnIndex = random.nextInt(nonIndexedColumns.size()) + 1;
+            else {
+                nonIndexedColumns.add(column);
+            }
+        }
+        qb.from(table);
+        int indexedColumnIndex = 1;
+        int nonIndexedColumnIndex = random.nextInt(nonIndexedColumns.size()) + 1;
 
-            qb.setIndexConditionCount((indexedColumnIndex)*2);
-            qb.setConditionCount((nonIndexedColumnIndex)*2);
+        qb.setIndexConditionCount((indexedColumnIndex)*2);
+        qb.setConditionCount((nonIndexedColumnIndex)*2);
 
-            for (int j = 0; j < indexedColumnIndex; j++) {
-                qb.addRandomWhere(tables.get(i), indexedColumns.get(j), this.getClass().getSimpleName());
-            }
-            for (int j = 0; j < nonIndexedColumnIndex; j++) {
-                qb.addRandomWhere(tables.get(i), nonIndexedColumns.get(j));
-            }
+        for (int j = 0; j < indexedColumnIndex; j++) {
+            qb.addRandomWhere(table, indexedColumns.get(j), this.getClass().getSimpleName());
+        }
+        for (int j = 0; j < nonIndexedColumnIndex; j++) {
+            qb.addRandomWhere(table, nonIndexedColumns.get(j));
         }
 
         return qb.build();
@@ -58,8 +56,8 @@ public class IndexScan implements Node {
         V2.sql("insert into " + tableName + " (x, y, z, w) select generate_series(1, ?), generate_series(1, ?), " +
                         "generate_series(1, ?), generate_series(1, ?)",
                 tableSize, tableSize, tableSize, tableSize);
-        V2.sql("create index if not exists pg_indexscan_idx on " + tableName + " (x, z)");
-       // V2.sql("create index if not exists pg_indexscan_idz on " + tableName + " (z)");
+        V2.sql("create index if not exists pg_indexscan_idx on " + tableName + " (x)");
+        V2.sql("create index if not exists pg_indexscan_idz on " + tableName + " (z)");
         V2.sql("vacuum freeze analyze " + tableName);
         return new ArrayList<>(List.of(tableName));
     }

@@ -7,14 +7,13 @@ import com.haskov.json.JsonOperations;
 import com.haskov.json.PgJsonPlan;
 import com.haskov.nodes.Node;
 import com.haskov.nodes.NodeFactory;
-import com.haskov.utils.SQLUtils;
 import org.junit.Assert;
 import org.junit.Test;
 
 import java.util.List;
 import java.util.Objects;
 
-public class TestSeqScan {
+public class TestSeqScanCost {
 
     private Configuration initDB(int size) {
         String argArray = "-h localhost -n SeqScan -S " + size;

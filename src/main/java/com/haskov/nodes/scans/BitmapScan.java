@@ -17,36 +17,34 @@ public class BitmapScan implements Node {
     public String buildQuery(List<String> tables) {
         QueryBuilder qb = new QueryBuilder();
         Random random = new Random();
-        int tableCount = random.nextInt(tables.size()) + 1;
+        String table = tables.getFirst();
         Collections.shuffle(tables);
 
         List<String> indexedColumns = new ArrayList<>();
         List<String> nonIndexedColumns = new ArrayList<>();
-        for (int i = 0; i < tableCount; i++) {
-            Map<String, String> columnsAndTypes = V2.getColumnsAndTypes(tables.get(i));
-            Collections.shuffle(Arrays.asList(columnsAndTypes.keySet().toArray()));
-            for (String column : columnsAndTypes.keySet()) {
-                if (SQLUtils.hasIndexOnColumn(tables.get(i), column)) {
-                    indexedColumns.add(column);
-                }
-                else {
-                    nonIndexedColumns.add(column);
-                }
+        Map<String, String> columnsAndTypes = V2.getColumnsAndTypes(table);
+        Collections.shuffle(Arrays.asList(columnsAndTypes.keySet().toArray()));
+        for (String column : columnsAndTypes.keySet()) {
+            if (SQLUtils.hasIndexOnColumn(table, column)) {
+                indexedColumns.add(column);
             }
-            qb.from(tables.get(i));
-
-            int indexedColumnIndex = random.nextInt(indexedColumns.size()) + 1;
-            int nonIndexedColumnIndex = random.nextInt(nonIndexedColumns.size()) + 1;
-
-            qb.setIndexConditionCount((indexedColumnIndex)*2);
-            qb.setConditionCount((nonIndexedColumnIndex)*2);
-
-            for (int j = 0; j < indexedColumnIndex; j++) {
-                qb.addRandomWhere(tables.get(i), indexedColumns.get(j), this.getClass().getSimpleName());
+            else {
+                nonIndexedColumns.add(column);
             }
-            for (int j = 0; j < nonIndexedColumnIndex; j++) {
-                qb.addRandomWhere(tables.get(i), nonIndexedColumns.get(j));
-            }
+        }
+        qb.from(table);
+
+        int indexedColumnIndex = random.nextInt(indexedColumns.size()) + 1;
+        int nonIndexedColumnIndex = random.nextInt(nonIndexedColumns.size()) + 1;
+
+        qb.setIndexConditionCount((indexedColumnIndex)*2);
+        qb.setConditionCount((nonIndexedColumnIndex)*2);
+
+        for (int j = 0; j < indexedColumnIndex; j++) {
+            qb.addRandomWhere(table, indexedColumns.get(j), this.getClass().getSimpleName());
+        }
+        for (int j = 0; j < nonIndexedColumnIndex; j++) {
+            qb.addRandomWhere(table, nonIndexedColumns.get(j));
         }
 
         return qb.build();

@@ -14,25 +14,20 @@ public class IndexOnlyScan implements Node {
     public String buildQuery(List<String> tables) {
         QueryBuilder qb = new QueryBuilder();
         Random random = new Random();
-        int tableCount = random.nextInt(tables.size()) + 1;
         Collections.shuffle(tables);
+        String table = tables.getFirst();
 
-        for (int i = 0; i < tableCount; i++) {
-            Map<String, String> columnsAndTypes = V2.getColumnsAndTypes(tables.get(i));
-            int columnsCount = random.nextInt(columnsAndTypes.size()) + 1;
-            qb.setIndexConditionCount(columnsCount * 2);
-            Collections.shuffle(Arrays.asList(columnsAndTypes.keySet().toArray()));
-            qb.from(tables.get(i));
-            
-            // We're expecting every column is indexed.
-            Iterator<String> columnIterator = columnsAndTypes.keySet().iterator();
-            for (int j = 0; j < columnsCount; j++) {
-                if (!columnIterator.hasNext()) {
-                    columnIterator = columnsAndTypes.keySet().iterator();
-                }
-                String column = columnIterator.next();
-                qb.addRandomWhere(tables.get(i), column, this.getClass().getSimpleName());
-            }
+        Map<String, String> columnsAndTypes = V2.getColumnsAndTypes(table);
+        int columnsCount = 1;
+        qb.setIndexConditionCount(columnsCount * 2);
+        List<String> columns = Arrays.asList(columnsAndTypes.keySet().toArray(new String[0]));
+        Collections.shuffle(columns);
+        qb.from(table);
+
+        // We're expecting every column is indexed.
+        for (int j = 0; j < columnsCount; j++) {
+            String column = columns.get(j);
+            qb.addRandomWhere(table, column, this.getClass().getSimpleName());
         }
 
         return qb.build();
@@ -71,7 +66,8 @@ public class IndexOnlyScan implements Node {
         V2.sql("create table " + tableName + " ( x integer, y integer)");
         V2.sql("insert into " + tableName + " (x, y) select generate_series(1, ?), generate_series(1, ?)",
                 tableSize, tableSize);
-        V2.sql("create index if not exists pg_indexonlyscan_idx on " + tableName + " (x, y)");
+        V2.sql("create index if not exists pg_indexonlyscan_idx on " + tableName + " (x)");
+        V2.sql("create index if not exists pg_indexonlyscan_idy on " + tableName + " (y)");
         V2.sql("vacuum freeze analyze " + tableName);
         return new ArrayList<>(List.of(tableName));
     }

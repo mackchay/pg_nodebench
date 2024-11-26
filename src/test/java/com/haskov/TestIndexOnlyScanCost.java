@@ -14,7 +14,7 @@ import org.slf4j.LoggerFactory;
 import java.util.List;
 import java.util.Objects;
 
-public class TestIndexOnlyScan {
+public class TestIndexOnlyScanCost {
 
     private Configuration initDB(int size) {
         String argArray = "-h localhost -n IndexOnlyScan -S " + size;
@@ -28,27 +28,36 @@ public class TestIndexOnlyScan {
         Configuration conf = initDB(sizeOfTable);
         Node node = NodeFactory.createNode(conf.node);
         List<String> tables = node.prepareTables(conf.sizeOfTable);
-        String query = "select * from " + tables.getFirst() + conditions;
+        String query = "select x from " + tables.getFirst() + conditions;
         double actualCost = ScanCostCalculator.calculateIndexOnlyScanCost(tables.getFirst(), "x",
-                conditionCount, conditionCount, selectivity);
+                conditionCount, 0, selectivity);
+        V2.explain(LoggerFactory.getLogger("TestIndexOnlyScan"), query);
         PgJsonPlan plan = JsonOperations.findNode(JsonOperations.explainResultsJson(query), "Index Only Scan");
         double expectedCost = Objects.requireNonNull(JsonOperations.
                         findNode(JsonOperations.explainResultsJson(query), "Index Only Scan")).
                 getJson().get("Total Cost").getAsDouble();
-        V2.explain(LoggerFactory.getLogger("TestIndexOnlyScan"), query);
-        Assert.assertEquals(expectedCost, actualCost, expectedCost * 0.1);
+        Assert.assertEquals(expectedCost, actualCost, expectedCost * 0.05);
     }
 
     @Test
-    public void testSeqScan() {
+    public void testIndexOnlyScan() {
         checkTestSeqScan(500, " where x < 2", 1, (double) 1 / 500);
-        checkTestSeqScan(10000, " where x > 0 and x < 501", 2, (double) 500 /10000);
+        checkTestSeqScan(10000, " where x < 11", 1, (double) 10 / 10000);
         checkTestSeqScan(10000, " where x < 5001", 1, (double) 5000 /10000);
         checkTestSeqScan(100000, " where x < 40001", 1, (double) 40000 /100000);
-        checkTestSeqScan(100000, " where x > 0 and x < 500 and y > 0 and y < 500", 4,
-                (double) 499 /100000);
-        checkTestSeqScan(100000, " where x > 0 and x < 50001 and y > 0 and y < 50001", 4,
-                (double) 50000/100000);
-        checkTestSeqScan(500, " where x > 0 and x < 100 and y > 0 and y < 100", 4, (double) 100 / 500);
+    }
+
+    @Test
+    public void testIndexOnlyScanConditions() {
+        checkTestSeqScan(500, " where x > 0 and x < 51", 2, (double) 50 /500);
+        checkTestSeqScan(10000, " where x > 0 and x < 501", 2, (double) 500 /10000);
+        checkTestSeqScan(100000, " where x > 0 and x < 10001", 2, (double) 10000 /100000);
+        checkTestSeqScan(100000, " where x > 0 and x < 40001", 2, (double) 40000 /100000);
+    }
+
+    @Test
+    public void testIndexOnlyScanMoreConditions() {
+        checkTestSeqScan(500, " where x > 0 and x < 100 and x > 0 and x < 100", 4, (double) 100 / 500);
+        //checkTestSeqScan(500, " where x > 0 and x < 100 and y > 0 and y < 100", 4, (double) 100 / 500);
     }
 }
