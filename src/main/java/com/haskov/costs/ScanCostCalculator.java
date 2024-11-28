@@ -3,10 +3,16 @@ package com.haskov.costs;
 import com.haskov.utils.SQLUtils;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
+
+import java.util.HashMap;
+import java.util.Map;
+
 import static com.haskov.costs.CostParameters.*;
 import static com.haskov.utils.SQLUtils.*;
 
+//TODO optimize class
 public class ScanCostCalculator {
+    Map<ScanData, Long> maxTuplesMap = new HashMap<>();
 
     public static double calculateSeqScanCost(String tableName, int conditionCount) {
 
@@ -99,6 +105,7 @@ public class ScanCostCalculator {
 
     public static double calculateBitmapIndexScanCost(String tableName, String indexedColumn,
                                                       int indexConditionsCount, double sel) {
+
         double numIndexTuples, numIndexPages,
                 startup, runCost, idxCpuCost, indexIOCost,
                 height, idxCostPerTuple;
@@ -146,8 +153,13 @@ public class ScanCostCalculator {
     // Calculate max tuples
 
 
-    public static Long calculateIndexOnlyScanMaxTuples(String tableName, String columnName,
+    public Long calculateIndexOnlyScanMaxTuples(String tableName, String columnName,
                                                        int indexConditionsCount, int conditionsCount) {
+        String scanType = "IndexOnlyScan";
+        ScanData data = new ScanData(indexConditionsCount, conditionsCount, scanType);
+        if (maxTuplesMap.containsKey(data)) {
+            return maxTuplesMap.get(data);
+        }
         double seqScanCost = calculateSeqScanCost(tableName, conditionsCount + indexConditionsCount);
 
         Pair<Long, Long> resultIndexTable = getTablePagesAndRowsCount(getIndexOnColumn(tableName, columnName));
@@ -157,13 +169,20 @@ public class ScanCostCalculator {
         double startup = Math.ceil(Math.log(numIndexTuples)/Math.log(2) + (height + 1) * 50) * cpuOperatorCost;
 
         double indexOnlyScanCost = calculateIndexOnlyScanCost(tableName, columnName, indexConditionsCount, conditionsCount);
-        return (Long) (long) ((((seqScanCost - randomPageCost + seqPageCost - startup) / indexOnlyScanCost) - 0.05)
+        long maxTuples = (long) ((((seqScanCost - randomPageCost + seqPageCost - startup) / indexOnlyScanCost) - 0.05)
                 * getTableRowCount(tableName));
+        maxTuplesMap.put(data, maxTuples);
+        return maxTuples;
     }
 
 
-    public static Long calculateIndexScanMaxTuples(String tableName, String columnName,
+    public Long calculateIndexScanMaxTuples(String tableName, String columnName,
                                                    int conditionsCount, int indexConditionsCount) {
+        String scanType = "IndexScan";
+        ScanData data = new ScanData(indexConditionsCount, conditionsCount, scanType);
+        if (maxTuplesMap.containsKey(data)) {
+            return maxTuplesMap.get(data);
+        }
         double seqScanCost = calculateSeqScanCost(tableName, conditionsCount + indexConditionsCount);
         double indexScanCost = calculateIndexScanCost(tableName, columnName, indexConditionsCount, conditionsCount);
         Pair<Long, Long> resultIndexTable = getTablePagesAndRowsCount(getIndexOnColumn(tableName, columnName));
@@ -197,30 +216,40 @@ public class ScanCostCalculator {
 
         }
 
-        return (long) ((sel - 0.05) * numTuples);
+        long maxTuples = (long) ((sel - 0.05) * numTuples);
+        maxTuplesMap.put(data, maxTuples);
+        return maxTuples;
     }
 
-    public static Pair<Long, Long> calculateBitmapIndexScanTuplesRange(String tableName, String indexedColumn,
+    public Pair<Long, Long> calculateBitmapIndexScanTuplesRange(String tableName, String indexedColumn,
                                                                        int indexConditionsCount, int conditionsCount) {
-        double indexScanCost, numPages, numTuples, bitmapIdxScanCost, seqScanCost, bitmapScanCost;
+        String scanType = "BitmapScan";
+        ScanData data = new ScanData(indexConditionsCount, conditionsCount, scanType);
+        if (maxTuplesMap.containsKey(data)) {
+            return new ImmutablePair<>(3L, maxTuplesMap.get(data));
+        }
 
-        bitmapScanCost = calculateBitmapHeapAndIndexScanCost(tableName, indexedColumn,
-                indexConditionsCount, conditionsCount, 1);
-        seqScanCost = calculateSeqScanCost(tableName, conditionsCount + indexConditionsCount);
-        indexScanCost = calculateIndexScanCost(tableName, indexedColumn, indexConditionsCount, conditionsCount);
+        double seqScanCost = calculateSeqScanCost(tableName, conditionsCount + indexConditionsCount);
+        double bitmapScanCost = calculateBitmapHeapAndIndexScanCost(tableName, indexedColumn, indexConditionsCount,
+                conditionsCount, 1);
+
+        Pair<Long, Long> resultIndexTable = getTablePagesAndRowsCount(getIndexOnColumn(tableName, indexedColumn));
+        double numIndexTuples = resultIndexTable.getRight();
+
+        double height = getBtreeHeight(getIndexOnColumn(tableName, indexedColumn));
+        double startup = Math.ceil(Math.log(numIndexTuples)/Math.log(2) + (height + 1) * 50) * cpuOperatorCost;
 
         Pair<Long, Long> resultTable = getTablePagesAndRowsCount(tableName);
-        numPages = resultTable.getLeft();
-        numTuples = resultTable.getRight();
 
-        // HERE GOES MATH :)
+        double numPages = resultTable.getLeft();
+        double numTuples = resultTable.getRight();
 
-        double maxSel = (seqScanCost - seqPageCost * numPages) / (bitmapScanCost);
-        double minSel = (indexScanCost - (bitmapScanCost - numPages * seqPageCost)) / (numPages * seqPageCost);
-        if (minSel > 1) {
-            return new ImmutablePair<>(3L, (long) ((maxSel - 0.05) * numTuples));
-        }
-        return new ImmutablePair<>((long) (minSel  * numTuples), (long) ((maxSel - 0.05) * numTuples));
+        double maxSel = (seqScanCost - randomPageCost + seqPageCost - startup - seqPageCost * numPages)
+                / bitmapScanCost - 0.05;
+
+        long maxTuples = (long)((maxSel) * numTuples);
+        maxTuplesMap.put(data, maxTuples);
+        return new ImmutablePair<>(3L, maxTuples);
     }
 
     //Helpful Functions

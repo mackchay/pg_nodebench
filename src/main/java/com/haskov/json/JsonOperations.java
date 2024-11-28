@@ -1,11 +1,11 @@
 package com.haskov.json;
 
-import com.google.gson.Gson;
-import com.google.gson.JsonArray;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
+import com.google.gson.*;
 import org.postgresql.util.PGobject;
 
+import java.io.FileReader;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -87,4 +87,14 @@ public class JsonOperations {
         return findNodeRecursive(jsonObject.getAsJsonObject("Plan"), nodeType);
     }
 
+    public static JsonPlan getJsonPlan(String filePath) {
+        Gson gson = new GsonBuilder().setPrettyPrinting().create();
+        try (FileReader reader = new FileReader(filePath)) {
+            JsonPlan jsonPlan = gson.fromJson(reader, JsonPlan.class);
+            System.out.println(jsonPlan);
+            return jsonPlan;
+        } catch (Exception e) {
+            throw new RuntimeException("Error reading json file: " + filePath, e);
+        }
+    }
 }

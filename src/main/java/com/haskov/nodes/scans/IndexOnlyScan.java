@@ -4,6 +4,7 @@ import com.haskov.QueryBuilder;
 import com.haskov.bench.V2;
 import com.haskov.nodes.Node;
 import com.haskov.tables.DropTable;
+import com.haskov.utils.SQLUtils;
 
 import java.util.*;
 
@@ -62,6 +63,12 @@ public class IndexOnlyScan implements Node {
     @Override
     public List<String> prepareTables(Long tableSize) {
         String tableName = "pg_indexonlyscan";
+        if (SQLUtils.getTableRowCount(tableName).equals(tableSize)) {
+            V2.sql("create index if not exists pg_indexonlyscan_idx on " + tableName + " (x)");
+            V2.sql("create index if not exists pg_indexonlyscan_idy on " + tableName + " (y)");
+            V2.sql("vacuum freeze analyze " + tableName);
+            return new ArrayList<>(List.of(tableName));
+        }
         DropTable.dropTable(tableName);
         V2.sql("create table " + tableName + " ( x integer, y integer)");
         V2.sql("insert into " + tableName + " (x, y) select generate_series(1, ?), generate_series(1, ?)",

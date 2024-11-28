@@ -22,8 +22,9 @@ public class BitmapHeapScan implements Node {
         List<String> indexedColumns = new ArrayList<>();
         List<String> nonIndexedColumns = new ArrayList<>();
         Map<String, String> columnsAndTypes = V2.getColumnsAndTypes(table);
-        Collections.shuffle(Arrays.asList(columnsAndTypes.keySet().toArray()));
-        for (String column : columnsAndTypes.keySet()) {
+        List<String> columns = new ArrayList<>(columnsAndTypes.keySet());
+        Collections.shuffle(columns);
+        for (String column : columns) {
             if (SQLUtils.hasIndexOnColumn(table, column)) {
                 indexedColumns.add(column);
             }
@@ -32,7 +33,7 @@ public class BitmapHeapScan implements Node {
             }
         }
 
-        int indexedColumnIndex = random.nextInt(indexedColumns.size()) + 1;
+        int indexedColumnIndex = 1;
         int nonIndexedColumnIndex = random.nextInt(nonIndexedColumns.size()) + 1;
 
         qb.setIndexConditionCount((indexedColumnIndex)*2);

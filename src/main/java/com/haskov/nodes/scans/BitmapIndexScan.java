@@ -4,6 +4,7 @@ import com.haskov.QueryBuilder;
 import com.haskov.bench.V2;
 import com.haskov.nodes.Node;
 import com.haskov.tables.DropTable;
+import com.haskov.utils.SQLUtils;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -27,6 +28,11 @@ public class BitmapIndexScan implements Node {
     @Override
     public List<String> prepareTables(Long tableSize) {
         String tableName = "pg_bitmapscan";
+        if (SQLUtils.getTableRowCount(tableName).equals(tableSize)) {
+            sql("create index if not exists pg_bitmapscan_idx on " + tableName + "(x)");
+            V2.sql("vacuum freeze analyze " + tableName);
+            return new ArrayList<>(List.of(tableName));
+        }
         DropTable.dropTable(tableName);
         List<Long> list1 = new ArrayList<>();
         for (long i = 1; i <= tableSize; i++) {

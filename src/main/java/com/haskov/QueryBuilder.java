@@ -1,6 +1,6 @@
 package com.haskov;
 
-import com.haskov.types.AggregateData;
+import com.haskov.costs.ScanCostCalculator;
 import com.haskov.types.JoinData;
 import com.haskov.types.JoinType;
 import com.haskov.types.ReplaceOrAdd;
@@ -23,7 +23,7 @@ public class QueryBuilder {
     private final Random random = new Random();
     private final List<String> groupByColumns = new ArrayList<>();
     private final List<String> unionQueries = new ArrayList<>();
-    private List<String> unionSelectColumns = new ArrayList<>();
+    private static final ScanCostCalculator scanCostCalculator = new ScanCostCalculator();
 
     //Максимальное количество столбцов среди всех запросов с UNION ALL
     private int maxSelectColumns = 0;
@@ -72,7 +72,6 @@ public class QueryBuilder {
         }
 
         unionQueries.add(queryBuilder.build());
-        unionSelectColumns = queryBuilder.selectColumns;
         updateMaxSelectColumns();
         return this;
     }
@@ -108,7 +107,8 @@ public class QueryBuilder {
         switch (nodeType) {
             case "IndexOnlyScan" -> addRandomWhereConditionForIndexOnlyScan(table, column);
             case "IndexScan" -> addRandomWhereConditionForIndexScan(table, column);
-            case "BitmapHeapScan" -> addRandomWhereConditionForBitmapIndexScan(table, column);
+            case "BitmapHeapScan", "BitmapIndexScan", "BitmapScan" ->
+                    addRandomWhereConditionForBitmapScan(table, column);
             default -> addRandomWhereCondition(table, column);
         }
     }
@@ -129,7 +129,7 @@ public class QueryBuilder {
         long min = Long.parseLong(SQLUtils.getMin(table, column));
         long max = Long.parseLong(SQLUtils.getMax(table, column));
 
-        long maxTuples = calculateIndexScanMaxTuples(table, column,
+        long maxTuples = scanCostCalculator.calculateIndexScanMaxTuples(table, column,
                 indexConditionCount, conditionCount);
         if (maxTuples < 1) {
             throw new RuntimeException("Table is too small for Index Only Scan node.");
@@ -151,7 +151,7 @@ public class QueryBuilder {
         long min = Long.parseLong(SQLUtils.getMin(table, column));
         long max = Long.parseLong(SQLUtils.getMax(table, column));
 
-        long maxTuples = calculateIndexOnlyScanMaxTuples(table, column,
+        long maxTuples = scanCostCalculator.calculateIndexOnlyScanMaxTuples(table, column,
                 indexConditionCount, conditionCount);
         if (maxTuples < 1) {
             throw new RuntimeException("Table is too small for Index Only Scan node.");
@@ -164,12 +164,12 @@ public class QueryBuilder {
                 where(table + "." + column + "<" + (radius + tuples));
     }
 
-    private void addRandomWhereConditionForBitmapIndexScan(String table, String column) {
+    private void addRandomWhereConditionForBitmapScan(String table, String column) {
         this.select(table + "." + column);
         long min = Long.parseLong(SQLUtils.getMin(table, column));
         long max = Long.parseLong(SQLUtils.getMax(table, column));
 
-        Pair<Long, Long> tuplesRange = calculateBitmapIndexScanTuplesRange(table, column,
+        Pair<Long, Long> tuplesRange = scanCostCalculator.calculateBitmapIndexScanTuplesRange(table, column,
                 indexConditionCount, conditionCount);
         if (Math.max(tuplesRange.getLeft(), tuplesRange.getRight()) < 1) {
             throw new RuntimeException("Table size is too small for Bitmap Index Scan.");

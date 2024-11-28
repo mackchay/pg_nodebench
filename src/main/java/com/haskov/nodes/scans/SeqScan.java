@@ -4,6 +4,7 @@ import com.haskov.QueryBuilder;
 import com.haskov.bench.V2;
 import com.haskov.nodes.Node;
 import com.haskov.tables.DropTable;
+import com.haskov.utils.SQLUtils;
 
 import java.util.*;
 
@@ -60,6 +61,10 @@ public class SeqScan implements Node {
 
     public List<String> prepareTables(Long tableSize) {
         String tableName = "pg_seqscan";
+        if (SQLUtils.getTableRowCount(tableName).equals(tableSize)) {
+            V2.sql("vacuum freeze analyze " + tableName);
+            return new ArrayList<>(List.of(tableName));
+        }
         DropTable.dropTable(tableName);
         V2.sql("create table " + tableName + " ( x integer, y integer, z integer)");
         V2.sql("insert into " + tableName + " (x, y, z) select generate_series(1, ?), generate_series(1, ?)," +

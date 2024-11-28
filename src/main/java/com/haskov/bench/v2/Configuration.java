@@ -1,6 +1,7 @@
 package com.haskov.bench.v2;
 
 import com.haskov.bench.v2.strategy.Strategies;
+import com.haskov.json.JsonPlan;
 
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -32,4 +33,5 @@ public class Configuration {
 	public Phase runType;
 	public Strategies.StrategyName strategy;
 	public Long sizeOfTable;
+	public JsonPlan plan;
 }

@@ -28,8 +28,9 @@ public class TestIndexOnlyMaxTuples {
         List<String> tables = node.prepareTables(conf.sizeOfTable);
         int conditionCount = 2;
         String query = "select x from " + tables.getFirst();
-        long maxTuples = (long) (ScanCostCalculator.calculateIndexOnlyScanMaxTuples(tables.getFirst(), "x",
-                        conditionCount, 0));
+        ScanCostCalculator scanCostCalculator = new ScanCostCalculator();
+        long maxTuples = scanCostCalculator.calculateIndexOnlyScanMaxTuples(tables.getFirst(), "x",
+                        conditionCount, 0);
         query += " where x > 0 and x < " + maxTuples;
         V2.explain(LoggerFactory.getLogger("TestIndexOnlyScanMaxTuples"), query);
         PgJsonPlan plan = JsonOperations.findNode(JsonOperations.explainResultsJson(query), "Index Only Scan");

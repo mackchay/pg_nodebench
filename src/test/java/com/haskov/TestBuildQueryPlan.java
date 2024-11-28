@@ -21,6 +21,7 @@ import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.List;
 
+import static com.haskov.PlanAnalyzer.buildQuery;
 import static com.haskov.json.JsonOperations.explainResultsJson;
 import static com.haskov.json.JsonOperations.findNode;
 import static org.junit.Assert.assertEquals;
@@ -177,37 +178,5 @@ public class TestBuildQueryPlan {
             e.printStackTrace();
         }
         return null;
-    }
-
-    public static QueryNodeData buildQuery(QueryNodeData data, JsonPlan plan) {
-        if (plan == null) {
-            return data;
-        }
-        if (plan.getPlans() == null || plan.getPlans().isEmpty()) {
-            Node node = NodeFactory.createNode(plan.getNodeType());
-            if (data.getTables().isEmpty()) {
-                data.setTables(node.prepareTables(data.getTableSize()));
-            }
-            data.setQueryBuilder(node.buildQuery(data.getTables(), data.getQueryBuilder()));
-            return data;
-        } else {
-            Node node = NodeFactory.createNode(plan.getNodeType());
-            if (node.getClass().isAnnotationPresent(Scan.class)) {
-                throw new RuntimeException("Scan node should be leaf!");
-            }
-
-            int iterator = 1;
-            for (JsonPlan nodePlan : plan.getPlans()) {
-                buildQuery(data, nodePlan);
-                if (iterator != plan.getPlans().size() || plan.getPlans().size() == 1) {
-                    data.setQueryBuilder(node.buildQuery(data.getTables(), data.getQueryBuilder()));
-                }
-                if (plan.getPlans().size() > 1) {
-                    data.setTables(new ArrayList<>());
-                }
-                iterator++;
-            }
-            return data;
-        }
     }
 }

@@ -7,15 +7,16 @@ import com.haskov.json.JsonOperations;
 import com.haskov.json.PgJsonPlan;
 import com.haskov.nodes.Node;
 import com.haskov.nodes.NodeFactory;
+import org.apache.commons.lang3.tuple.Pair;
 import org.junit.Assert;
 import org.junit.Test;
 import org.slf4j.LoggerFactory;
 
 import java.util.List;
 
-public class TestIndexScanMaxTuples {
+public class TestBitmapScanMaxTuples {
     private Configuration initDB(int size) {
-        String argArray = "-h localhost -n IndexScan -S " + size;
+        String argArray = "-h localhost -n BitmapScan -S " + size;
         String[] args = List.of(argArray.split(" ")).toArray(new String[0]);
         Configuration conf = Cmd.args(args);
         V2.init(conf);
@@ -29,13 +30,16 @@ public class TestIndexScanMaxTuples {
         int conditionCount = 2;
         String query = "select * from " + tables.getFirst();
         ScanCostCalculator scanCostCalculator = new ScanCostCalculator();
-        long maxTuples = scanCostCalculator.calculateIndexScanMaxTuples(tables.getFirst(), "x",
+        Pair<Long, Long> tuples = scanCostCalculator.calculateBitmapIndexScanTuplesRange(
+                tables.getFirst(), "x",
                 conditionCount, 2);
-        query += " where x > 0 and x < " + maxTuples + " and y > 0 and y < " + maxTuples;
-        V2.explain(LoggerFactory.getLogger("TestIndexScanMaxTuples"), query);
-        PgJsonPlan plan = JsonOperations.findNode(JsonOperations.explainResultsJson(query), "Index Scan");
+        query += " where x > 0 and x < " + tuples.getLeft() + " and y > 0 and y < " +
+                tuples.getRight();
+        V2.explain(LoggerFactory.getLogger("TestBitmapScanMaxTuples"), query);
+        PgJsonPlan plan = JsonOperations.findNode(JsonOperations.explainResultsJson(query),
+                "Bitmap Index Scan");
         PgJsonPlan isCorrectPlan = JsonOperations.
-                findNode(JsonOperations.explainResultsJson(query), "Index Scan");
+                findNode(JsonOperations.explainResultsJson(query), "Bitmap Index Scan");
         Assert.assertTrue(isCorrectPlan != null);
     }
 

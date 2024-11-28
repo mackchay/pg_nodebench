@@ -6,6 +6,8 @@ import org.apache.commons.cli.*;
 
 import java.util.concurrent.atomic.AtomicLong;
 
+import static com.haskov.json.JsonOperations.getJsonPlan;
+
 
 public class Cmd {
 
@@ -71,6 +73,8 @@ public class Cmd {
                 desc("node type in query").build());
         opt.addOption(Option.builder("S").hasArg().argName("tableSize").
                 desc("Size of tables. Default 1000").build());
+        opt.addOption(Option.builder("j").hasArg().argName("jsonPlan").
+                desc("query plan in json format").build());
 
         params = new Configuration();
         try {
@@ -91,8 +95,9 @@ public class Cmd {
             params.password = cmd.getOptionValue("P","postgres");
             params.timeLimit = Long.parseLong(cmd.getOptionValue("l", "0")) * 1000L;
 
-            params.node = cmd.getOptionValue("n");
+            //params.node = cmd.getOptionValue("n");
             params.sizeOfTable = Long.parseLong(cmd.getOptionValue("S", DEF_TABLE_SIZE));
+            params.plan = getJsonPlan(cmd.getOptionValue("j"));
 
 
         } catch (ParseException e) {

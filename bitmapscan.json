@@ -1,0 +1,8 @@
+{
+  "Node Type": "BitmapHeapScan",
+  "Plans": [
+    {
+      "Node Type": "BitmapIndexScan"
+    }
+  ]
+}

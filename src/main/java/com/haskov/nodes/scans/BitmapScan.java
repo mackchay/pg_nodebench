@@ -53,6 +53,9 @@ public class BitmapScan implements Node {
     @Override
     public List<String> prepareTables(Long tableSize) {
         String tableName = "pg_bitmapscan";
+        if (SQLUtils.getTableRowCount(tableName).equals(tableSize)) {
+            return new ArrayList<>(List.of(tableName));
+        }
         DropTable.dropTable(tableName);
         List<Long> list1 = new ArrayList<>();
         for (long i = 1; i <= tableSize; i++) {
