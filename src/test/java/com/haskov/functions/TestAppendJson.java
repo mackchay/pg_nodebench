@@ -1,4 +1,4 @@
-package com.haskov.indexscan;
+package com.haskov.functions;
 
 import com.haskov.Cmd;
 import com.haskov.QueryGenerator;
@@ -9,9 +9,9 @@ import org.junit.Test;
 
 import java.util.List;
 
-public class TestIndexScanJson {
-    private final static String expectedNodeType = "IndexScan";
-    private final static String filePath = "testplans/indexscan.json";
+public class TestAppendJson {
+    private final static String expectedNodeType = "Append";
+    private final static String filePath = "testplans/append.json";
 
     public void test(long size, int queryCount) {
         String argArray = "-h localhost -j " + filePath + " -S " + size + " -q " + queryCount;
@@ -23,7 +23,7 @@ public class TestIndexScanJson {
     }
 
     @Test
-    public void testIndexScan() {
+    public void testAppend() {
         test(1000, 1000);
         test(10000, 500);
         test(100000, 100);

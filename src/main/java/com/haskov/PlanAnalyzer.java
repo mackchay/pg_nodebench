@@ -47,16 +47,18 @@ public class PlanAnalyzer {
                 throw new RuntimeException("Only scan or result node should be leaf!");
             }
             data.getTableBuildDataList().add(node.prepareTables(data.getTableSize()));
-        } else {
-            Node node = NodeFactory.createNode(plan.getNodeType());
-            if (node.getClass().isAnnotationPresent(Scan.class)) {
-                throw new RuntimeException("Scan node should be leaf!");
-            }
-
-            for (JsonPlan nodePlan : plan.getPlans()) {
-                prepareTablesRecursive(data, nodePlan);
-            }
+            return data.getTableBuildDataList();
         }
+
+        Node node = NodeFactory.createNode(plan.getNodeType());
+        if (node.getClass().isAnnotationPresent(Scan.class)) {
+            throw new RuntimeException("Scan node should be leaf!");
+        }
+
+        for (JsonPlan nodePlan : plan.getPlans()) {
+            prepareTablesRecursive(data, nodePlan);
+        }
+
         return data.getTableBuildDataList();
     }
 
@@ -70,24 +72,28 @@ public class PlanAnalyzer {
                     List.of(data.getTableBuildDataList().getFirst().tableName()),
                     data.getQueryBuilder())
             );
-        } else {
-            if (node.getClass().isAnnotationPresent(Scan.class)) {
-                throw new RuntimeException("Scan node should be leaf!");
-            }
+            return data;
+        }
 
-            int iterator = 1;
-            for (JsonPlan nodePlan : plan.getPlans()) {
-                buildQueryRecursive(data, nodePlan);
-                if (plan.getPlans().size() != iterator || plan.getPlans().size() == 1) {
-                    data.setQueryBuilder(node.buildQuery(
-                            data.getTableBuildDataList().stream()
-                                    .map(TableBuildResult::tableName).toList(),
-                            data.getQueryBuilder()
-                    ));
-                    data.getTableBuildDataList().removeFirst();
-                }
-                iterator++;
+        if (node.getClass().isAnnotationPresent(Scan.class)) {
+            throw new RuntimeException("Scan node should be leaf!");
+        }
+
+        int iterator = 1;
+        for (JsonPlan nodePlan : plan.getPlans()) {
+            buildQueryRecursive(data, nodePlan);
+            if (plan.getPlans().size() != iterator || plan.getPlans().size() == 1) {
+                data.setQueryBuilder(node.buildQuery(
+                        data.getTableBuildDataList().stream()
+                                .map(TableBuildResult::tableName).toList(),
+                        data.getQueryBuilder()
+                ));
             }
+            if (plan.getPlans().size() != 1) {
+                data.getTableBuildDataList().removeFirst();
+            }
+            iterator++;
+
         }
         return data;
     }

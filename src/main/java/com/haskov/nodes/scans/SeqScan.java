@@ -28,7 +28,7 @@ public class SeqScan implements Node {
         if (random.nextBoolean() && !hasIndexOnColumn(table, columns.getFirst())) {
             qb.addRandomWhere(table, columns.getFirst(), this.getClass().getSimpleName());
         } else {
-            qb.select(table, columns.getFirst());
+            qb.select(table + "." + columns.getFirst());
         }
         columns.remove(columns.getFirst());
         for (String column : columns) {

@@ -34,6 +34,7 @@ public class TestUtils {
     //Test queries for node types.
     public static void testQueriesOnNode(String[] queries, String expectedNodeType) {
         expectedNodeType = String.join(" ", expectedNodeType.split("(?=[A-Z])"));
+        sql("SET max_parallel_workers_per_gather = 0");
         for (String query : queries) {
             //explain(logger, query);
             JsonObject resultsJson = explainResultsJson(query);

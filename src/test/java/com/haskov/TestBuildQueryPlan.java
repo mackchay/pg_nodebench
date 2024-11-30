@@ -27,7 +27,7 @@ public class TestBuildQueryPlan {
     @Test
     public void testAggregate() {
         long tableSize = 1000;
-        JsonPlan jsonPlan = getJsonPlan("aggregate.json", tableSize);
+        JsonPlan jsonPlan = getJsonPlan("testplans/aggregate.json", tableSize);
         PlanAnalyzer analyzer = new PlanAnalyzer(tableSize, jsonPlan);
         for (int i = 0; i < 1000; i++) {
             String query = analyzer.buildQuery();
@@ -66,7 +66,7 @@ public class TestBuildQueryPlan {
     @Test
     public void testAppend() {
         long tableSize = 1000;
-        JsonPlan plan = getJsonPlan("append.json", tableSize);
+        JsonPlan plan = getJsonPlan("testplans/append.json", tableSize);
         PlanAnalyzer analyzer = new PlanAnalyzer(tableSize, plan);
         for (int i = 0; i < 1000; i++) {
             String query = analyzer.buildQuery();
