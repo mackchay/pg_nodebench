@@ -3,10 +3,9 @@ package com.haskov.nodes.joins;
 import com.haskov.QueryBuilder;
 import com.haskov.nodes.Node;
 import com.haskov.tables.DropTable;
-import com.haskov.tables.TableBuilder;
 import com.haskov.types.JoinData;
 import com.haskov.types.JoinType;
-import com.haskov.types.TableData;
+import com.haskov.types.TableBuildResult;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -46,59 +45,48 @@ public class NestedLoop implements Node {
     }
 
     @Override
-    public List<String> prepareTables(Long tableSize) {
+    public TableBuildResult prepareTables(Long tableSize) {
         String parentName = "pg_nestedloop_parent";
         String childName = "pg_nestedloop_child";
         DropTable.dropTable(childName);
         DropTable.dropTable(parentName);
 
         List<String> tables = new ArrayList<>(List.of(parentName, childName));
-        TableBuilder.createRandomTable(new TableData(
-                parentName,
-                new ArrayList<>(),
-                5,
-                tableSize,
-                new ArrayList<>(List.of(true, true, true, true, true)),
-                new ArrayList<>(),
-                true
-        ));
-        TableBuilder.createRandomTable(new TableData(
-                childName,
-                new ArrayList<>(List.of(parentName)),
-                5,
-                tableSize,
-                new ArrayList<>(List.of(true, true, true, true, true)),
-                new ArrayList<>(),
-                true
-        ));
-        Random random = new Random();
-        int maxColumns = 30;
-        for (int i = 0; i < 3; i++) {
-            int size = random.nextInt(1, maxColumns);
-            String tableName = "pg_nestedloop_" + i;
-            tables.add(tableName);
-            DropTable.dropTable(tableName);
-            TableBuilder.createRandomTable(new TableData(
-                    tableName,
-                    new ArrayList<>(),
-                    size,
-                    tableSize,
-                    getRandomBooleanList(size),
-                    new ArrayList<>(),
-                    random.nextBoolean()
-            ));
-        }
-        return tables;
-    }
-
-    private List<Boolean> getRandomBooleanList(int size) {
-        Random random = new Random();
-        List<Boolean> list = new ArrayList<>();
-
-        for (int i = 0; i < size; i++) {
-            list.add(random.nextDouble() < 0.5);
-        }
-
-        return list;
+//        TableBuilder.createRandomTable(new TableData(
+//                parentName,
+//                new ArrayList<>(),
+//                5,
+//                tableSize,
+//                new ArrayList<>(List.of(true, true, true, true, true)),
+//                new ArrayList<>(),
+//                true
+//        ));
+//        TableBuilder.createRandomTable(new TableData(
+//                childName,
+//                new ArrayList<>(List.of(parentName)),
+//                5,
+//                tableSize,
+//                new ArrayList<>(List.of(true, true, true, true, true)),
+//                new ArrayList<>(),
+//                true
+//        ));
+//        Random random = new Random();
+//        int maxColumns = 30;
+//        for (int i = 0; i < 3; i++) {
+//            int size = random.nextInt(1, maxColumns);
+//            String tableName = "pg_nestedloop_" + i;
+//            tables.add(tableName);
+//            DropTable.dropTable(tableName);
+//            TableBuilder.createRandomTable(new TableData(
+//                    tableName,
+//                    new ArrayList<>(),
+//                    size,
+//                    tableSize,
+//                    getRandomBooleanList(size),
+//                    new ArrayList<>(),
+//                    random.nextBoolean()
+//            ));
+//        }
+        return null;
     }
 }

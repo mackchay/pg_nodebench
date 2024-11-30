@@ -3,9 +3,9 @@ package com.haskov.nodes.functions;
 import com.haskov.QueryBuilder;
 import com.haskov.nodes.Node;
 import com.haskov.types.ReplaceOrAdd;
+import com.haskov.types.TableBuildResult;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
 import static com.haskov.bench.V2.getColumnsAndTypes;
@@ -32,7 +32,7 @@ public class Aggregate implements Node {
     }
 
     @Override
-    public List<String> prepareTables(Long tableSize) {
-        return List.of();
+    public TableBuildResult prepareTables(Long tableSize) {
+        return null;
     }
 }

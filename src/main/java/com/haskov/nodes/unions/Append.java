@@ -2,6 +2,7 @@ package com.haskov.nodes.unions;
 
 import com.haskov.QueryBuilder;
 import com.haskov.nodes.Node;
+import com.haskov.types.TableBuildResult;
 
 import java.util.List;
 
@@ -20,7 +21,7 @@ public class Append implements Node {
     }
 
     @Override
-    public List<String> prepareTables(Long tableSize) {
-        return List.of();
+    public TableBuildResult prepareTables(Long tableSize) {
+        return null;
     }
 }

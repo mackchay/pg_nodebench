@@ -5,13 +5,8 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.haskov.bench.V2;
 import com.haskov.bench.v2.Configuration;
-import com.haskov.json.JsonOperations;
 import com.haskov.json.JsonPlan;
 import com.haskov.json.PgJsonPlan;
-import com.haskov.nodes.Node;
-import com.haskov.nodes.NodeFactory;
-import com.haskov.nodes.scans.Scan;
-import com.haskov.types.QueryNodeData;
 import org.junit.Assert;
 import org.junit.Test;
 import org.slf4j.LoggerFactory;
@@ -21,7 +16,6 @@ import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.List;
 
-import static com.haskov.PlanAnalyzer.buildQuery;
 import static com.haskov.json.JsonOperations.explainResultsJson;
 import static com.haskov.json.JsonOperations.findNode;
 import static org.junit.Assert.assertEquals;
@@ -32,15 +26,11 @@ public class TestBuildQueryPlan {
 
     @Test
     public void testAggregate() {
-        JsonPlan jsonPlan = getJsonPlan("aggregate.json");
+        long tableSize = 1000;
+        JsonPlan jsonPlan = getJsonPlan("aggregate.json", tableSize);
+        PlanAnalyzer analyzer = new PlanAnalyzer(tableSize, jsonPlan);
         for (int i = 0; i < 1000; i++) {
-            QueryNodeData q = buildQuery(new QueryNodeData(
-                            new ArrayList<>(),
-                            new QueryBuilder(),
-                            1000
-                    ), jsonPlan
-            );
-            String query = q.getQueryBuilder().build();
+            String query = analyzer.buildQuery();
             System.out.println(query);
             //V2.explain(LoggerFactory.getLogger("TestBuildQueryPlan"), query);
             JsonObject resultsJson = explainResultsJson(query);
@@ -53,43 +43,33 @@ public class TestBuildQueryPlan {
 
     @Test
     public void testWrongAggregate() {
-        JsonPlan plan = getJsonPlan("wrong_aggregate.json");
+        long tableSize = 1000;
+        JsonPlan plan = getJsonPlan("wrong_aggregate.json", tableSize);
         RuntimeException exception = assertThrows(RuntimeException.class, () -> {
-            QueryNodeData q = buildQuery(new QueryNodeData(
-                            new ArrayList<>(),
-                            new QueryBuilder(),
-                            1000
-                    ), plan
-            );
+            PlanAnalyzer analyzer = new PlanAnalyzer(tableSize, plan);
+            String q = analyzer.buildQuery();
         });
         assertEquals("Aggregate requires a select columns: requires Scan or Result.", exception.getMessage());
     }
 
     @Test
     public void testWrongScan() {
-        JsonPlan plan = getJsonPlan("wrong_scan.json");
+        long tableSize = 1000;
+        JsonPlan plan = getJsonPlan("wrong_scan.json", tableSize);
         RuntimeException exception = assertThrows(RuntimeException.class, () -> {
-            QueryNodeData q = buildQuery(new QueryNodeData(
-                            new ArrayList<>(),
-                            new QueryBuilder(),
-                            1000
-                    ), plan
-            );
+            PlanAnalyzer analyzer = new PlanAnalyzer(tableSize, plan);
+            String q = analyzer.buildQuery();
         });
         assertEquals("Scan node should be leaf!", exception.getMessage());
     }
 
     @Test
     public void testAppend() {
-        JsonPlan plan = getJsonPlan("append.json");
+        long tableSize = 1000;
+        JsonPlan plan = getJsonPlan("append.json", tableSize);
+        PlanAnalyzer analyzer = new PlanAnalyzer(tableSize, plan);
         for (int i = 0; i < 1000; i++) {
-            QueryNodeData q = buildQuery(new QueryNodeData(
-                            new ArrayList<>(),
-                            new QueryBuilder(),
-                            10000
-                    ), plan
-            );
-            String query = q.getQueryBuilder().build();
+            String query = analyzer.buildQuery();
             System.out.println(query);
             V2.explain(LoggerFactory.getLogger("TestBuildQueryPlan"), query);
             JsonObject resultsJson = explainResultsJson(query);
@@ -106,15 +86,11 @@ public class TestBuildQueryPlan {
 
     @Test
     public void testBitmapScan() {
-        JsonPlan plan = getJsonPlan("aggregate_bitmapscan.json");
+        long tableSize = 1000;
+        JsonPlan plan = getJsonPlan("aggregate_bitmapscan.json", tableSize);
+        PlanAnalyzer analyzer = new PlanAnalyzer(tableSize, plan);
         for (int i = 0; i < 1000; i++) {
-            QueryNodeData q = buildQuery(new QueryNodeData(
-                            new ArrayList<>(),
-                            new QueryBuilder(),
-                            10000
-                    ), plan
-            );
-            String query = q.getQueryBuilder().build();
+            String query = analyzer.buildQuery();
             System.out.println(query);
             //V2.explain(LoggerFactory.getLogger("TestBuildQueryPlan"), query);
             JsonObject resultsJson = explainResultsJson(query);
@@ -129,14 +105,11 @@ public class TestBuildQueryPlan {
 
     @Test
     public void testWrongBitmapScan() {
-        JsonPlan plan = getJsonPlan("wrong_bitmapscan.json");
+        long tableSize = 1000;
+        JsonPlan plan = getJsonPlan("wrong_bitmapscan.json", tableSize);
         RuntimeException exception = assertThrows(RuntimeException.class, () -> {
-            QueryNodeData q = buildQuery(new QueryNodeData(
-                            new ArrayList<>(),
-                            new QueryBuilder(),
-                            1000
-                    ), plan
-            );
+            PlanAnalyzer analyzer = new PlanAnalyzer(tableSize, plan);
+            String q = analyzer.buildQuery();
         });
         assertEquals("Column names must be specified", exception.getMessage());
     }
@@ -153,15 +126,15 @@ public class TestBuildQueryPlan {
         );
     }
 
-    private void initDB() {
-        String argArray = "-h localhost -n NestedLoop -S 1000";
+    private void initDB(long size) {
+        String argArray = "-h localhost -j testplans/bitmapscan.json -S " + size;
         String[] args = List.of(argArray.split(" ")).toArray(new String[0]);
         Configuration conf = Cmd.args(args);
         V2.init(conf);
     }
 
-    private JsonPlan getJsonPlan(String resourceName) {
-        initDB();
+    private JsonPlan getJsonPlan(String resourceName, long size) {
+        initDB(size);
         Gson gson = new GsonBuilder().setPrettyPrinting().create();
         try (InputStream inputStream = JsonPlan.class
                 .getClassLoader()

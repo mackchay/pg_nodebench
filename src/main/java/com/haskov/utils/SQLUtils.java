@@ -68,9 +68,10 @@ public class SQLUtils {
                 WHERE
                     tablename = ?
                 AND
-                    indexdef LIKE '%' || ? || '%'
+                    (indexname = ? || '_id' || ? OR indexname = ? || '_pkey');
                 """;
-        String result = selectOne(query, tableName, columnName);
+        String result = selectOne(query, tableName, tableName, columnName,
+                columnName.replace("_id", ""));
         return result != null;
     }
 
@@ -86,6 +87,18 @@ public class SQLUtils {
                     indexdef LIKE '%' || ? || '%'
                 """;
         return selectOne(query, tableName, columnName);
+    }
+
+    public static Boolean isTableExists(String tableName) {
+        String query = """
+                SELECT EXISTS (
+                      SELECT 1
+                      FROM pg_tables
+                      WHERE schemaname = 'public'
+                      AND tablename = ?
+                );
+                """;
+        return selectOne(query, tableName);
     }
 
     /**

@@ -32,6 +32,8 @@ public class Configuration {
 	public Integer volume;
 	public Phase runType;
 	public Strategies.StrategyName strategy;
-	public Long sizeOfTable;
+
+	public Long tableSize;
 	public JsonPlan plan;
+	public Integer queryCount;
 }

@@ -12,7 +12,7 @@ import static com.haskov.utils.SQLUtils.*;
 
 //TODO optimize class
 public class ScanCostCalculator {
-    Map<ScanData, Long> maxTuplesMap = new HashMap<>();
+    private static final Map<ScanData, Long> maxTuplesMap = new HashMap<>();
 
     public static double calculateSeqScanCost(String tableName, int conditionCount) {
 
@@ -156,7 +156,11 @@ public class ScanCostCalculator {
     public Long calculateIndexOnlyScanMaxTuples(String tableName, String columnName,
                                                        int indexConditionsCount, int conditionsCount) {
         String scanType = "IndexOnlyScan";
-        ScanData data = new ScanData(indexConditionsCount, conditionsCount, scanType);
+        Pair<Long, Long> resultTable = getTablePagesAndRowsCount(tableName);
+        double numPages = resultTable.getLeft();
+        double numTuples = resultTable.getRight();
+        ScanData data = new ScanData(indexConditionsCount, conditionsCount, scanType,
+                numPages, numTuples);
         if (maxTuplesMap.containsKey(data)) {
             return maxTuplesMap.get(data);
         }
@@ -179,7 +183,12 @@ public class ScanCostCalculator {
     public Long calculateIndexScanMaxTuples(String tableName, String columnName,
                                                    int conditionsCount, int indexConditionsCount) {
         String scanType = "IndexScan";
-        ScanData data = new ScanData(indexConditionsCount, conditionsCount, scanType);
+        Pair<Long, Long> resultTable = getTablePagesAndRowsCount(tableName);
+        double numPages = resultTable.getLeft();
+        double numTuples = resultTable.getRight();
+
+        ScanData data = new ScanData(indexConditionsCount, conditionsCount, scanType,
+                numPages, numTuples);
         if (maxTuplesMap.containsKey(data)) {
             return maxTuplesMap.get(data);
         }
@@ -198,10 +207,6 @@ public class ScanCostCalculator {
                 conditionsCount, sel);
         indexScanCost = calculateIndexScanCost(tableName, columnName, indexConditionsCount, conditionsCount, sel);
 
-        Pair<Long, Long> resultTable = getTablePagesAndRowsCount(tableName);
-
-        double numPages = resultTable.getLeft();
-        double numTuples = resultTable.getRight();
         double sel2 = sel;
         while (indexScanCost >= bitmapScanCost - 0.05 * bitmapScanCost) {
             if (sel * numTuples <= 1) {
@@ -224,7 +229,12 @@ public class ScanCostCalculator {
     public Pair<Long, Long> calculateBitmapIndexScanTuplesRange(String tableName, String indexedColumn,
                                                                        int indexConditionsCount, int conditionsCount) {
         String scanType = "BitmapScan";
-        ScanData data = new ScanData(indexConditionsCount, conditionsCount, scanType);
+        Pair<Long, Long> resultTable = getTablePagesAndRowsCount(tableName);
+        double numPages = resultTable.getLeft();
+        double numTuples = resultTable.getRight();
+
+        ScanData data = new ScanData(indexConditionsCount, conditionsCount, scanType,
+                numPages, numTuples);
         if (maxTuplesMap.containsKey(data)) {
             return new ImmutablePair<>(3L, maxTuplesMap.get(data));
         }
@@ -238,11 +248,6 @@ public class ScanCostCalculator {
 
         double height = getBtreeHeight(getIndexOnColumn(tableName, indexedColumn));
         double startup = Math.ceil(Math.log(numIndexTuples)/Math.log(2) + (height + 1) * 50) * cpuOperatorCost;
-
-        Pair<Long, Long> resultTable = getTablePagesAndRowsCount(tableName);
-
-        double numPages = resultTable.getLeft();
-        double numTuples = resultTable.getRight();
 
         double maxSel = (seqScanCost - randomPageCost + seqPageCost - startup - seqPageCost * numPages)
                 / bitmapScanCost - 0.05;

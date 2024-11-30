@@ -44,7 +44,7 @@ public class TestUtils {
             }
             //TestUtils.testQuery(query);
         }
-        TestUtils.testQueries(queries);
+        //TestUtils.testQueries(queries);
     }
 
     //Test queries for node type and parameters
@@ -64,5 +64,4 @@ public class TestUtils {
         }
         TestUtils.testQueries(queries);
     }
-
 }

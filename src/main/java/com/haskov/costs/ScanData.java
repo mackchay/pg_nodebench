@@ -5,7 +5,9 @@ import java.util.Objects;
 public record ScanData(
         Integer idxConditions,
         Integer conditions,
-        String scanType
+        String scanType,
+        Double pages,
+        Double tuples
 ) {
 
     @Override
@@ -18,6 +20,6 @@ public record ScanData(
 
     @Override
     public int hashCode() {
-        return Objects.hash(idxConditions, conditions, scanType);
+        return Objects.hash(idxConditions, conditions, scanType, pages, tuples);
     }
 }

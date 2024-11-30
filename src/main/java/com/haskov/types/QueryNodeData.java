@@ -10,12 +10,12 @@ import java.util.List;
 @Setter
 @Getter
 public class QueryNodeData {
-        private List<String> tables;
+        private List<TableBuildResult> tableBuildDataList;
         private QueryBuilder queryBuilder;
         private long tableSize;
 
-        public QueryNodeData(List<String> tables, QueryBuilder queryBuilder, long tableSize) {
-                this.tables = tables;
+        public QueryNodeData(List<TableBuildResult> tableBuildDataList, QueryBuilder queryBuilder, long tableSize) {
+                this.tableBuildDataList = tableBuildDataList;
                 this.queryBuilder = queryBuilder;
                 this.tableSize = tableSize;
         }

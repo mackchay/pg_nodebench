@@ -5,12 +5,15 @@ import com.haskov.nodes.Node;
 import com.haskov.nodes.NodeFactory;
 import com.haskov.nodes.scans.Scan;
 import com.haskov.types.QueryNodeData;
+import com.haskov.types.TableBuildResult;
 
 import java.util.ArrayList;
+import java.util.List;
 
 public class PlanAnalyzer {
     private final long tableSize;
     private final JsonPlan plan;
+    private List<TableBuildResult> tableBuildResults;
 
     public PlanAnalyzer(long tableSize, JsonPlan plan) {
         this.tableSize = tableSize;
@@ -19,23 +22,55 @@ public class PlanAnalyzer {
 
     public String buildQuery() {
         return buildQueryRecursive(new QueryNodeData(
-                new ArrayList<>(), new QueryBuilder(), tableSize
+                new ArrayList<>(tableBuildResults),
+                new QueryBuilder(),
+                tableSize
         ), plan).getQueryBuilder().build();
+    }
+
+    public List<TableBuildResult> prepareTables() {
+        tableBuildResults = prepareTablesRecursive(new QueryNodeData(
+                new ArrayList<>(),
+                new QueryBuilder(),
+                tableSize
+        ), plan);
+        return tableBuildResults;
+    }
+
+    private static List<TableBuildResult> prepareTablesRecursive(QueryNodeData data, JsonPlan plan) {
+        if (plan == null) {
+            return data.getTableBuildDataList();
+        }
+        if (plan.getPlans() == null || plan.getPlans().isEmpty()) {
+            Node node = NodeFactory.createNode(plan.getNodeType());
+            if (!node.getClass().isAnnotationPresent(Scan.class)) {
+                throw new RuntimeException("Only scan or result node should be leaf!");
+            }
+            data.getTableBuildDataList().add(node.prepareTables(data.getTableSize()));
+        } else {
+            Node node = NodeFactory.createNode(plan.getNodeType());
+            if (node.getClass().isAnnotationPresent(Scan.class)) {
+                throw new RuntimeException("Scan node should be leaf!");
+            }
+
+            for (JsonPlan nodePlan : plan.getPlans()) {
+                prepareTablesRecursive(data, nodePlan);
+            }
+        }
+        return data.getTableBuildDataList();
     }
 
     private static QueryNodeData buildQueryRecursive(QueryNodeData data, JsonPlan plan) {
         if (plan == null) {
             return data;
         }
+        Node node = NodeFactory.createNode(plan.getNodeType());
         if (plan.getPlans() == null || plan.getPlans().isEmpty()) {
-            Node node = NodeFactory.createNode(plan.getNodeType());
-            if (data.getTables().isEmpty()) {
-                data.setTables(node.prepareTables(data.getTableSize()));
-            }
-            data.setQueryBuilder(node.buildQuery(data.getTables(), data.getQueryBuilder()));
-            return data;
+            data.setQueryBuilder(node.buildQuery(
+                    List.of(data.getTableBuildDataList().getFirst().tableName()),
+                    data.getQueryBuilder())
+            );
         } else {
-            Node node = NodeFactory.createNode(plan.getNodeType());
             if (node.getClass().isAnnotationPresent(Scan.class)) {
                 throw new RuntimeException("Scan node should be leaf!");
             }
@@ -43,15 +78,17 @@ public class PlanAnalyzer {
             int iterator = 1;
             for (JsonPlan nodePlan : plan.getPlans()) {
                 buildQueryRecursive(data, nodePlan);
-                if (iterator != plan.getPlans().size() || plan.getPlans().size() == 1) {
-                    data.setQueryBuilder(node.buildQuery(data.getTables(), data.getQueryBuilder()));
-                }
-                if (plan.getPlans().size() > 1) {
-                    data.setTables(new ArrayList<>());
+                if (plan.getPlans().size() != iterator || plan.getPlans().size() == 1) {
+                    data.setQueryBuilder(node.buildQuery(
+                            data.getTableBuildDataList().stream()
+                                    .map(TableBuildResult::tableName).toList(),
+                            data.getQueryBuilder()
+                    ));
+                    data.getTableBuildDataList().removeFirst();
                 }
                 iterator++;
             }
-            return data;
         }
+        return data;
     }
 }

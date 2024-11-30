@@ -14,7 +14,7 @@ public class LoadGenerator {
         Map<Node, List<String>> tables = new HashMap<>();
         Logger logger = LoggerFactory.getLogger(LoadGenerator.class);
         for (Node node : nodes) {
-            tables.put(node, node.prepareTables(tableSize));
+            //tables.put(node, node.prepareTables(tableSize));
         }
 
         for (int i = 0; i < loadSize; i++) {

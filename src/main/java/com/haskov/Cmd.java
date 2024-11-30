@@ -20,6 +20,7 @@ public class Cmd {
     private static final String DEF_RUNTYPE = Configuration.Phase.EXECUTE.toString();
     private static final String DEF_STRATEGY = "none";
     private static final String DEF_TABLE_SIZE = "1000";
+    private static final String DEF_QUERY_COUNT = "500";
 
     public static Configuration args(String[] args) {
         Options opt = new Options();
@@ -75,6 +76,8 @@ public class Cmd {
                 desc("Size of tables. Default 1000").build());
         opt.addOption(Option.builder("j").hasArg().argName("jsonPlan").
                 desc("query plan in json format").build());
+        opt.addOption(Option.builder("q").hasArg().argName("query count").
+                desc("count of generated queries").build());
 
         params = new Configuration();
         try {
@@ -96,8 +99,9 @@ public class Cmd {
             params.timeLimit = Long.parseLong(cmd.getOptionValue("l", "0")) * 1000L;
 
             //params.node = cmd.getOptionValue("n");
-            params.sizeOfTable = Long.parseLong(cmd.getOptionValue("S", DEF_TABLE_SIZE));
+            params.tableSize = Long.parseLong(cmd.getOptionValue("S", DEF_TABLE_SIZE));
             params.plan = getJsonPlan(cmd.getOptionValue("j"));
+            params.queryCount = Integer.parseInt(cmd.getOptionValue("q", DEF_QUERY_COUNT));
 
 
         } catch (ParseException e) {

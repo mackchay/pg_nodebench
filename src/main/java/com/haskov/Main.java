@@ -12,10 +12,7 @@ public class Main {
     public static void main(String[] args) {
         Configuration conf = Cmd.args(args);
         V2.init(conf);
-        PlanAnalyzer analyzer = new PlanAnalyzer(conf.sizeOfTable, conf.plan);
-        for (int i = 0; i < 1000; i++) {
-            String query = analyzer.buildQuery();
-            System.out.println(query);
-        }
+        QueryGenerator g = new QueryGenerator();
+        g.generate(conf.tableSize, conf.plan, conf.queryCount);
     }
 }

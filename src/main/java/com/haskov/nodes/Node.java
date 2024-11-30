@@ -1,6 +1,7 @@
 package com.haskov.nodes;
 
 import com.haskov.QueryBuilder;
+import com.haskov.types.TableBuildResult;
 
 import java.util.List;
 
@@ -12,5 +13,6 @@ public interface Node {
         return qb;
     }
 
-    public List<String> prepareTables(Long tableSize);
+
+    public TableBuildResult prepareTables(Long tableSize);
 }

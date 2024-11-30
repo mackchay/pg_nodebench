@@ -3,18 +3,23 @@ package com.haskov.nodes.scans;
 import com.haskov.QueryBuilder;
 import com.haskov.bench.V2;
 import com.haskov.nodes.Node;
-import com.haskov.tables.DropTable;
+import com.haskov.types.TableBuildResult;
 import com.haskov.utils.SQLUtils;
 
 import java.util.*;
 
+import static com.haskov.tables.TableBuilder.buildRandomTable;
+
 @Scan
 public class IndexScan implements Node {
 
-    //TODO fix IndexScan
     @Override
     public String buildQuery(List<String> tables) {
-        QueryBuilder qb = new QueryBuilder();
+        return buildQuery(tables, new QueryBuilder()).build();
+    }
+
+    @Override
+    public QueryBuilder buildQuery(List<String> tables, QueryBuilder qb) {
         Random random = new Random();
         String table = tables.getFirst();
 
@@ -45,26 +50,12 @@ public class IndexScan implements Node {
             qb.addRandomWhere(table, nonIndexedColumns.get(j));
         }
 
-        return qb.build();
+        return qb;
     }
 
     @Override
-    public List<String> prepareTables(Long tableSize) {
+    public TableBuildResult prepareTables(Long tableSize) {
         String tableName = "pg_indexscan";
-        if (SQLUtils.getTableRowCount(tableName).equals(tableSize)) {
-            V2.sql("create index if not exists pg_indexscan_idx on " + tableName + " (x)");
-            V2.sql("create index if not exists pg_indexscan_idz on " + tableName + " (z)");
-            V2.sql("vacuum freeze analyze " + tableName);
-            return new ArrayList<>(List.of(tableName));
-        }
-        DropTable.dropTable(tableName);
-        V2.sql("create table " + tableName + " ( x integer, y integer, z integer, w integer)");
-        V2.sql("insert into " + tableName + " (x, y, z, w) select generate_series(1, ?), generate_series(1, ?), " +
-                        "generate_series(1, ?), generate_series(1, ?)",
-                tableSize, tableSize, tableSize, tableSize);
-        V2.sql("create index if not exists pg_indexscan_idx on " + tableName + " (x)");
-        V2.sql("create index if not exists pg_indexscan_idz on " + tableName + " (z)");
-        V2.sql("vacuum freeze analyze " + tableName);
-        return new ArrayList<>(List.of(tableName));
+        return buildRandomTable(tableName, tableSize);
     }
 }

@@ -2,10 +2,9 @@ package com.haskov.nodes.joins;
 
 import com.haskov.nodes.Node;
 import com.haskov.tables.DropTable;
-import com.haskov.tables.TableBuilder;
 import com.haskov.types.JoinData;
 import com.haskov.types.JoinType;
-import com.haskov.types.TableData;
+import com.haskov.types.TableBuildResult;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -19,7 +18,7 @@ public class HashJoin implements Node {
     }
 
     @Override
-    public List<String> prepareTables(Long tableSize) {
+    public TableBuildResult prepareTables(Long tableSize) {
         Random random = new Random();
         int maxColumns = 30;
         int maxTables = 10;
@@ -35,17 +34,17 @@ public class HashJoin implements Node {
             String tableName = "pg_nestedloop_" + i;
             tables.add(tableName);
             DropTable.dropTable(tableName);
-            TableBuilder.createRandomTable(new TableData(
-                    tableName,
-                    new ArrayList<>(),
-                    size,
-                    tableSize,
-                    getRandomBooleanList(size),
-                    new ArrayList<>(),
-                    random.nextBoolean()
-            ));
+//            TableBuilder.createRandomTable(new TableData(
+//                    tableName,
+//                    new ArrayList<>(),
+//                    size,
+//                    tableSize,
+//                    getRandomBooleanList(size),
+//                    new ArrayList<>(),
+//                    random.nextBoolean()
+//            ));
         }
-        return tables;
+        return null;
     }
 
     private List<Boolean> getRandomBooleanList(int size) {
