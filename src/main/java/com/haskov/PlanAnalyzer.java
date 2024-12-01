@@ -3,7 +3,9 @@ package com.haskov;
 import com.haskov.json.JsonPlan;
 import com.haskov.nodes.Node;
 import com.haskov.nodes.NodeFactory;
+import com.haskov.nodes.joins.Join;
 import com.haskov.nodes.scans.Scan;
+import com.haskov.tables.TableBuilder;
 import com.haskov.types.QueryNodeData;
 import com.haskov.types.TableBuildResult;
 
@@ -57,6 +59,13 @@ public class PlanAnalyzer {
 
         for (JsonPlan nodePlan : plan.getPlans()) {
             prepareTablesRecursive(data, nodePlan);
+        }
+
+        if (node.getClass().isAnnotationPresent(Join.class)) {
+            TableBuilder.addForeignKey(
+                    data.getTableBuildDataList().getFirst().tableName(),
+                    data.getTableBuildDataList().getLast().tableName()
+            );
         }
 
         return data.getTableBuildDataList();

@@ -1,5 +1,6 @@
 package com.haskov.nodes.joins;
 
+import com.haskov.QueryBuilder;
 import com.haskov.nodes.Node;
 import com.haskov.tables.DropTable;
 import com.haskov.types.JoinData;
@@ -10,11 +11,17 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
+@Join
 public class HashJoin implements Node {
 
     @Override
     public String buildQuery(List<String> tables) {
         return "";
+    }
+
+    @Override
+    public QueryBuilder buildQuery(List<String> tables, QueryBuilder qb) {
+        return Node.super.buildQuery(tables, qb);
     }
 
     @Override

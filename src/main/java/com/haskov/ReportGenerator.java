@@ -17,6 +17,7 @@ public class ReportGenerator {
         try (BufferedWriter writer = new BufferedWriter(new FileWriter(fileName))) {
             for (String query : data) {
                 writer.write(query);
+                writer.write(";");
                 writer.newLine();
             }
         } catch (IOException e) {
