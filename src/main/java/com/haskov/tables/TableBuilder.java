@@ -232,13 +232,18 @@ public class TableBuilder {
         List<String> sqlQueries = new ArrayList<>();
         String newColumnName = parentTableName + "_id";
         String alterQuery = "ALTER TABLE " + childTableName +
-                " ADD COLUMN " + newColumnName + "_id INT ";
+                " ADD COLUMN " + newColumnName + " INT ";
         String updateQuery = "UPDATE " + childTableName + " " +
                 "SET " + newColumnName + " = "
-                +  parentTableName + "." + childTableName +
+                +  parentTableName + "." + newColumnName + " " +
                 "FROM " + parentTableName + " " +
                 "WHERE " + childTableName + ".x1 = " +
                 parentTableName + ".x1";
+//        String updateQuery = "UPDATE " + childTableName + " " +
+//                "SET " + newColumnName + " = 1 " +
+//                "FROM " + parentTableName + " " +
+//                "WHERE " + childTableName + ".x1 = " +
+//                parentTableName + ".x1";
         String foreignKeyQuery = "ALTER TABLE " + childTableName + " " +
                 "ADD CONSTRAINT " + newColumnName + " " +
                 "FOREIGN KEY (" + newColumnName + ") " +

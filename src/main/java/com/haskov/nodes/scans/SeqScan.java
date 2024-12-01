@@ -25,17 +25,19 @@ public class SeqScan implements Node {
         List<String> columns = new ArrayList<>(getColumnsAndTypes(table).keySet());
         Collections.shuffle(columns);
         qb.from(table);
-        if (random.nextBoolean() && !hasIndexOnColumn(table, columns.getFirst())) {
-            qb.addRandomWhere(table, columns.getFirst(), this.getClass().getSimpleName());
+        String nonIndexedColumn = columns.stream().filter(e -> !hasIndexOnColumn(table, e)).findFirst().
+                orElse(null);
+        if (random.nextBoolean()) {
+            qb.addRandomWhere(table, nonIndexedColumn, this.getClass().getSimpleName());
         } else {
-            qb.select(table + "." + columns.getFirst());
+            qb.select(table + "." + nonIndexedColumn);
         }
-        columns.remove(columns.getFirst());
+        columns.remove(nonIndexedColumn);
         for (String column : columns) {
             double rand = random.nextDouble();
             if (rand < 0.3 && !hasIndexOnColumn(table, column)) {
                 qb.addRandomWhere(table, column, this.getClass().getSimpleName());
-            } else if (rand < 0.7) {
+            } else if (rand < 0.7 && !hasIndexOnColumn(table, column)) {
                 qb.select(table + "." + column);
             }
         }

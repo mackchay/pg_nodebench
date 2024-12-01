@@ -1,6 +1,7 @@
 package com.haskov.nodes;
 
 import com.haskov.nodes.functions.Aggregate;
+import com.haskov.nodes.joins.HashJoin;
 import com.haskov.nodes.joins.NestedLoop;
 import com.haskov.nodes.scans.*;
 import com.haskov.nodes.unions.Append;
@@ -21,6 +22,7 @@ public class NodeFactory {
         nodeMap.put("NestedLoop", NestedLoop.class);
         nodeMap.put("Aggregate", Aggregate.class);
         nodeMap.put("Append", Append.class);
+        nodeMap.put("HashJoin", HashJoin.class);
     }
 
     // Метод для создания узла

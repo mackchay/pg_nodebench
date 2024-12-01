@@ -10,11 +10,9 @@ import org.apache.commons.lang3.tuple.Pair;
 
 import java.util.*;
 
-import static com.haskov.costs.ScanCostCalculator.*;
-
 public class QueryBuilder {
 
-    private final List<String> tableNames = new ArrayList<>();
+    private String tableName;
     private final List<String> selectColumns = new ArrayList<>();
     private final List<String> whereConditions = new ArrayList<>();
     private final List<String> orderByColumns = new ArrayList<>();
@@ -36,7 +34,7 @@ public class QueryBuilder {
 
     // Метод для указания таблицы
     public QueryBuilder from(String table) {
-        this.tableNames.add(table);
+        tableName = table;
         return this;
     }
 
@@ -273,7 +271,7 @@ public class QueryBuilder {
 
     // Метод для сборки финального запроса
     public String build() {
-        if (tableNames.isEmpty()) {
+        if (tableName.isEmpty()) {
             throw new IllegalStateException("Table name must be specified");
         }
 
@@ -287,7 +285,7 @@ public class QueryBuilder {
         query.append("SELECT ").append(String.join(", ", selectColumns));
 
         // FROM part
-        query.append(" FROM ").append(String.join(",", tableNames));
+        query.append(" FROM ").append(String.join(",", tableName));
 
         for (JoinData join : joins) {
             if (join.joinType().equals(JoinType.CROSS)) {

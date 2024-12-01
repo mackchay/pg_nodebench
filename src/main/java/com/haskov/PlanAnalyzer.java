@@ -62,9 +62,11 @@ public class PlanAnalyzer {
         }
 
         if (node.getClass().isAnnotationPresent(Join.class)) {
-            TableBuilder.addForeignKey(
-                    data.getTableBuildDataList().getFirst().tableName(),
-                    data.getTableBuildDataList().getLast().tableName()
+            data.getTableBuildDataList().getLast().sqlScripts().addAll(
+                    TableBuilder.addForeignKey(
+                            data.getTableBuildDataList().getFirst().tableName(),
+                            data.getTableBuildDataList().getLast().tableName()
+                    )
             );
         }
 

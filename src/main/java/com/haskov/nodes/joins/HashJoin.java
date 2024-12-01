@@ -8,8 +8,11 @@ import com.haskov.types.JoinType;
 import com.haskov.types.TableBuildResult;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Random;
+
+import static com.haskov.bench.V2.getColumnsAndTypes;
 
 @Join
 public class HashJoin implements Node {
@@ -21,7 +24,15 @@ public class HashJoin implements Node {
 
     @Override
     public QueryBuilder buildQuery(List<String> tables, QueryBuilder qb) {
-        return Node.super.buildQuery(tables, qb);
+        Random random = new Random();
+
+        //Expected 2 tables.
+        int tableCount = 2;
+        tables = tables.subList(0, tableCount);
+
+        qb.join(new JoinData(tables.getLast(), tables.getFirst(), JoinType.INNER));
+
+        return qb;
     }
 
     @Override

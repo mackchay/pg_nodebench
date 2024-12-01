@@ -72,6 +72,21 @@ public class SQLUtils {
                 """;
         String result = selectOne(query, tableName, tableName, columnName,
                 columnName.replace("_id", ""));
+        String tableJoinName = columnName.replace("_id", "");
+        if (result == null && isTableExists(tableJoinName)) {
+            String queryFK = """
+                SELECT
+                    indexname
+                FROM
+                    pg_indexes
+                WHERE
+                    tablename = ?
+                AND
+                    (indexname = ? || '_pkey');
+                """;
+            String resultFK = selectOne(queryFK, tableJoinName, tableJoinName);
+            return resultFK != null;
+        }
         return result != null;
     }
 
