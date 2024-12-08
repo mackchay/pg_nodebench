@@ -5,6 +5,7 @@ import com.haskov.types.InsertType;
 import com.haskov.types.TableBuildResult;
 import com.haskov.types.TableData;
 import com.haskov.utils.SQLUtils;
+import org.apache.commons.lang3.tuple.Pair;
 
 import java.util.*;
 
@@ -23,7 +24,7 @@ public class TableBuilder {
         }
 
         DropTable.dropTable(tableName);
-        int maxColumns = 15;
+        int maxColumns = 10;
         Random random = new Random();
         int columnCount = random.nextInt(3, maxColumns);
         List<Boolean> randomBooleanList = getRandomBooleanList(columnCount);
@@ -228,23 +229,20 @@ public class TableBuilder {
         return tableQueries;
     }
 
-    public static List<String> addForeignKey(String childTableName, String parentTableName) {
+    public static List<String> addForeignKey(String childTableName, String parentTableName,
+                                             String joinNode) {
         List<String> sqlQueries = new ArrayList<>();
         String newColumnName = parentTableName + "_id";
         String alterQuery = "ALTER TABLE " + childTableName +
                 " ADD COLUMN " + newColumnName + " INT ";
-        String updateQuery = "UPDATE " + childTableName + " " +
+        String updateQuery, foreignKeyQuery;
+        updateQuery = "UPDATE " + childTableName + " " +
                 "SET " + newColumnName + " = "
-                +  parentTableName + "." + newColumnName + " " +
+                + parentTableName + "." + newColumnName + " " +
                 "FROM " + parentTableName + " " +
                 "WHERE " + childTableName + ".x1 = " +
                 parentTableName + ".x1";
-//        String updateQuery = "UPDATE " + childTableName + " " +
-//                "SET " + newColumnName + " = 1 " +
-//                "FROM " + parentTableName + " " +
-//                "WHERE " + childTableName + ".x1 = " +
-//                parentTableName + ".x1";
-        String foreignKeyQuery = "ALTER TABLE " + childTableName + " " +
+        foreignKeyQuery = "ALTER TABLE " + childTableName + " " +
                 "ADD CONSTRAINT " + newColumnName + " " +
                 "FOREIGN KEY (" + newColumnName + ") " +
                 "REFERENCES " + parentTableName + "(" + newColumnName + ") " +

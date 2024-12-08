@@ -49,9 +49,4 @@ public class BitmapHeapScan implements Node {
 
         return qb;
     }
-
-    @Override
-    public TableBuildResult prepareTables(Long tableSize) {
-        return null;
-    }
 }

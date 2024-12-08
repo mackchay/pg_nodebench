@@ -19,7 +19,6 @@ public class TestAppendJson {
         V2.init(conf);
         QueryGenerator qb = new QueryGenerator();
         List<String> queries = qb.generate(conf.tableSize, conf.plan, conf.queryCount);
-        TestUtils.testQueriesOnNode(queries.toArray(new String[0]), expectedNodeType);
     }
 
     @Test

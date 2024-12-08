@@ -1,11 +1,11 @@
 package com.haskov;
 
 import com.haskov.json.JsonPlan;
+import com.haskov.json.PgJsonPlan;
 import com.haskov.nodes.Node;
 import com.haskov.nodes.NodeFactory;
 import com.haskov.nodes.joins.Join;
 import com.haskov.nodes.scans.Scan;
-import com.haskov.tables.TableBuilder;
 import com.haskov.types.QueryNodeData;
 import com.haskov.types.TableBuildResult;
 
@@ -45,15 +45,15 @@ public class PlanAnalyzer {
         }
         if (plan.getPlans() == null || plan.getPlans().isEmpty()) {
             Node node = NodeFactory.createNode(plan.getNodeType());
-            if (!node.getClass().isAnnotationPresent(Scan.class)) {
+            if (!(node instanceof Scan scanNode)) {
                 throw new RuntimeException("Only scan or result node should be leaf!");
             }
-            data.getTableBuildDataList().add(node.prepareTables(data.getTableSize()));
+            data.getTableBuildDataList().add(scanNode.createTable(data.getTableSize()));
             return data.getTableBuildDataList();
         }
 
         Node node = NodeFactory.createNode(plan.getNodeType());
-        if (node.getClass().isAnnotationPresent(Scan.class)) {
+        if (node instanceof Scan) {
             throw new RuntimeException("Scan node should be leaf!");
         }
 
@@ -61,12 +61,12 @@ public class PlanAnalyzer {
             prepareTablesRecursive(data, nodePlan);
         }
 
-        if (node.getClass().isAnnotationPresent(Join.class)) {
+        if (node instanceof Join joinNode) {
             data.getTableBuildDataList().getLast().sqlScripts().addAll(
-                    TableBuilder.addForeignKey(
+                    joinNode.prepareJoinTable(
                             data.getTableBuildDataList().getFirst().tableName(),
                             data.getTableBuildDataList().getLast().tableName()
-                    )
+                    ).sqlScripts()
             );
         }
 
@@ -86,7 +86,7 @@ public class PlanAnalyzer {
             return data;
         }
 
-        if (node.getClass().isAnnotationPresent(Scan.class)) {
+        if (node instanceof Scan) {
             throw new RuntimeException("Scan node should be leaf!");
         }
 
@@ -107,5 +107,39 @@ public class PlanAnalyzer {
 
         }
         return data;
+    }
+
+    public boolean comparePlans(PgJsonPlan pgJsonPlan) {
+        return comparePlans(plan, pgJsonPlan);
+    }
+
+    private static boolean comparePlans(JsonPlan jsonPlan, PgJsonPlan pgJsonPlan) {
+        if (jsonPlan == null && pgJsonPlan == null) {
+            return true;
+        }
+        if (jsonPlan == null || pgJsonPlan == null) {
+            return false;
+        }
+        if (jsonPlan.getPlans() == null && pgJsonPlan.getJson().getAsJsonArray("Plans") == null) {
+            return jsonPlan.getNodeType().equals(pgJsonPlan.getNodeType().replace(" ", ""));
+        }
+        if (jsonPlan.getPlans() == null || pgJsonPlan.getJson().getAsJsonArray("Plans") == null) {
+            return false;
+        }
+        if (jsonPlan.getPlans().size() != pgJsonPlan.getJson().getAsJsonArray("Plans").size()) {
+            return false;
+        }
+        int size = jsonPlan.getPlans().size();
+        for (int i = 0; i < size; i++) {
+            if (!comparePlans(
+                    jsonPlan.getPlans().get(size - i - 1),
+                    new PgJsonPlan(
+                            pgJsonPlan.getJson().getAsJsonArray("Plans").get(i).getAsJsonObject()
+                    )
+            )) {
+                return false;
+            }
+        }
+        return true;
     }
 }

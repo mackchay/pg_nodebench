@@ -5,7 +5,7 @@
       "Node Type": "SeqScan"
     },
     {
-      "Node Type": "IndexOnlyScan"
+      "Node Type": "IndexScan"
     },
     {
       "Node Type": "SeqScan"

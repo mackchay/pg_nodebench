@@ -10,8 +10,7 @@ import static com.haskov.bench.V2.getColumnsAndTypes;
 import static com.haskov.tables.TableBuilder.buildRandomTable;
 import static com.haskov.utils.SQLUtils.hasIndexOnColumn;
 
-@Scan
-public class SeqScan implements Node {
+public class SeqScan implements Node, Scan {
 
     @Override
     public String buildQuery(List<String> tables) {
@@ -44,7 +43,7 @@ public class SeqScan implements Node {
         return qb;
     }
 
-    public TableBuildResult prepareTables(Long tableSize) {
+    public TableBuildResult createTable(Long tableSize) {
         String tableName = "pg_seqscan";
         return buildRandomTable(tableName, tableSize);
     }

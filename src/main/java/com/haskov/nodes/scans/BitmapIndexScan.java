@@ -5,13 +5,12 @@ import com.haskov.nodes.Node;
 import com.haskov.types.InsertType;
 import com.haskov.types.TableBuildResult;
 
-import java.util.ArrayList;
 import java.util.List;
 
 import static com.haskov.tables.TableBuilder.buildRandomTable;
 
-@Scan
-public class BitmapIndexScan implements Node {
+
+public class BitmapIndexScan implements Node, Scan {
     @Override
     public String buildQuery(List<String> tables) {
         return "";
@@ -24,7 +23,7 @@ public class BitmapIndexScan implements Node {
     }
 
     @Override
-    public TableBuildResult prepareTables(Long tableSize) {
+    public TableBuildResult createTable(Long tableSize) {
         String tableName = "pg_bitmapscan";
         return buildRandomTable(tableName, tableSize, InsertType.RANDOM);
     }

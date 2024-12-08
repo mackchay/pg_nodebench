@@ -12,7 +12,4 @@ public interface Node {
     public default QueryBuilder buildQuery(List<String> tables, QueryBuilder qb) {
         return qb;
     }
-
-
-    public TableBuildResult prepareTables(Long tableSize);
 }

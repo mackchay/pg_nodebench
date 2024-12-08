@@ -1,0 +1,11 @@
+{
+  "Node Type": "MergeJoin",
+  "Plans": [
+    {
+      "Node Type": "IndexScan"
+    },
+    {
+      "Node Type": "IndexScan"
+    }
+  ]
+}

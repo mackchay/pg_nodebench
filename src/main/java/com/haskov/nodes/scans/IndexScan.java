@@ -10,8 +10,8 @@ import java.util.*;
 
 import static com.haskov.tables.TableBuilder.buildRandomTable;
 
-@Scan
-public class IndexScan implements Node {
+
+public class IndexScan implements Node, Scan {
 
     @Override
     public String buildQuery(List<String> tables) {
@@ -54,7 +54,7 @@ public class IndexScan implements Node {
     }
 
     @Override
-    public TableBuildResult prepareTables(Long tableSize) {
+    public TableBuildResult createTable(Long tableSize) {
         String tableName = "pg_indexscan";
         return buildRandomTable(tableName, tableSize);
     }

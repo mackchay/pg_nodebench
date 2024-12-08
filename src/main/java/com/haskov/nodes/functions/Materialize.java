@@ -1,13 +1,11 @@
-package com.haskov.nodes.unions;
+package com.haskov.nodes.functions;
 
 import com.haskov.QueryBuilder;
 import com.haskov.nodes.Node;
-import com.haskov.types.TableBuildResult;
 
 import java.util.List;
 
-public class Append implements Node {
-
+public class Materialize implements Node {
     @Override
     public String buildQuery(List<String> tables) {
         return "";
@@ -15,8 +13,6 @@ public class Append implements Node {
 
     @Override
     public QueryBuilder buildQuery(List<String> tables, QueryBuilder qb) {
-        QueryBuilder q = new QueryBuilder();
-        q.unionAll(qb);
-        return q;
+        return Node.super.buildQuery(tables, qb);
     }
 }

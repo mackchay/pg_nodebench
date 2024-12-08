@@ -30,9 +30,4 @@ public class Aggregate implements Node {
         }
         return qb;
     }
-
-    @Override
-    public TableBuildResult prepareTables(Long tableSize) {
-        return null;
-    }
 }

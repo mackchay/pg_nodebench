@@ -72,21 +72,21 @@ public class SQLUtils {
                 """;
         String result = selectOne(query, tableName, tableName, columnName,
                 columnName.replace("_id", ""));
-        String tableJoinName = columnName.replace("_id", "");
-        if (result == null && isTableExists(tableJoinName)) {
-            String queryFK = """
-                SELECT
-                    indexname
-                FROM
-                    pg_indexes
-                WHERE
-                    tablename = ?
-                AND
-                    (indexname = ? || '_pkey');
-                """;
-            String resultFK = selectOne(queryFK, tableJoinName, tableJoinName);
-            return resultFK != null;
-        }
+//        String tableJoinName = columnName.replace("_id", "");
+//        if (result == null && isTableExists(tableJoinName)) {
+//            String queryFK = """
+//                SELECT
+//                    indexname
+//                FROM
+//                    pg_indexes
+//                WHERE
+//                    tablename = ?
+//                AND
+//                    (indexname = ? || '_pkey');
+//                """;
+//            String resultFK = selectOne(queryFK, tableJoinName, tableJoinName);
+//            return resultFK != null;
+//        }
         return result != null;
     }
 
@@ -230,5 +230,35 @@ public class SQLUtils {
                 select level from bt_metap(?)
                 """;
         return selectOne(query, indexName);
+    }
+
+
+    /**
+     * @param parentTableName table with referenced column
+     * @param childTableName table with foreign key
+     * @return pair of Referenced column and Foreign key column.
+     */
+    public static Pair<String, String> getJoinColumns(String parentTableName, String childTableName) {
+        String query = """
+                SELECT
+                    att.attname AS referenced_column,
+                    att2.attname AS foreign_key_column
+                FROM
+                    pg_constraint
+                JOIN
+                    pg_class cl1 ON cl1.oid = conrelid
+                JOIN
+                    pg_class cl2 ON cl2.oid = confrelid
+                JOIN
+                    pg_attribute att ON att.attnum = ANY (confkey) AND att.attrelid = cl2.oid
+                JOIN
+                    pg_attribute att2 ON att2.attnum = ANY (conkey) AND att2.attrelid = cl1.oid
+                WHERE
+                    contype = 'f' -- Only foreign key constraints
+                    AND cl1.relname = ? -- Name of the table with the foreign key
+                    AND cl2.relname = ? -- Name of the table the foreign key references
+                """;
+        List<List<String>> result = select(query, childTableName, parentTableName);
+        return new ImmutablePair<>(result.getFirst().getFirst(), result.getFirst().get(1));
     }
 }

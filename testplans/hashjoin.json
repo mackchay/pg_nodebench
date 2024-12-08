@@ -2,7 +2,11 @@
   "Node Type": "HashJoin",
   "Plans": [
     {
-      "Node Type": "SeqScan"
+      "Node Type": "Hash",
+      "Plans": [ {
+        "Node Type": "SeqScan"
+      }
+      ]
     },
     {
       "Node Type": "SeqScan"

@@ -12,7 +12,7 @@ import org.apache.commons.lang3.tuple.Pair;
 import java.util.List;
 import java.util.Random;
 
-public class HashJoin implements Node, Join {
+public class MergeJoin implements Node, Join {
 
     @Override
     public String buildQuery(List<String> tables) {
@@ -26,18 +26,16 @@ public class HashJoin implements Node, Join {
         //Expected 2 tables.
         int tableCount = 2;
         tables = tables.subList(0, tableCount);
-
         Pair<String, String> joinColumns = SQLUtils.getJoinColumns(tables.getLast(), tables.getFirst());
         qb.join(new JoinData(
-                tables.getLast(),
-                tables.getFirst(),
-                JoinType.USUAL,
-                joinColumns.getKey(),
-                joinColumns.getValue()
+                        tables.getLast(),
+                        tables.getFirst(),
+                        JoinType.INNER,
+                        joinColumns.getKey(),
+                        joinColumns.getValue()
                 )
         );
-        //qb.addRandomWhere(tables.getLast(), joinColumns.getKey());
-        //qb.where(tables.getFirst() + "." + joinColumns.getValue() + " < 2");
+        qb.orderBy(tables.get(1) + "." + tables.get(1) + "_id");
 
         return qb;
     }

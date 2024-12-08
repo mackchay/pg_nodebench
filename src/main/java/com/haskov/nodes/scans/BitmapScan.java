@@ -11,8 +11,8 @@ import java.util.*;
 
 import static com.haskov.tables.TableBuilder.buildRandomTable;
 
-@Scan
-public class BitmapScan implements Node {
+
+public class BitmapScan implements Node, Scan {
 
     @Override
     public String buildQuery(List<String> tables) {
@@ -52,7 +52,7 @@ public class BitmapScan implements Node {
     }
 
     @Override
-    public TableBuildResult prepareTables(Long tableSize) {
+    public TableBuildResult createTable(Long tableSize) {
         String tableName = "pg_bitmapscan";
         return buildRandomTable(tableName, tableSize, InsertType.RANDOM);
     }

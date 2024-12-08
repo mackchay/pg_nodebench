@@ -292,10 +292,23 @@ public class QueryBuilder {
                 query.append(" ").append(join.joinType()).append(" JOIN ").append(join.childTable()).append(" ");
                 continue;
             }
+            if (join.joinType().equals(JoinType.NON_EQUAL)) {
+                query.append(" ").append(" JOIN ").append(join.childTable()).append(" ON ").
+                        append(join.childTable()).append(".").append(join.foreignKeyColumn())
+                        .append(" > ").append(join.referencedColumn());
+                continue;
+            }
+            if (join.joinType().equals(JoinType.USUAL)) {
+                query.append(" ").append(" JOIN ").append(join.childTable()).append(" ON ").
+                        append(join.parentTable()).append(".").append(join.referencedColumn())
+                        .append(" = ").append(join.childTable()).append(".")
+                        .append(join.foreignKeyColumn());
+                continue;
+            }
             query.append(" ").append(join.joinType()).append(" JOIN ").append(join.childTable()).append(" ON ").
-                    append(join.parentTable()).append(".").append(join.parentTable()).append("_id")
+                    append(join.parentTable()).append(".").append(join.referencedColumn())
                     .append(" = ").append(join.childTable()).append(".")
-                    .append(join.parentTable()).append("_id ");
+                    .append(join.foreignKeyColumn());
         }
 
         // WHERE part
@@ -320,6 +333,7 @@ public class QueryBuilder {
 
         return query.toString();
     }
+
 
     public static void main(String[] args) {
         QueryBuilder query = new QueryBuilder()
