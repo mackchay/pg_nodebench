@@ -262,4 +262,16 @@ public class ScanCostCalculator {
     private static double getInaccurateBits(Long numTuples) {
         return (double) (Math.max(0, (numTuples - getWorkMem()))) / numTuples;
     }
+
+    private static double getIndexScanStartUpCost(String tableName, String indexedColumn) {
+        double numIndexTuples, numIndexPages, height, startup;
+        Pair<Long, Long> resultIndexTable = getTablePagesAndRowsCount(getIndexOnColumn(tableName, indexedColumn));
+        numIndexPages = resultIndexTable.getLeft();
+        numIndexTuples = resultIndexTable.getRight();
+
+        height = getBtreeHeight(getIndexOnColumn(tableName, indexedColumn));
+
+        startup = Math.ceil(Math.log(numIndexTuples)/Math.log(2) + (height + 1) * 50) * cpuOperatorCost;
+        return startup;
+    }
 }

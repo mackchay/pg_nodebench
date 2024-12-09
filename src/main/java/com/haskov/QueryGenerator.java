@@ -22,6 +22,7 @@ public class QueryGenerator {
         List<String> queries = new ArrayList<>();
         sql("SET max_parallel_workers_per_gather = 0");
         for (int i = 0; i < queryCount; i++) {
+            sql("analyze");
             String query = analyzer.buildQuery();
             System.out.println(query);
             queries.add(query);
