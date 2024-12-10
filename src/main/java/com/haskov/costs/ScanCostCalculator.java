@@ -263,7 +263,7 @@ public class ScanCostCalculator {
         return (double) (Math.max(0, (numTuples - getWorkMem()))) / numTuples;
     }
 
-    private static double getIndexScanStartUpCost(String tableName, String indexedColumn) {
+    public static double getIndexScanStartUpCost(String tableName, String indexedColumn) {
         double numIndexTuples, numIndexPages, height, startup;
         Pair<Long, Long> resultIndexTable = getTablePagesAndRowsCount(getIndexOnColumn(tableName, indexedColumn));
         numIndexPages = resultIndexTable.getLeft();
