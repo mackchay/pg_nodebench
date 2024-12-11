@@ -145,7 +145,7 @@ public class ScanCostCalculator {
                 * indexNumTuples;
         double runCost = costPerPage * pagesFetched + cpuTupleCost * numTuples
                 + cpuOperatorCost * (conditionsCount + indexConditionsCount) * numTuples;
-        return startUpCost + runCost;
+        return (double) Math.round(startUpCost * 100) / 100 + (double) Math.round(runCost * 100) / 100;
     }
 
 

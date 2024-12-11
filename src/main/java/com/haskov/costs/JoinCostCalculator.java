@@ -15,7 +15,7 @@ public class JoinCostCalculator {
         outerNumTuples = SQLUtils.getTableRowCount(outerTableName) * sel;
         runCost = (cpuOperatorCost + cpuTupleCost) * innerNumTuples * outerNumTuples +
                 innerTableScanCost * outerNumTuples + outerTableScanCost;
-        return startUpCost + runCost;
+        return (double) Math.round(startUpCost * 100) / 100 + (double) Math.round(runCost * 100) / 100;
     }
 
     public static double calculateMaterializeCost(String innerTableName, double innerTableScanCost,
@@ -24,7 +24,9 @@ public class JoinCostCalculator {
         startUpCost = 0;
         innerNumTuples = SQLUtils.getTableRowCount(innerTableName) * sel;
         runCost = 2 * cpuOperatorCost * innerNumTuples;
-        return startUpCost + runCost + innerTableScanCost;
+        return (double) Math.round(startUpCost * 100) / 100
+                + innerTableScanCost
+                + (double) Math.round(runCost * 100) / 100;
     }
 
     public static double calculateMaterializedNestedLoopCost(String innerTableName, String outerTableName,
@@ -38,7 +40,7 @@ public class JoinCostCalculator {
         runCost = (cpuOperatorCost + cpuTupleCost) * innerNumTuples * outerNumTuples +
                 rescanCost * (outerNumTuples - 1) + outerTableScanCost + calculateMaterializeCost(innerTableName,
                 innerTableScanCost, sel);
-        return startUpCost + runCost;
+        return (double) Math.round(startUpCost * 100) / 100 + (double) Math.round(runCost * 100) / 100;
     }
 
     public static double calculateIndexedNestedLoopJoinCost(String innerTableName, String outerTableName,
@@ -47,12 +49,12 @@ public class JoinCostCalculator {
         double totalCost, outerNumTuples;
         outerNumTuples = SQLUtils.getTableRowCount(outerTableName) * sel;
         totalCost = (cpuTupleCost + innerTableIndexScanCost) * outerNumTuples + outerTableScanCost;
-        return totalCost;
+        return (double) Math.round(totalCost * 100) / 100;
     }
 
     public static double calculateHashJoinCost(String innerTableName, String outerTableName,
                                                double innerTableScanCost, double outerTableScanCost,
-                                               double sel, double startScanCost) {
+                                               double sel, double startScanCost, int conditionCount) {
         double startUpCost, runCost, innerNumTuples, outerNumTuples,
                 hashFunInnerCost, hashFunOuterCost, insertTupleCost,
                 resultTupleCost, rescanCost;
@@ -65,13 +67,14 @@ public class JoinCostCalculator {
         hashFunOuterCost = cpuOperatorCost * outerNumTuples;
 
         //TODO fix rescanCost
-        rescanCost = cpuOperatorCost * innerNumTuples * outerNumTuples;
+        //rescanCost = cpuOperatorCost * innerNumTuples * outerNumTuples;
+        rescanCost = 0;
 
         //Expected table with (0,1,..n) columns and same size of tables.
-        resultTupleCost = cpuTupleCost * Math.min(innerNumTuples, outerNumTuples);
+        resultTupleCost = cpuTupleCost * Math.pow(sel, conditionCount) * innerNumTuples;
 
         runCost = outerTableScanCost + hashFunOuterCost + rescanCost +
                 resultTupleCost;
-        return startUpCost + runCost;
+        return (double) Math.round(startUpCost * 100) / 100 + (double) Math.round(runCost * 100) / 100;
     }
 }

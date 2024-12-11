@@ -232,27 +232,27 @@ public class TableBuilder {
     public static List<String> addForeignKey(String childTableName, String parentTableName,
                                              String joinNode) {
         List<String> sqlQueries = new ArrayList<>();
-        String newColumnName = parentTableName + "_id";
-        String alterQuery = "ALTER TABLE " + childTableName +
-                " ADD COLUMN " + newColumnName + " INT ";
-        String updateQuery, foreignKeyQuery;
-        updateQuery = "UPDATE " + childTableName + " " +
-                "SET " + newColumnName + " = "
-                + parentTableName + "." + newColumnName + " " +
-                "FROM " + parentTableName + " " +
-                "WHERE " + childTableName + ".x1 = " +
-                parentTableName + ".x1";
-        foreignKeyQuery = "ALTER TABLE " + childTableName + " " +
-                "ADD CONSTRAINT " + newColumnName + " " +
-                "FOREIGN KEY (" + newColumnName + ") " +
-                "REFERENCES " + parentTableName + "(" + newColumnName + ") " +
-                "ON DELETE CASCADE";
-        sqlQueries.add(alterQuery);
-        sqlQueries.add(updateQuery);
-        sqlQueries.add(foreignKeyQuery);
-        sql(alterQuery);
-        sql(updateQuery);
-        sql(foreignKeyQuery);
+//        String newColumnName = parentTableName + "_id";
+//        String alterQuery = "ALTER TABLE " + childTableName +
+//                " ADD COLUMN " + newColumnName + " INT ";
+//        String updateQuery, foreignKeyQuery;
+//        updateQuery = "UPDATE " + childTableName + " " +
+//                "SET " + newColumnName + " = "
+//                + parentTableName + "." + newColumnName + " " +
+//                "FROM " + parentTableName + " " +
+//                "WHERE " + childTableName + ".x1 = " +
+//                parentTableName + ".x1";
+//        foreignKeyQuery = "ALTER TABLE " + childTableName + " " +
+//                "ADD CONSTRAINT " + newColumnName + " " +
+//                "FOREIGN KEY (" + newColumnName + ") " +
+//                "REFERENCES " + parentTableName + "(" + newColumnName + ") " +
+//                "ON DELETE CASCADE";
+//        sqlQueries.add(alterQuery);
+//        sqlQueries.add(updateQuery);
+//        sqlQueries.add(foreignKeyQuery);
+//        sql(alterQuery);
+//        sql(updateQuery);
+//        sql(foreignKeyQuery);
         return sqlQueries;
     }
 }

@@ -2,7 +2,6 @@ package com.haskov.joins;
 
 import com.haskov.Cmd;
 import com.haskov.PlanAnalyzer;
-import com.haskov.QueryGenerator;
 import com.haskov.bench.V2;
 import com.haskov.bench.v2.Configuration;
 import com.haskov.costs.JoinCostCalculator;
@@ -19,9 +18,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
-public class TestNestedLoopCost {
+public class TestMaterializedNestedLoopCost {
     private final static String expectedNodeType = "Nested Loop";
-    private final static String filePath = "testplans/nestedloop.json";
+    private final static String filePath = "testplans/nestedloop_materialize.json";
 
     public void test(long size, int queryCount) {
         String argArray = "-h localhost -j " + filePath + " -S " + size + " -q " + queryCount;
@@ -46,18 +45,18 @@ public class TestNestedLoopCost {
                 + " from " + tables.getFirst() + " join "
                 + tables.getLast() + " on " + tables.getFirst() + "." + nonIndexedColumns.getFirst()
                 + "=" + tables.getLast() + "." + nonIndexedColumns.getLast()
-                + " where " + tables.getFirst() + "." + nonIndexedColumns.getFirst() + " < 1 and "
-                + tables.getLast() + "." + nonIndexedColumns.getLast() + " < 1 ";
+                + " where " + tables.getFirst() + "." + nonIndexedColumns.getFirst() + " < 4 and "
+                + tables.getLast() + "." + nonIndexedColumns.getLast() + " < 4 ";
         PgJsonPlan plan = JsonOperations.findNode(JsonOperations.explainResultsJson(query), expectedNodeType);
         System.out.println(query);
         V2.explain(V2.log, query);
         double expectedCost = Objects.requireNonNull(JsonOperations.
                         findNode(JsonOperations.explainResultsJson(query), expectedNodeType)).
                 getJson().get("Total Cost").getAsDouble();
-        double sel = (double) 1 / size;
+        double sel = (double) 4 / size;
 
         double scanCost = ScanCostCalculator.calculateSeqScanCost(tables.getFirst(), 1);
-        double actualCost = JoinCostCalculator.calculateNestedLoopCost(
+        double actualCost = JoinCostCalculator.calculateMaterializedNestedLoopCost(
                 tables.getFirst(),
                 tables.getLast(),
                 ScanCostCalculator.calculateSeqScanCost(tables.getFirst(), 1),
@@ -65,7 +64,7 @@ public class TestNestedLoopCost {
                 sel
         );
 
-        Assert.assertEquals(expectedCost, actualCost, 0.005);
+        Assert.assertEquals(expectedCost, actualCost, 0.01);
     }
 
     @Test

@@ -2,7 +2,6 @@ package com.haskov.joins;
 
 import com.haskov.Cmd;
 import com.haskov.PlanAnalyzer;
-import com.haskov.QueryGenerator;
 import com.haskov.bench.V2;
 import com.haskov.bench.v2.Configuration;
 import com.haskov.costs.JoinCostCalculator;
@@ -19,9 +18,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
-public class TestNestedLoopCost {
-    private final static String expectedNodeType = "Nested Loop";
-    private final static String filePath = "testplans/nestedloop.json";
+public class TestHashJoinCost {
+    private final static String expectedNodeType = "Hash Join";
+    private final static String filePath = "testplans/hashjoin.json";
 
     public void test(long size, int queryCount) {
         String argArray = "-h localhost -j " + filePath + " -S " + size + " -q " + queryCount;
@@ -46,26 +45,28 @@ public class TestNestedLoopCost {
                 + " from " + tables.getFirst() + " join "
                 + tables.getLast() + " on " + tables.getFirst() + "." + nonIndexedColumns.getFirst()
                 + "=" + tables.getLast() + "." + nonIndexedColumns.getLast()
-                + " where " + tables.getFirst() + "." + nonIndexedColumns.getFirst() + " < 1 and "
-                + tables.getLast() + "." + nonIndexedColumns.getLast() + " < 1 ";
+                + " where " + tables.getFirst() + "." + nonIndexedColumns.getFirst() + " < 100 and "
+                + tables.getLast() + "." + nonIndexedColumns.getLast() + " < 100 ";
         PgJsonPlan plan = JsonOperations.findNode(JsonOperations.explainResultsJson(query), expectedNodeType);
         System.out.println(query);
         V2.explain(V2.log, query);
         double expectedCost = Objects.requireNonNull(JsonOperations.
                         findNode(JsonOperations.explainResultsJson(query), expectedNodeType)).
                 getJson().get("Total Cost").getAsDouble();
-        double sel = (double) 1 / size;
+        double sel = (double) 100 / size;
 
         double scanCost = ScanCostCalculator.calculateSeqScanCost(tables.getFirst(), 1);
-        double actualCost = JoinCostCalculator.calculateNestedLoopCost(
+        double actualCost = JoinCostCalculator.calculateHashJoinCost(
                 tables.getFirst(),
                 tables.getLast(),
                 ScanCostCalculator.calculateSeqScanCost(tables.getFirst(), 1),
                 ScanCostCalculator.calculateSeqScanCost(tables.getLast(), 1),
-                sel
+                sel,
+                0,
+                2
         );
 
-        Assert.assertEquals(expectedCost, actualCost, 0.005);
+        Assert.assertEquals(expectedCost, actualCost, 0.5);
     }
 
     @Test

@@ -1,6 +1,7 @@
 package com.haskov.nodes.joins;
 
 import com.haskov.QueryBuilder;
+import com.haskov.bench.V2;
 import com.haskov.nodes.Node;
 import com.haskov.tables.TableBuilder;
 import com.haskov.types.JoinData;
@@ -9,8 +10,7 @@ import com.haskov.types.TableBuildResult;
 import com.haskov.utils.SQLUtils;
 import org.apache.commons.lang3.tuple.Pair;
 
-import java.util.List;
-import java.util.Random;
+import java.util.*;
 
 public class HashJoin implements Node, Join {
 
@@ -26,14 +26,26 @@ public class HashJoin implements Node, Join {
         //Expected 2 tables.
         int tableCount = 2;
         tables = tables.subList(0, tableCount);
+        String leftColumn, rightColumn;
+        List<String> joinColumns = new ArrayList<>();
 
-        Pair<String, String> joinColumns = SQLUtils.getJoinColumns(tables.getLast(), tables.getFirst());
+        for (String table : tables) {
+            Map<String, String> columnsAndTypes = V2.getColumnsAndTypes(table);
+            List<String> shuffledColumns = new ArrayList<>(columnsAndTypes.keySet());
+            Collections.shuffle(shuffledColumns);
+            for (String column : shuffledColumns) {
+                if (!SQLUtils.hasIndexOnColumn(table, column)) {
+                    joinColumns.add(column);
+                    break;
+                }
+            }
+        }
         qb.join(new JoinData(
                 tables.getLast(),
                 tables.getFirst(),
                 JoinType.USUAL,
-                joinColumns.getKey(),
-                joinColumns.getValue()
+                joinColumns.getFirst(),
+                joinColumns.get(1)
                 )
         );
         //qb.addRandomWhere(tables.getLast(), joinColumns.getKey());

@@ -1,0 +1,16 @@
+{
+  "Node Type": "NestedLoop",
+  "Plans": [
+    {
+      "Node Type": "Materialize",
+      "Plans" : [
+        {
+          "Node Type": "SeqScan"
+        }
+      ]
+    },
+    {
+      "Node Type": "SeqScan"
+    }
+  ]
+}
