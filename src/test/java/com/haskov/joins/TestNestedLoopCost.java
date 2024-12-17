@@ -62,6 +62,7 @@ public class TestNestedLoopCost {
                 tables.getLast(),
                 ScanCostCalculator.calculateSeqScanCost(tables.getFirst(), 1),
                 ScanCostCalculator.calculateSeqScanCost(tables.getLast(), 1),
+                sel,
                 sel
         );
 

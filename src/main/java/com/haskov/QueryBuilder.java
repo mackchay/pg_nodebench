@@ -22,6 +22,8 @@ public class QueryBuilder {
     private final List<String> groupByColumns = new ArrayList<>();
     private final List<String> unionQueries = new ArrayList<>();
     private static final ScanCostCalculator scanCostCalculator = new ScanCostCalculator();
+    private Long minTuples = 0L;
+    private Long maxTuples = Long.MAX_VALUE;
 
     //Максимальное количество столбцов среди всех запросов с UNION ALL
     private int maxSelectColumns = 0;
@@ -89,11 +91,22 @@ public class QueryBuilder {
         return this;
     }
 
-    //TODO make an operators =, <, >
-    public QueryBuilder randomWhere(String table, String column, String type) {
-        StringBuilder whereClause = new StringBuilder();
-        whereClause.append(table).append(".").append(column).append(" ");
-        this.whereConditions.add(randomWhereTypes(whereClause, type));
+
+    public QueryBuilder randomWhere(String table, String column) {
+        this.select(table + "." + column);
+        long min = Long.parseLong(SQLUtils.getMin(table, column));
+        long max = Long.parseLong(SQLUtils.getMax(table, column));
+//        long tuples = random.nextLong(minTuples, maxTuples);
+        long tuples = minTuples;
+        long radius = min;
+        this.where(table + "." + column + ">" + radius).
+                where(table + "." + column + "<" + (radius + tuples));
+        return this;
+    }
+
+    public QueryBuilder setTuples(long minTuples, long maxTuples) {
+        this.minTuples = minTuples;
+        this.maxTuples = maxTuples;
         return this;
     }
 
@@ -340,7 +353,8 @@ public class QueryBuilder {
                 .select("id", "name", "age")
                 .from("users")
                 .where("age > 18")
-                .where("name LIKE 'John%'").where("age < 30")
+                .where("name LIKE 'John%'")
+                .where("age < 30")
                 .orderBy("age", "name")
                 .limit(10);
 

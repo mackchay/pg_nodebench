@@ -22,15 +22,16 @@ public class QueryGenerator {
         List<String> queries = new ArrayList<>();
         sql("SET max_parallel_workers_per_gather = 0");
         for (int i = 0; i < queryCount; i++) {
-            sql("analyze");
+            //sql("analyze");
             String query = analyzer.buildQuery();
             System.out.println(query);
             queries.add(query);
-            V2.explain(V2.log, query);
+            //V2.explain(V2.log, query);
             if (!analyzer.comparePlans(new PgJsonPlan(
                     JsonOperations.explainResultsJson(query).getAsJsonObject("Plan")
             ))) {
                 System.out.println(plan);
+                V2.explain(V2.log, query);
                 throw new RuntimeException("Query: " + query + " failed");
             };
         }

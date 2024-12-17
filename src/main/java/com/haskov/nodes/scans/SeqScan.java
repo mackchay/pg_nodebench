@@ -1,8 +1,12 @@
 package com.haskov.nodes.scans;
 
 import com.haskov.QueryBuilder;
+import com.haskov.costs.ScanCostCalculator;
 import com.haskov.nodes.Node;
 import com.haskov.types.TableBuildResult;
+import com.haskov.utils.SQLUtils;
+import org.apache.commons.lang3.tuple.ImmutablePair;
+import org.apache.commons.lang3.tuple.Pair;
 
 import java.util.*;
 
@@ -11,40 +15,64 @@ import static com.haskov.tables.TableBuilder.buildRandomTable;
 import static com.haskov.utils.SQLUtils.hasIndexOnColumn;
 
 public class SeqScan implements Node, Scan {
+    private int columnsCount = 0;
+    private String table = "";
+    private List<String> columns = new ArrayList<>();
 
     @Override
-    public String buildQuery(List<String> tables) {
-        return buildQuery(tables, new QueryBuilder()).build();
+    public TableBuildResult initScanNode(Long tableSize) {
+        TableBuildResult result = createTable(tableSize);
+        table = result.tableName();
+        columns = new ArrayList<>(getColumnsAndTypes(table).keySet()
+                .stream().filter(e -> !hasIndexOnColumn(table, e)).toList());
+        return result;
     }
 
     @Override
-    public QueryBuilder buildQuery(List<String> tables, QueryBuilder qb) {
+    public String buildQuery() {
+        return buildQuery(new QueryBuilder()).build();
+    }
+
+    @Override
+    public QueryBuilder buildQuery(QueryBuilder qb) {
         Random random = new Random();
-        String table = tables.getFirst();
-        List<String> columns = new ArrayList<>(getColumnsAndTypes(table).keySet());
-        Collections.shuffle(columns);
         qb.from(table);
-        String nonIndexedColumn = columns.stream().filter(e -> !hasIndexOnColumn(table, e)).findFirst().
-                orElse(null);
-        if (random.nextBoolean()) {
-            qb.addRandomWhere(table, nonIndexedColumn, this.getClass().getSimpleName());
-        } else {
-            qb.select(table + "." + nonIndexedColumn);
-        }
-        columns.remove(nonIndexedColumn);
-        for (String column : columns) {
-            double rand = random.nextDouble();
-            if (rand < 0.3 && !hasIndexOnColumn(table, column)) {
-                qb.addRandomWhere(table, column, this.getClass().getSimpleName());
-            } else if (rand < 0.7 && !hasIndexOnColumn(table, column)) {
-                qb.select(table + "." + column);
-            }
+        for (String column : columns.subList(0, columnsCount)) {
+            qb.randomWhere(table, column);
         }
         return qb;
+    }
+
+    @Override
+    public void prepareQuery() {
+        Random random = new Random();
+        columnsCount = random.nextInt(columns.size()) + 1;
+        Collections.shuffle(columns);
     }
 
     public TableBuildResult createTable(Long tableSize) {
         String tableName = "pg_seqscan";
         return buildRandomTable(tableName, tableSize);
+    }
+
+    @Override
+    public Pair<Double, Double> getCosts() {
+        double totalCost = ScanCostCalculator.calculateSeqScanCost(table, columnsCount * 2);
+        return new ImmutablePair<>(0.0, totalCost);
+    }
+
+    @Override
+    public Pair<Integer, Integer> getConditions() {
+        return new ImmutablePair<>(0, columnsCount * 2);
+    }
+
+    @Override
+    public Pair<Long, Long> getTuplesRange() {
+        return new ImmutablePair<>(2L, SQLUtils.getTableRowCount(table));
+    }
+
+    @Override
+    public double getSel() {
+        return 1;
     }
 }

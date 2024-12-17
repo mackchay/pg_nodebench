@@ -9,14 +9,14 @@ import java.util.List;
 public class Append implements Node {
 
     @Override
-    public String buildQuery(List<String> tables) {
-        return "";
-    }
-
-    @Override
-    public QueryBuilder buildQuery(List<String> tables, QueryBuilder qb) {
+    public QueryBuilder buildQuery(QueryBuilder qb) {
         QueryBuilder q = new QueryBuilder();
         q.unionAll(qb);
         return q;
+    }
+
+    @Override
+    public String buildQuery() {
+        return "";
     }
 }

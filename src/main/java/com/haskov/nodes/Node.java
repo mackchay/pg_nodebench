@@ -7,9 +7,17 @@ import java.util.List;
 
 public interface Node {
 
-    public String buildQuery(List<String> tables);
+    public default void initNode(List<String> tables) {
 
-    public default QueryBuilder buildQuery(List<String> tables, QueryBuilder qb) {
+    }
+
+    public default void prepareQuery() {
+
+    }
+
+    public String buildQuery();
+
+    public default QueryBuilder buildQuery(QueryBuilder qb) {
         return qb;
     }
 }

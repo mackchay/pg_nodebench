@@ -20,7 +20,7 @@ public class LoadGenerator {
         for (int i = 0; i < loadSize; i++) {
             int randInt = r.nextInt(nodes.size());
             Node node = nodes.get(randInt);
-            String query = node.buildQuery(tables.get(node));
+            String query = node.buildQuery();
             result.add(query);
             logger.info(query);
         }

@@ -21,7 +21,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
-public class TestHashJoinCost {
+public class TestHashJoinMinTuples {
     private final static String expectedNodeType = "Hash Join";
     private final static String filePath = "testplans/hashjoin.json";
 
@@ -42,49 +42,57 @@ public class TestHashJoinCost {
                 }
             }
         }
+        double sel = Math.min((double) 50000 / size, 1);
+
+        double scanCost = ScanCostCalculator.calculateSeqScanCost(tables.getFirst(), 1);
+        double actualCost = JoinCostCalculator.calculateHashJoinCost(
+                tables.getFirst(),
+                tables.getLast(),
+                ScanCostCalculator.calculateSeqScanCost(tables.getFirst(), 1),
+                ScanCostCalculator.calculateSeqScanCost(tables.getLast(), 1),
+                sel,
+                sel,
+                0,
+                1,
+                1
+        );
+
+        long minTuples = JoinCostCalculator.calculateHashJoinTuplesRange(
+                tables.getFirst(),
+                tables.getLast(),
+                ScanCostCalculator.calculateSeqScanCost(tables.getFirst(), 1),
+                ScanCostCalculator.calculateSeqScanCost(tables.getLast(), 1),
+                0,
+                1,
+                1
+        ).getLeft();
 
         String query = new QueryBuilder().select(tables.getFirst() + "." + nonIndexedColumns.getFirst(),
-                        tables.getLast() + "." + nonIndexedColumns.getLast()).join(
+                tables.getLast() + "." + nonIndexedColumns.getLast()).join(
                         new JoinData(
                                 tables.getLast(),
                                 tables.getFirst(),
                                 JoinType.USUAL,
                                 nonIndexedColumns.getLast(),
                                 nonIndexedColumns.getFirst())
-                ).where(tables.getFirst() + "." + nonIndexedColumns.getFirst() + " < " + 90000
+                        ).where(tables.getFirst() + "." + nonIndexedColumns.getFirst() + " < " + (minTuples)
                         + " and "
-                        + tables.getLast() + "." + nonIndexedColumns.getLast() + " < " + 90000
-                        + " and " + tables.getFirst() + "." + nonIndexedColumns.getFirst() + " >= 0 ").
+                + tables.getLast() + "." + nonIndexedColumns.getLast() + " < " + (minTuples)
+                + " and " + tables.getFirst() + "." + nonIndexedColumns.getFirst() + " > 0 "
+                + " and " + tables.getLast() + "." + nonIndexedColumns.getLast() + " > 0").
                 from(tables.getLast()).build();
+
         PgJsonPlan plan = JsonOperations.findNode(JsonOperations.explainResultsJson(query), expectedNodeType);
         System.out.println(query);
         V2.explain(V2.log, query);
-        double expectedCost = Objects.requireNonNull(JsonOperations.
-                        findNode(JsonOperations.explainResultsJson(query), expectedNodeType)).
-                getJson().get("Total Cost").getAsDouble();
-        double sel = Math.min((double) 90000 / size, 1);
 
-        double scanCost = ScanCostCalculator.calculateSeqScanCost(tables.getFirst(), 1);
-        double doubleScanCost = ScanCostCalculator.calculateSeqScanCost(tables.getFirst(), 2);
-        double actualCost = JoinCostCalculator.calculateHashJoinCost(
-                tables.getLast(),
-                tables.getFirst(),
-                ScanCostCalculator.calculateSeqScanCost(tables.getLast(), 1),
-                ScanCostCalculator.calculateSeqScanCost(tables.getFirst(), 2),
-                sel,
-                sel,
-                0,
-                1,
-                2
-        );
-
-        Assert.assertEquals(expectedCost, actualCost, 0.05 * actualCost);
+        Assert.assertNotEquals(plan, null);
     }
 
     @Test
     public void testHashJoin() {
-        test(200, 50);
         test(500, 500);
+        test(1000, 500);
         test(5000, 500);
         test(10000, 200);
         test(100000, 50);

@@ -4,6 +4,7 @@ import com.haskov.json.JsonPlan;
 import com.haskov.json.PgJsonPlan;
 import com.haskov.nodes.Node;
 import com.haskov.nodes.NodeFactory;
+import com.haskov.nodes.NodeTree;
 import com.haskov.nodes.joins.Join;
 import com.haskov.nodes.scans.Scan;
 import com.haskov.types.QueryNodeData;
@@ -15,27 +16,39 @@ import java.util.List;
 public class PlanAnalyzer {
     private final long tableSize;
     private final JsonPlan plan;
+    private final NodeTree nodeTree;
     private List<TableBuildResult> tableBuildResults;
 
     public PlanAnalyzer(long tableSize, JsonPlan plan) {
         this.tableSize = tableSize;
         this.plan = plan;
+        this.nodeTree = new NodeTree(plan);
     }
+
+//    public String buildQuery() {
+//        return buildQueryRecursive(new QueryNodeData(
+//                new ArrayList<>(tableBuildResults),
+//                new QueryBuilder(),
+//                tableSize
+//        ), plan).getQueryBuilder().build();
+//    }
 
     public String buildQuery() {
-        return buildQueryRecursive(new QueryNodeData(
-                new ArrayList<>(tableBuildResults),
-                new QueryBuilder(),
-                tableSize
-        ), plan).getQueryBuilder().build();
+        nodeTree.prepareQuery();
+        return nodeTree.buildQuery(new QueryBuilder()).build();
     }
 
+//    public List<TableBuildResult> prepareTables() {
+//        tableBuildResults = prepareTablesRecursive(new QueryNodeData(
+//                new ArrayList<>(),
+//                new QueryBuilder(),
+//                tableSize
+//        ), plan);
+//        return tableBuildResults;
+//    }
+
     public List<TableBuildResult> prepareTables() {
-        tableBuildResults = prepareTablesRecursive(new QueryNodeData(
-                new ArrayList<>(),
-                new QueryBuilder(),
-                tableSize
-        ), plan);
+        tableBuildResults = nodeTree.createTables(tableSize);
         return tableBuildResults;
     }
 
@@ -80,7 +93,6 @@ public class PlanAnalyzer {
         Node node = NodeFactory.createNode(plan.getNodeType());
         if (plan.getPlans() == null || plan.getPlans().isEmpty()) {
             data.setQueryBuilder(node.buildQuery(
-                    List.of(data.getTableBuildDataList().getFirst().tableName()),
                     data.getQueryBuilder())
             );
             return data;
@@ -95,8 +107,6 @@ public class PlanAnalyzer {
             buildQueryRecursive(data, nodePlan);
             if (plan.getPlans().size() != iterator || plan.getPlans().size() == 1) {
                 data.setQueryBuilder(node.buildQuery(
-                        data.getTableBuildDataList().stream()
-                                .map(TableBuildResult::tableName).toList(),
                         data.getQueryBuilder()
                 ));
             }
@@ -142,4 +152,5 @@ public class PlanAnalyzer {
         }
         return true;
     }
+
 }

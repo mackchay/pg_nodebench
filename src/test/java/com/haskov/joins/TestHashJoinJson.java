@@ -23,6 +23,7 @@ public class TestHashJoinJson {
 
     @Test
     public void testHashJoin() {
+        test(800, 2500);
         test(1000, 1000);
         test(10000, 500);
         test(100000, 100);

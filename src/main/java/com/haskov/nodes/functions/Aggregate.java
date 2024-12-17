@@ -11,23 +11,29 @@ import java.util.List;
 import static com.haskov.bench.V2.getColumnsAndTypes;
 
 public class Aggregate implements Node {
+    private String table;
+    private final List<String> columns = new ArrayList<>();
 
     @Override
-    public String buildQuery(List<String> tables) {
-        QueryBuilder qb = new QueryBuilder();
-        return "";
+    public void initNode(List<String> tables) {
+        table = tables.getFirst();
+        columns.addAll(getColumnsAndTypes(table).keySet());
     }
 
     @Override
-    public QueryBuilder buildQuery(List<String> tables, QueryBuilder qb) {
+    public QueryBuilder buildQuery(QueryBuilder qb) {
         if (!qb.hasSelectColumns()) {
             throw new RuntimeException("Aggregate requires a select columns: requires Scan or Result.");
         }
-        String table = tables.getFirst();
-        List<String> columnsAndTypes = new ArrayList<>(getColumnsAndTypes(table).keySet());
-        for (String column : columnsAndTypes) {
+
+        for (String column : columns) {
             qb.count(table, column, ReplaceOrAdd.REPLACE);
         }
         return qb;
+    }
+
+    @Override
+    public String buildQuery() {
+        return "";
     }
 }

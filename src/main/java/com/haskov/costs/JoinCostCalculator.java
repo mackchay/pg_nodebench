@@ -1,6 +1,8 @@
 package com.haskov.costs;
 
 import com.haskov.utils.SQLUtils;
+import org.apache.commons.lang3.tuple.ImmutablePair;
+import org.apache.commons.lang3.tuple.Pair;
 
 import static com.haskov.costs.CostParameters.*;
 
@@ -8,11 +10,11 @@ public class JoinCostCalculator {
 
     public static double calculateNestedLoopCost(String innerTableName, String outerTableName,
                                                  double innerTableScanCost, double outerTableScanCost,
-                                                 double sel) {
+                                                 double innerSel, double outerSel) {
         double startUpCost, runCost, innerNumTuples, outerNumTuples;
         startUpCost = 0;
-        innerNumTuples = SQLUtils.getTableRowCount(innerTableName) * sel;
-        outerNumTuples = SQLUtils.getTableRowCount(outerTableName) * sel;
+        innerNumTuples = SQLUtils.getTableRowCount(innerTableName) * innerSel;
+        outerNumTuples = SQLUtils.getTableRowCount(outerTableName) * outerSel;
         runCost = (cpuOperatorCost + cpuTupleCost) * innerNumTuples * outerNumTuples +
                 innerTableScanCost * outerNumTuples + outerTableScanCost;
         return (double) Math.round(startUpCost * 100) / 100 + (double) Math.round(runCost * 100) / 100;
@@ -31,15 +33,15 @@ public class JoinCostCalculator {
 
     public static double calculateMaterializedNestedLoopCost(String innerTableName, String outerTableName,
                                                              double innerTableScanCost, double outerTableScanCost,
-                                                             double sel) {
+                                                             double innerSel, double outerSel) {
         double startUpCost, runCost, innerNumTuples, outerNumTuples, rescanCost;
         startUpCost = 0;
-        innerNumTuples = SQLUtils.getTableRowCount(innerTableName) * sel;
-        outerNumTuples = SQLUtils.getTableRowCount(outerTableName) * sel;
+        innerNumTuples = SQLUtils.getTableRowCount(innerTableName) * innerSel;
+        outerNumTuples = SQLUtils.getTableRowCount(outerTableName) * outerSel;
         rescanCost = cpuOperatorCost * innerNumTuples;
         runCost = (cpuOperatorCost + cpuTupleCost) * innerNumTuples * outerNumTuples +
                 rescanCost * (outerNumTuples - 1) + outerTableScanCost + calculateMaterializeCost(innerTableName,
-                innerTableScanCost, sel);
+                innerTableScanCost, innerSel);
         return (double) Math.round(startUpCost * 100) / 100 + (double) Math.round(runCost * 100) / 100;
     }
 
@@ -54,27 +56,93 @@ public class JoinCostCalculator {
 
     public static double calculateHashJoinCost(String innerTableName, String outerTableName,
                                                double innerTableScanCost, double outerTableScanCost,
-                                               double sel, double startScanCost, int conditionCount) {
+                                               double innerSel, double outerSel, double startScanCost,
+                                               int innerConditionCount, int outerConditionCount) {
         double startUpCost, runCost, innerNumTuples, outerNumTuples,
                 hashFunInnerCost, hashFunOuterCost, insertTupleCost,
-                resultTupleCost, rescanCost;
-        innerNumTuples = SQLUtils.getTableRowCount(innerTableName) * sel;
+                resultTupleCost = 0, rescanCost,
+                innerResSel = 0, outerResSel = 0;
+
+        //Expected table with (0,1,..n) columns and same size of tables.
+        if (innerConditionCount > 0) {
+            innerResSel = Math.pow(innerSel, innerConditionCount);
+        }
+        if (outerConditionCount > 0) {
+            outerResSel = Math.pow(outerSel, outerConditionCount);
+        }
+
+        innerNumTuples = SQLUtils.getTableRowCount(innerTableName) * innerResSel;
         hashFunInnerCost = cpuOperatorCost * innerNumTuples;
         insertTupleCost = cpuTupleCost * innerNumTuples;
         startUpCost = innerTableScanCost + hashFunInnerCost + insertTupleCost + startScanCost;
 
-        outerNumTuples = SQLUtils.getTableRowCount(outerTableName) * sel;
+        outerNumTuples = SQLUtils.getTableRowCount(outerTableName) * outerResSel;
         hashFunOuterCost = cpuOperatorCost * outerNumTuples;
 
         //TODO fix rescanCost
         //rescanCost = cpuOperatorCost * innerNumTuples * outerNumTuples;
         rescanCost = 0;
 
-        //Expected table with (0,1,..n) columns and same size of tables.
-        resultTupleCost = cpuTupleCost * Math.pow(sel, conditionCount) * innerNumTuples;
-
+        resultTupleCost += cpuTupleCost * Math.min(innerNumTuples, outerNumTuples);
         runCost = outerTableScanCost + hashFunOuterCost + rescanCost +
                 resultTupleCost;
         return (double) Math.round(startUpCost * 100) / 100 + (double) Math.round(runCost * 100) / 100;
+    }
+
+    // Min, max tuples functions
+
+    public static Pair<Long, Long> calculateHashJoinTuplesRange(String innerTableName, String outerTableName,
+                                                                      double innerTableScanCost, double outerTableScanCost,
+                                                                      double startScanCost, int innerConditionCount,
+                                                                int outerConditionCount) {
+        Long numTuples = SQLUtils.getTableRowCount(innerTableName);
+        double sel = (double) 1 / numTuples;
+        double minNestedLoopCost = Math.min(
+                calculateNestedLoopCost(innerTableName, outerTableName, innerTableScanCost,
+                        outerTableScanCost, sel, sel),
+                calculateMaterializedNestedLoopCost(innerTableName, outerTableName,
+                        innerTableScanCost, outerTableScanCost, sel, sel)
+        );
+
+        while (calculateHashJoinCost(innerTableName, outerTableName, innerTableScanCost, outerTableScanCost,
+                sel, sel, startScanCost, innerConditionCount, outerConditionCount)
+                > minNestedLoopCost) {
+            sel *= 1.1;
+            minNestedLoopCost = Math.min(
+                    calculateNestedLoopCost(innerTableName, outerTableName, innerTableScanCost,
+                            outerTableScanCost, sel, sel),
+                    calculateMaterializedNestedLoopCost(innerTableName, outerTableName,
+                            innerTableScanCost, outerTableScanCost, sel, sel)
+            );
+        }
+        return new ImmutablePair<>((long)((sel + 0.05) * numTuples), numTuples);
+    }
+
+    public static Pair<Long, Long> calculateNestedLoopTuplesRange(String innerTableName, String outerTableName,
+                                                                  double innerTableScanCost, double outerTableScanCost,
+                                                                  double startScanCost, int innerConditionCount,
+                                                                  int outerConditionCount) {
+        Long numTuples = SQLUtils.getTableRowCount(innerTableName);
+        double sel = 1;
+        double nestedLoopCost = calculateNestedLoopCost(innerTableName, outerTableName, innerTableScanCost,
+                outerTableScanCost, sel, sel);
+        while (calculateHashJoinCost(innerTableName, outerTableName, innerTableScanCost, outerTableScanCost,
+                sel, sel, startScanCost, innerConditionCount, outerConditionCount)
+                < calculateNestedLoopCost(innerTableName, outerTableName, innerTableScanCost,
+                outerTableScanCost, sel, sel)
+        ) {
+            sel *= 0.5;
+        }
+
+        double materializedNestedLoopCost = calculateMaterializedNestedLoopCost(innerTableName, outerTableName,
+                innerTableScanCost, outerTableScanCost, sel, sel);
+        while (calculateMaterializedNestedLoopCost(innerTableName, outerTableName,
+                innerTableScanCost, outerTableScanCost, sel, sel)
+                < calculateNestedLoopCost(innerTableName, outerTableName, innerTableScanCost,
+                outerTableScanCost, sel, sel)) {
+            sel *= 0.5;
+        }
+
+        return new ImmutablePair<>(1L, (long)(sel * numTuples));
     }
 }

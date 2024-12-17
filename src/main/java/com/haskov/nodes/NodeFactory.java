@@ -20,7 +20,6 @@ public class NodeFactory {
         nodeMap.put("IndexScan", IndexScan.class);
         nodeMap.put("IndexOnlyScan", IndexOnlyScan.class);
         nodeMap.put("BitmapIndexScan", BitmapIndexScan.class);
-        nodeMap.put("BitmapScan", BitmapScan.class);
         nodeMap.put("BitmapHeapScan", BitmapHeapScan.class);
         nodeMap.put("NestedLoop", NestedLoop.class);
         nodeMap.put("Aggregate", Aggregate.class);
