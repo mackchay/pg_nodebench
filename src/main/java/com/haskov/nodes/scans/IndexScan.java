@@ -42,6 +42,11 @@ public class IndexScan implements Node, Scan {
     }
 
     @Override
+    public long reCalculateMinTuple(long tuples) {
+        return tuples;
+    }
+
+    @Override
     public String buildQuery() {
         return buildQuery(new QueryBuilder()).build();
     }

@@ -18,11 +18,13 @@ public class SeqScan implements Node, Scan {
     private int columnsCount = 0;
     private String table = "";
     private List<String> columns = new ArrayList<>();
+    private long tableSize;
 
     @Override
     public TableBuildResult initScanNode(Long tableSize) {
         TableBuildResult result = createTable(tableSize);
         table = result.tableName();
+        this.tableSize = tableSize;
         columns = new ArrayList<>(getColumnsAndTypes(table).keySet()
                 .stream().filter(e -> !hasIndexOnColumn(table, e)).toList());
         return result;
@@ -50,6 +52,16 @@ public class SeqScan implements Node, Scan {
         Collections.shuffle(columns);
     }
 
+    @Override
+    public long reCalculateMinTuple(long tuples) {
+        double tmpSel = (double) tuples / tableSize;
+        while (tableSize * Math.pow(tmpSel, columnsCount) < 2) {
+            tmpSel *= 1.05;
+        }
+        return (long) (tableSize * tmpSel);
+    }
+
+
     public TableBuildResult createTable(Long tableSize) {
         String tableName = "pg_seqscan";
         return buildRandomTable(tableName, tableSize);
@@ -57,13 +69,13 @@ public class SeqScan implements Node, Scan {
 
     @Override
     public Pair<Double, Double> getCosts() {
-        double totalCost = ScanCostCalculator.calculateSeqScanCost(table, columnsCount * 2);
+        double totalCost = ScanCostCalculator.calculateSeqScanCost(table, columnsCount);
         return new ImmutablePair<>(0.0, totalCost);
     }
 
     @Override
     public Pair<Integer, Integer> getConditions() {
-        return new ImmutablePair<>(0, columnsCount * 2);
+        return new ImmutablePair<>(0, columnsCount);
     }
 
     @Override

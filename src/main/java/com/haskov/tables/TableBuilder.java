@@ -24,7 +24,7 @@ public class TableBuilder {
         }
 
         DropTable.dropTable(tableName);
-        int maxColumns = 10;
+        int maxColumns = 15;
         Random random = new Random();
         int columnCount = random.nextInt(3, maxColumns);
         List<Boolean> randomBooleanList = getRandomBooleanList(columnCount);

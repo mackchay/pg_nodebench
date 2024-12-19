@@ -93,10 +93,10 @@ public class NodeTree {
         }
         for (NodeTree child : children) {
             child.setCosts();
-            startUpCost += child.startUpCost;
-            totalCost += child.totalCost;
-            indexConditions += child.indexConditions;
-            nonIndexConditions += child.nonIndexConditions;
+            startUpCost = child.startUpCost;
+            totalCost = child.totalCost;
+            indexConditions = child.indexConditions;
+            nonIndexConditions = child.nonIndexConditions;
             sel *= child.sel;
         }
 
@@ -135,6 +135,7 @@ public class NodeTree {
             if (tupleRange.getRight() < maxTuples) {
                 maxTuples = tupleRange.getRight();
             }
+            minTuples = scan.reCalculateMinTuple(minTuples);
         }
         for (NodeTree child : children) {
             child.setTuples(minTuples, maxTuples);

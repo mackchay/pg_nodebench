@@ -12,7 +12,6 @@ import org.apache.commons.lang3.tuple.Pair;
 import java.util.*;
 
 import static com.haskov.tables.TableBuilder.buildRandomTable;
-import static com.haskov.utils.SQLUtils.hasIndexOnColumn;
 
 
 public class IndexOnlyScan implements Node, Scan {
@@ -36,6 +35,11 @@ public class IndexOnlyScan implements Node, Scan {
         }
         indexColumnsCount = 1;
         return result;
+    }
+
+    @Override
+    public long reCalculateMinTuple(long tuples) {
+        return tuples;
     }
 
     @Override

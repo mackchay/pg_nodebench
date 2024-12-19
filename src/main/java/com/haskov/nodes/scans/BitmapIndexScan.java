@@ -43,6 +43,11 @@ public class BitmapIndexScan implements Node, Scan {
     }
 
     @Override
+    public long reCalculateMinTuple(long tuples) {
+        return tuples;
+    }
+
+    @Override
     public void prepareQuery() {
         Random random = new Random();
         nonIndexColumnsCount = random.nextInt(nonIndexColumns.size()) + 1;

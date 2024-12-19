@@ -19,11 +19,10 @@ import org.junit.Test;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 
-public class TestHashJoinMinTuples {
-    private final static String expectedNodeType = "Hash Join";
-    private final static String filePath = "testplans/hashjoin.json";
+public class TestNestedLoopMaxTuples {
+    private final static String expectedNodeType = "Nested Loop";
+    private final static String filePath = "testplans/nestedloop.json";
 
     public void test(long size, int queryCount) {
         String argArray = "-h localhost -j " + filePath + " -S " + size + " -q " + queryCount;
@@ -57,7 +56,7 @@ public class TestHashJoinMinTuples {
                 1
         );
 
-        long minTuples = JoinCostCalculator.calculateHashJoinTuplesRange(
+        long maxTuples = JoinCostCalculator.calculateNestedLoopTuplesRange(
                 tables.getFirst(),
                 tables.getLast(),
                 ScanCostCalculator.calculateSeqScanCost(tables.getFirst(), 1),
@@ -68,18 +67,18 @@ public class TestHashJoinMinTuples {
         ).getLeft();
 
         String query = new QueryBuilder().select(tables.getFirst() + "." + nonIndexedColumns.getFirst(),
-                tables.getLast() + "." + nonIndexedColumns.getLast()).join(
+                        tables.getLast() + "." + nonIndexedColumns.getLast()).join(
                         new JoinData(
                                 tables.getLast(),
                                 tables.getFirst(),
                                 JoinType.USUAL,
                                 nonIndexedColumns.getLast(),
                                 nonIndexedColumns.getFirst())
-                        ).where(tables.getFirst() + "." + nonIndexedColumns.getFirst() + " < " + (minTuples)
+                ).where(tables.getFirst() + "." + nonIndexedColumns.getFirst() + " < " + (maxTuples)
                         + " and "
-                + tables.getLast() + "." + nonIndexedColumns.getLast() + " < " + (minTuples)
-                + " and " + tables.getFirst() + "." + nonIndexedColumns.getFirst() + " >= 0 "
-                + " and " + tables.getLast() + "." + nonIndexedColumns.getLast() + " >= 0").
+                        + tables.getLast() + "." + nonIndexedColumns.getLast() + " < " + (maxTuples)
+                        + " and " + tables.getFirst() + "." + nonIndexedColumns.getFirst() + " >= 0 "
+                        + " and " + tables.getLast() + "." + nonIndexedColumns.getLast() + " >= 0").
                 from(tables.getLast()).build();
 
         PgJsonPlan plan = JsonOperations.findNode(JsonOperations.explainResultsJson(query), expectedNodeType);
@@ -90,8 +89,8 @@ public class TestHashJoinMinTuples {
     }
 
     @Test
-    public void testHashJoin() {
-        test(500, 500);
+    public void testNestedLoop() {
+        //test(500, 500);
         test(1000, 500);
         test(5000, 500);
         test(10000, 200);

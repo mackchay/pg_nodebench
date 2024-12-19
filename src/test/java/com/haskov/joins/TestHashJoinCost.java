@@ -78,7 +78,7 @@ public class TestHashJoinCost {
                 2
         );
 
-        Assert.assertEquals(expectedCost, actualCost, 0.05 * actualCost);
+        Assert.assertEquals(expectedCost, actualCost, 0.01 * actualCost);
     }
 
     @Test

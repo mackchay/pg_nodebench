@@ -61,7 +61,7 @@ public class JoinCostCalculator {
         double startUpCost, runCost, innerNumTuples, outerNumTuples,
                 hashFunInnerCost, hashFunOuterCost, insertTupleCost,
                 resultTupleCost = 0, rescanCost,
-                innerResSel = 0, outerResSel = 0;
+                innerResSel = innerSel, outerResSel = outerSel;
 
         //Expected table with (0,1,..n) columns and same size of tables.
         if (innerConditionCount > 0) {
@@ -71,7 +71,7 @@ public class JoinCostCalculator {
             outerResSel = Math.pow(outerSel, outerConditionCount);
         }
 
-        innerNumTuples = SQLUtils.getTableRowCount(innerTableName) * innerResSel;
+        innerNumTuples = SQLUtils.getTableRowCount(innerTableName);
         hashFunInnerCost = cpuOperatorCost * innerNumTuples;
         insertTupleCost = cpuTupleCost * innerNumTuples;
         startUpCost = innerTableScanCost + hashFunInnerCost + insertTupleCost + startScanCost;
@@ -80,10 +80,10 @@ public class JoinCostCalculator {
         hashFunOuterCost = cpuOperatorCost * outerNumTuples;
 
         //TODO fix rescanCost
-        //rescanCost = cpuOperatorCost * innerNumTuples * outerNumTuples;
-        rescanCost = 0;
+        rescanCost = cpuOperatorCost * outerNumTuples * (0.5 / (innerNumTuples)) * innerNumTuples;
+        //rescanCost = 0;
 
-        resultTupleCost += cpuTupleCost * Math.min(innerNumTuples, outerNumTuples);
+        resultTupleCost += cpuTupleCost * innerResSel * outerResSel * Math.min(innerNumTuples, outerNumTuples);
         runCost = outerTableScanCost + hashFunOuterCost + rescanCost +
                 resultTupleCost;
         return (double) Math.round(startUpCost * 100) / 100 + (double) Math.round(runCost * 100) / 100;
@@ -115,6 +115,7 @@ public class JoinCostCalculator {
                             innerTableScanCost, outerTableScanCost, sel, sel)
             );
         }
+
         return new ImmutablePair<>((long)((sel + 0.05) * numTuples), numTuples);
     }
 
@@ -131,7 +132,7 @@ public class JoinCostCalculator {
                 < calculateNestedLoopCost(innerTableName, outerTableName, innerTableScanCost,
                 outerTableScanCost, sel, sel)
         ) {
-            sel *= 0.5;
+            sel *= 0.9;
         }
 
         double materializedNestedLoopCost = calculateMaterializedNestedLoopCost(innerTableName, outerTableName,
@@ -140,9 +141,35 @@ public class JoinCostCalculator {
                 innerTableScanCost, outerTableScanCost, sel, sel)
                 < calculateNestedLoopCost(innerTableName, outerTableName, innerTableScanCost,
                 outerTableScanCost, sel, sel)) {
-            sel *= 0.5;
+            sel *= 0.9;
         }
 
         return new ImmutablePair<>(1L, (long)(sel * numTuples));
+    }
+
+    public static Pair<Long, Long> calculateMaterializedNestedLoopTuplesRange(String innerTableName, String outerTableName,
+                                                                  double innerTableScanCost, double outerTableScanCost,
+                                                                  double startScanCost, int innerConditionCount,
+                                                                  int outerConditionCount) {
+        Long numTuples = SQLUtils.getTableRowCount(innerTableName);
+        double minSel = (double) 1 / numTuples;
+        double maxSel = 1;
+
+        while (calculateHashJoinCost(innerTableName, outerTableName, innerTableScanCost, outerTableScanCost,
+                maxSel, maxSel, startScanCost, innerConditionCount, outerConditionCount)
+                < calculateMaterializedNestedLoopCost(innerTableName, outerTableName, innerTableScanCost,
+                outerTableScanCost, maxSel, maxSel)
+        ) {
+            maxSel *= 0.98;
+        }
+
+        while (calculateMaterializedNestedLoopCost(innerTableName, outerTableName,
+                innerTableScanCost, outerTableScanCost, minSel, minSel)
+                > calculateNestedLoopCost(innerTableName, outerTableName, innerTableScanCost,
+                outerTableScanCost, minSel, minSel)) {
+            minSel *= 1.02;
+        }
+
+        return new ImmutablePair<>((long)(minSel * numTuples), (long)((maxSel) * numTuples));
     }
 }

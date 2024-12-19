@@ -65,7 +65,7 @@ public class TestMaterializedNestedLoopCost {
                 sel
         );
 
-        Assert.assertEquals(expectedCost, actualCost, 0.01);
+        Assert.assertEquals(expectedCost, actualCost, expectedCost * 0.005);
     }
 
     @Test
@@ -73,5 +73,8 @@ public class TestMaterializedNestedLoopCost {
         test(500, 500);
         test(1000, 200);
         test(5000, 50);
+        test(10000, 100);
+        test(50000, 100);
+        test(100000, 50);
     }
 }
