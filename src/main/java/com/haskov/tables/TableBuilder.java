@@ -4,6 +4,7 @@ import com.haskov.bench.V2;
 import com.haskov.types.InsertType;
 import com.haskov.types.TableBuildResult;
 import com.haskov.types.TableData;
+import com.haskov.types.TableIndexType;
 import com.haskov.utils.SQLUtils;
 import org.apache.commons.lang3.tuple.Pair;
 
@@ -15,7 +16,8 @@ import static com.haskov.utils.MathUtils.getRandomBooleanList;
 public class TableBuilder {
     private static Map<String, Integer> tableNames = new HashMap<>();
 
-    public static TableBuildResult buildRandomTable(String tableName, long tableSize, InsertType insertType) {
+    public static TableBuildResult buildRandomTable(String tableName, long tableSize,
+                                                    InsertType insertType, TableIndexType tableIndexType) {
         if (SQLUtils.isTableExists(tableName) &&
                 SQLUtils.getTablePagesAndRowsCount(tableName).getRight().equals(tableSize)) {
             if (tableNames.containsKey(tableName)) {
@@ -24,16 +26,15 @@ public class TableBuilder {
         }
 
         DropTable.dropTable(tableName);
-        int maxColumns = 15;
+        int maxColumns = 10;
         Random random = new Random();
         int columnCount = random.nextInt(3, maxColumns);
-        List<Boolean> randomBooleanList = getRandomBooleanList(columnCount);
-        if (!randomBooleanList.subList(1, randomBooleanList.size()).contains(true)) {
-            randomBooleanList.set(1, true);
+        List<Boolean> randomBooleanList = getIndexList(tableIndexType, columnCount);
+        boolean isPrimaryKey = true;
+        if (tableIndexType.equals(TableIndexType.FULL_NON_INDEX)) {
+            isPrimaryKey = false;
         }
-        if (!randomBooleanList.subList(1, randomBooleanList.size()).contains(false)) {
-            randomBooleanList.set(2, false);
-        }
+
         List<String> tableQueries = TableBuilder.createRandomTable(new TableData(
                 tableName,
                 new ArrayList<>(),
@@ -41,7 +42,7 @@ public class TableBuilder {
                 tableSize,
                 randomBooleanList,
                 new ArrayList<>(),
-                true,
+                isPrimaryKey,
                 insertType
         ));
 
@@ -50,14 +51,14 @@ public class TableBuilder {
         return new TableBuildResult(tableName, tableQueries);
     }
 
-
     /**
      * Insert type is ASCENDING by default.
      * @param tableName name of table
      * @param tableSize size of table
      */
+
     public static TableBuildResult buildRandomTable(String tableName, long tableSize) {
-        return buildRandomTable(tableName, tableSize, InsertType.ASCENDING);
+        return buildRandomTable(tableName, tableSize, InsertType.ASCENDING, TableIndexType.RANDOM);
     }
 
     private static String getCreateQuery(TableData data) {
@@ -254,5 +255,27 @@ public class TableBuilder {
 //        sql(updateQuery);
 //        sql(foreignKeyQuery);
         return sqlQueries;
+    }
+
+    private static List<Boolean> getIndexList(TableIndexType indexType, int size) {
+        List<Boolean> booleansList = getRandomBooleanList(size);
+        switch (indexType) {
+            case RANDOM:
+                if (!booleansList.subList(1, booleansList.size()).contains(true)) {
+                    booleansList.set(1, true);
+                }
+                if (!booleansList.subList(1, booleansList.size()).contains(false)) {
+                    booleansList.set(2, false);
+                }
+                return booleansList;
+            case FULL_INDEX:
+                booleansList.forEach(e -> booleansList.set(booleansList.indexOf(e), true));
+                return booleansList;
+            case FULL_NON_INDEX:
+                booleansList.forEach(e -> booleansList.set(booleansList.indexOf(e), false));
+                return booleansList;
+            default:
+                throw new RuntimeException("Unsupported index type: " + indexType);
+        }
     }
 }

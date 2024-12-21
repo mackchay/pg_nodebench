@@ -17,6 +17,8 @@ import java.util.*;
 public class HashJoin implements Node, Join {
     private String parentTable;
     private String childTable;
+    private List<String> parentColumns;
+    private List<String> childColumns;
     private double parentScanCost;
     private double childScanCost;
     private double startUpCost;
@@ -30,32 +32,26 @@ public class HashJoin implements Node, Join {
         //Expected 2 tables.
         parentTable = tables.get(1);
         childTable = tables.getFirst();
+        Map<String, String> columnsAndTypesParent = V2.getColumnsAndTypes(parentTable);
+        parentColumns = new ArrayList<>(columnsAndTypesParent.keySet());
+        Map<String, String> columnsAndTypesChild = V2.getColumnsAndTypes(childTable);
+        childColumns = new ArrayList<>(columnsAndTypesChild.keySet());
     }
 
 
     @Override
     public QueryBuilder buildQuery(QueryBuilder qb) {
-        String leftColumn, rightColumn;
-        List<String> joinColumns = new ArrayList<>();
 
-        List<String> tables = List.of(parentTable, childTable);
-        for (String table : tables) {
-            Map<String, String> columnsAndTypes = V2.getColumnsAndTypes(table);
-            List<String> shuffledColumns = new ArrayList<>(columnsAndTypes.keySet());
-            Collections.shuffle(shuffledColumns);
-            for (String column : shuffledColumns) {
-                if (!SQLUtils.hasIndexOnColumn(table, column)) {
-                    joinColumns.add(column);
-                    break;
-                }
-            }
-        }
+        Collections.shuffle(parentColumns);
+        Collections.shuffle(childColumns);
+
+
         qb.join(new JoinData(
                 parentTable,
                 childTable,
                 JoinType.USUAL,
-                joinColumns.getFirst(),
-                joinColumns.get(1)
+                parentColumns.getFirst(),
+                childColumns.getFirst()
                 )
         );
         //qb.addRandomWhere(tables.getLast(), joinColumns.getKey());

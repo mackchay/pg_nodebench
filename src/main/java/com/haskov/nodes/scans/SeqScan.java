@@ -3,7 +3,9 @@ package com.haskov.nodes.scans;
 import com.haskov.QueryBuilder;
 import com.haskov.costs.ScanCostCalculator;
 import com.haskov.nodes.Node;
+import com.haskov.types.InsertType;
 import com.haskov.types.TableBuildResult;
+import com.haskov.types.TableIndexType;
 import com.haskov.utils.SQLUtils;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
@@ -25,8 +27,7 @@ public class SeqScan implements Node, Scan {
         TableBuildResult result = createTable(tableSize);
         table = result.tableName();
         this.tableSize = tableSize;
-        columns = new ArrayList<>(getColumnsAndTypes(table).keySet()
-                .stream().filter(e -> !hasIndexOnColumn(table, e)).toList());
+        columns = new ArrayList<>(getColumnsAndTypes(table).keySet());
         return result;
     }
 
@@ -64,7 +65,8 @@ public class SeqScan implements Node, Scan {
 
     public TableBuildResult createTable(Long tableSize) {
         String tableName = "pg_seqscan";
-        return buildRandomTable(tableName, tableSize);
+        return buildRandomTable(tableName, tableSize,
+                InsertType.ASCENDING, TableIndexType.FULL_NON_INDEX);
     }
 
     @Override

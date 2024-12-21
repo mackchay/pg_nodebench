@@ -6,6 +6,7 @@ import com.haskov.costs.ScanCostCalculator;
 import com.haskov.nodes.Node;
 import com.haskov.types.InsertType;
 import com.haskov.types.TableBuildResult;
+import com.haskov.types.TableIndexType;
 import com.haskov.utils.SQLUtils;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
@@ -39,6 +40,7 @@ public class BitmapIndexScan implements Node, Scan {
                 nonIndexColumns.add(column);
             }
         }
+        indexColumnsCount = 1;
         return result;
     }
 
@@ -53,13 +55,12 @@ public class BitmapIndexScan implements Node, Scan {
         nonIndexColumnsCount = random.nextInt(nonIndexColumns.size()) + 1;
         Collections.shuffle(indexColumns);
         Collections.shuffle(nonIndexColumns);
+        indexColumn = indexColumns.getFirst();
     }
 
     @Override
     public QueryBuilder buildQuery(QueryBuilder qb) {
         Random random = new Random();
-
-        indexColumnsCount = 1;
 
         qb.from(table);
         qb.setIndexConditionCount((indexColumnsCount)*2);
@@ -80,7 +81,8 @@ public class BitmapIndexScan implements Node, Scan {
     @Override
     public TableBuildResult createTable(Long tableSize) {
         String tableName = "pg_bitmapscan";
-        return buildRandomTable(tableName, tableSize, InsertType.RANDOM);
+        return buildRandomTable(tableName, tableSize, InsertType.RANDOM,
+                TableIndexType.RANDOM);
     }
 
     @Override

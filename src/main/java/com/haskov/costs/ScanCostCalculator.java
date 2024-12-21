@@ -12,7 +12,7 @@ import static com.haskov.utils.SQLUtils.*;
 
 //TODO optimize class
 public class ScanCostCalculator {
-    private static final Map<ScanData, Long> maxTuplesMap = new HashMap<>();
+    private static final Map<ScanCacheData, Long> maxTuplesMap = new HashMap<>();
 
     public static double calculateSeqScanCost(String tableName, int conditionCount) {
 
@@ -159,7 +159,7 @@ public class ScanCostCalculator {
         Pair<Long, Long> resultTable = getTablePagesAndRowsCount(tableName);
         double numPages = resultTable.getLeft();
         double numTuples = resultTable.getRight();
-        ScanData data = new ScanData(indexConditionsCount, conditionsCount, scanType,
+        ScanCacheData data = new ScanCacheData(indexConditionsCount, conditionsCount, scanType,
                 numPages, numTuples);
         if (maxTuplesMap.containsKey(data)) {
             return maxTuplesMap.get(data);
@@ -187,7 +187,7 @@ public class ScanCostCalculator {
         double numPages = resultTable.getLeft();
         double numTuples = resultTable.getRight();
 
-        ScanData data = new ScanData(indexConditionsCount, conditionsCount, scanType,
+        ScanCacheData data = new ScanCacheData(indexConditionsCount, conditionsCount, scanType,
                 numPages, numTuples);
         if (maxTuplesMap.containsKey(data)) {
             return maxTuplesMap.get(data);
@@ -233,7 +233,7 @@ public class ScanCostCalculator {
         double numPages = resultTable.getLeft();
         double numTuples = resultTable.getRight();
 
-        ScanData data = new ScanData(indexConditionsCount, conditionsCount, scanType,
+        ScanCacheData data = new ScanCacheData(indexConditionsCount, conditionsCount, scanType,
                 numPages, numTuples);
         if (maxTuplesMap.containsKey(data)) {
             return new ImmutablePair<>(3L, maxTuplesMap.get(data));

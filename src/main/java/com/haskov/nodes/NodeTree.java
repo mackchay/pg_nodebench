@@ -74,7 +74,7 @@ public class NodeTree {
 
     public void prepareQuery() {
         setCosts();
-        setTuples(minTuples, maxTuples);
+        setTuples(minTuples, maxTuples, false);
     }
 
     //TODO prepare query, costs and tuples
@@ -114,7 +114,7 @@ public class NodeTree {
         }
     }
 
-    public void setTuples(long newMinTuples, long newMaxTuples) {
+    public void setTuples(long newMinTuples, long newMaxTuples, boolean isRecalculate) {
         minTuples = newMinTuples;
         maxTuples = newMaxTuples;
         if (parent instanceof Join join) {
@@ -125,6 +125,7 @@ public class NodeTree {
             if (tupleRange.getRight() < maxTuples) {
                 maxTuples = tupleRange.getRight();
             }
+            isRecalculate = true;
         }
 
         if (parent instanceof Scan scan) {
@@ -135,10 +136,12 @@ public class NodeTree {
             if (tupleRange.getRight() < maxTuples) {
                 maxTuples = tupleRange.getRight();
             }
-            minTuples = scan.reCalculateMinTuple(minTuples);
+            if (isRecalculate) {
+                minTuples = scan.reCalculateMinTuple(minTuples);
+            }
         }
         for (NodeTree child : children) {
-            child.setTuples(minTuples, maxTuples);
+            child.setTuples(minTuples, maxTuples, isRecalculate);
         }
     }
 

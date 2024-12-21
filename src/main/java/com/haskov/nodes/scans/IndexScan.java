@@ -23,11 +23,13 @@ public class IndexScan implements Node, Scan {
     private String table = "";
     private final ScanCostCalculator costCalculator = new ScanCostCalculator();
     private long sel = 0;
+    private long tableSize;
 
     @Override
     public TableBuildResult initScanNode(Long tableSize) {
         TableBuildResult result = createTable(tableSize);
         table = result.tableName();
+        this.tableSize = tableSize;
         Map<String, String> columnsAndTypes = V2.getColumnsAndTypes(table);
         String[] columns = columnsAndTypes.keySet().toArray(new String[0]);
         for (String column : columns) {
@@ -43,7 +45,11 @@ public class IndexScan implements Node, Scan {
 
     @Override
     public long reCalculateMinTuple(long tuples) {
-        return tuples;
+        double tmpSel = (double) tuples / tableSize;
+        while (tableSize * Math.pow(tmpSel, nonIndexColumnsCount) * Math.pow(tmpSel, indexColumnsCount) < 2) {
+            tmpSel *= 1.05;
+        }
+        return (long) (tableSize * tmpSel);
     }
 
     @Override
@@ -55,8 +61,10 @@ public class IndexScan implements Node, Scan {
     public void prepareQuery() {
         Random random = new Random();
         nonIndexColumnsCount = random.nextInt(nonIndexColumns.size()) + 1;
+        indexColumnsCount = 1;
         Collections.shuffle(nonIndexColumns);
         Collections.shuffle(indexColumns);
+        indexColumn = indexColumns.getFirst();
     }
 
     @Override
@@ -71,7 +79,6 @@ public class IndexScan implements Node, Scan {
 
         for (int j = 0; j < indexColumnsCount; j++) {
             qb.randomWhere(table, indexColumns.get(j));
-            indexColumn = indexColumns.get(j);
         }
         for (int j = 0; j < nonIndexColumnsCount; j++) {
             qb.randomWhere(table, nonIndexColumns.get(j));

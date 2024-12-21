@@ -5,7 +5,9 @@ import com.haskov.types.JoinData;
 import com.haskov.types.JoinType;
 import com.haskov.types.ReplaceOrAdd;
 import com.haskov.utils.SQLUtils;
+import lombok.Getter;
 import lombok.Setter;
+import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 
 import java.util.*;
@@ -13,6 +15,7 @@ import java.util.*;
 public class QueryBuilder {
 
     private String tableName;
+    @Getter
     private final List<String> selectColumns = new ArrayList<>();
     private final List<String> whereConditions = new ArrayList<>();
     private final List<String> orderByColumns = new ArrayList<>();
@@ -24,6 +27,7 @@ public class QueryBuilder {
     private static final ScanCostCalculator scanCostCalculator = new ScanCostCalculator();
     private Long minTuples = 0L;
     private Long maxTuples = Long.MAX_VALUE;
+    private Map<String, Pair<Long, Long>> cacheMinMax = new HashMap<>();
 
     //Максимальное количество столбцов среди всех запросов с UNION ALL
     private int maxSelectColumns = 0;
@@ -94,13 +98,22 @@ public class QueryBuilder {
 
     public QueryBuilder randomWhere(String table, String column) {
         this.select(table + "." + column);
-        long min = Long.parseLong(SQLUtils.getMin(table, column));
-        long max = Long.parseLong(SQLUtils.getMax(table, column));
-//        long tuples = random.nextLong(minTuples, maxTuples);
+        long min, max;
+        if (cacheMinMax.containsKey(table)) {
+            min = cacheMinMax.get(table).getLeft();
+            max = cacheMinMax.get(table).getRight();
+        } else {
+            min = Long.parseLong(SQLUtils.getMin(table, column));
+            max = Long.parseLong(SQLUtils.getMax(table, column));
+            cacheMinMax.put(table, new ImmutablePair<>(min, max));
+        }
+
+//      long tuples = random.nextLong(minTuples, maxTuples);
         long tuples = minTuples;
         long radius = min;
         this.where(table + "." + column + ">" + radius).
                 where(table + "." + column + "<" + (radius + tuples));
+
         return this;
     }
 

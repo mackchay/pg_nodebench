@@ -4,7 +4,9 @@ import com.haskov.QueryBuilder;
 import com.haskov.bench.V2;
 import com.haskov.costs.ScanCostCalculator;
 import com.haskov.nodes.Node;
+import com.haskov.types.InsertType;
 import com.haskov.types.TableBuildResult;
+import com.haskov.types.TableIndexType;
 import com.haskov.utils.SQLUtils;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
@@ -21,30 +23,33 @@ public class IndexOnlyScan implements Node, Scan {
     private String table = "";
     private final ScanCostCalculator costCalculator = new ScanCostCalculator();
     private long sel = 0;
+    private long tableSize;
 
     @Override
     public TableBuildResult initScanNode(Long tableSize) {
         TableBuildResult result = createTable(tableSize);
         table = result.tableName();
+        this.tableSize = tableSize;
         Map<String, String> columnsAndTypes = V2.getColumnsAndTypes(table);
         String[] columns = columnsAndTypes.keySet().toArray(new String[0]);
-        for (String column : columns) {
-            if (SQLUtils.hasIndexOnColumn(table, column)) {
-                indexColumns.add(column);
-            }
-        }
+        indexColumns.addAll(Arrays.asList(columns));
         indexColumnsCount = 1;
         return result;
     }
 
     @Override
     public long reCalculateMinTuple(long tuples) {
-        return tuples;
+        double tmpSel = (double) tuples / tableSize;
+        while (tableSize* Math.pow(tmpSel, indexColumnsCount) < 2) {
+            tmpSel *= 1.05;
+        }
+        return (long) (tableSize * tmpSel);
     }
 
     @Override
     public void prepareQuery() {
         Collections.shuffle(indexColumns);
+        indexColumn = indexColumns.getFirst();
     }
 
     @Override
@@ -65,7 +70,8 @@ public class IndexOnlyScan implements Node, Scan {
     @Override
     public TableBuildResult createTable(Long tableSize) {
         String tableName = "pg_indexonlyscan";
-        return buildRandomTable(tableName, tableSize);
+        return buildRandomTable(tableName, tableSize,
+                InsertType.ASCENDING, TableIndexType.FULL_INDEX);
     }
 
     @Override
