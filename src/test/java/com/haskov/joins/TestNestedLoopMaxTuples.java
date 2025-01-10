@@ -56,7 +56,7 @@ public class TestNestedLoopMaxTuples {
                 1
         );
 
-        long maxTuples = JoinCostCalculator.calculateNestedLoopTuplesRange(
+        long maxTuples = new JoinCostCalculator().calculateNestedLoopTuplesRange(
                 tables.getFirst(),
                 tables.getLast(),
                 ScanCostCalculator.calculateSeqScanCost(tables.getFirst(), 1),

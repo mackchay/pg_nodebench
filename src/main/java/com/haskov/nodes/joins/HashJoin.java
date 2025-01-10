@@ -26,6 +26,7 @@ public class HashJoin implements Node, Join {
     private int outerConditionsCount;
     private double parentTableSel;
     private double childTableSel;
+    private JoinCostCalculator costCalculator = new JoinCostCalculator();
 
     @Override
     public void initNode(List<String> tables) {
@@ -44,14 +45,14 @@ public class HashJoin implements Node, Join {
 
         Collections.shuffle(parentColumns);
         Collections.shuffle(childColumns);
-
+        List<String> selectColumns = qb.getSelectColumns();
 
         qb.join(new JoinData(
                 parentTable,
                 childTable,
                 JoinType.USUAL,
-                parentColumns.getFirst(),
-                childColumns.getFirst()
+                selectColumns.getLast().substring(selectColumns.getLast().indexOf(".")).replace(".", ""),
+                selectColumns.getFirst().substring(selectColumns.getFirst().indexOf(".")).replace(".", "")
                 )
         );
         //qb.addRandomWhere(tables.getLast(), joinColumns.getKey());
@@ -103,7 +104,7 @@ public class HashJoin implements Node, Join {
 
     @Override
     public Pair<Long, Long> getTuplesRange() {
-        Pair<Long, Long> range = JoinCostCalculator.calculateHashJoinTuplesRange(
+        Pair<Long, Long> range = costCalculator.calculateHashJoinTuplesRange(
                 parentTable,
                 childTable,
                 parentScanCost,

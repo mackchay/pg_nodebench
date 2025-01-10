@@ -58,7 +58,7 @@ public class TestMaterializedNestedLoopMaxTuples {
         );
 
 
-        Pair<Long, Long> range = JoinCostCalculator.calculateMaterializedNestedLoopTuplesRange(
+        Pair<Long, Long> range = new JoinCostCalculator().calculateMaterializedNestedLoopTuplesRange(
                 tables.getFirst(),
                 tables.getLast(),
                 ScanCostCalculator.calculateSeqScanCost(tables.getFirst(), 1),

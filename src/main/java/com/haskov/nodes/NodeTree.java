@@ -167,6 +167,9 @@ public class NodeTree {
         }
         for (NodeTree child : children) {
             queryBuilder = child.buildQuery(queryBuilder);
+            if (parent instanceof Join) {
+                continue;
+            }
             if (children.size() == 1) {
                 queryBuilder = parent.buildQuery(queryBuilder);
             }
@@ -174,34 +177,12 @@ public class NodeTree {
                 queryBuilder = parent.buildQuery(queryBuilder);
             }
         }
+        if (parent instanceof Join) {
+            parent.buildQuery(queryBuilder);
+        }
         return queryBuilder;
     }
 
-    private void setTuplesAndCosts(NodeTree nodeTree) {
-        Pair<Long, Long> range;
-        Pair<Double, Double> costs;
-        if (parent instanceof Scan scan) {
-            range = scan.getTuplesRange();
-            costs = scan.getCosts();
-        } else if (parent instanceof Join join) {
-            range = join.getTuplesRange();
-            costs = join.getCosts();
-        } else {
-            range = new ImmutablePair<>(0L, 0L);
-            costs = new ImmutablePair<>(0.0, 0.0);
-        }
-
-        if (range.getLeft() > minTuples) {
-            minTuples = range.getLeft();
-        }
-        if (range.getRight() < maxTuples) {
-            maxTuples = range.getRight();
-        }
-        if (children.contains(nodeTree)) {
-            startUpCost = nodeTree.startUpCost + costs.getLeft();
-            totalCost = nodeTree.totalCost + costs.getRight();
-        }
-    }
 
     @Override
     public boolean equals(Object o) {

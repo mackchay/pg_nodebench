@@ -57,7 +57,7 @@ public class TestHashJoinMinTuples {
                 1
         );
 
-        long minTuples = JoinCostCalculator.calculateHashJoinTuplesRange(
+        long minTuples = new JoinCostCalculator().calculateHashJoinTuplesRange(
                 tables.getFirst(),
                 tables.getLast(),
                 ScanCostCalculator.calculateSeqScanCost(tables.getFirst(), 1),

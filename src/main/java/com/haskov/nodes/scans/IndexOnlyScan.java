@@ -71,14 +71,14 @@ public class IndexOnlyScan implements Node, Scan {
     public TableBuildResult createTable(Long tableSize) {
         String tableName = "pg_indexonlyscan";
         return buildRandomTable(tableName, tableSize,
-                InsertType.ASCENDING, TableIndexType.FULL_INDEX);
+                InsertType.ASCENDING, TableIndexType.FULL_UNIQUE_INDEX);
     }
 
     @Override
     public Pair<Double, Double> getCosts() {
         long maxTuples = costCalculator.calculateIndexOnlyScanMaxTuples
                 (table, indexColumn, 0, indexColumnsCount * 2);
-        sel = maxTuples / SQLUtils.getTableRowCount(table);
+        sel = maxTuples / tableSize;
         double startUpCost = ScanCostCalculator.getIndexScanStartUpCost
                 (table, indexColumn);
         double totalCost = ScanCostCalculator.calculateIndexOnlyScanCost

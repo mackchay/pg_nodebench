@@ -10,7 +10,7 @@ import java.util.Map;
 import static com.haskov.costs.CostParameters.*;
 
 public class JoinCostCalculator {
-    private static Map<JoinCacheData, Pair<Long, Long>> cache = new HashMap<>();
+    private Map<JoinCacheData, Pair<Long, Long>> cache = new HashMap<>();
 
     public static double calculateNestedLoopCost(String innerTableName, String outerTableName,
                                                  double innerTableScanCost, double outerTableScanCost,
@@ -92,9 +92,23 @@ public class JoinCostCalculator {
         return (double) Math.round(startUpCost * 100) / 100 + (double) Math.round(runCost * 100) / 100;
     }
 
+    public static double calculateMergeJoinCost(String innerTableName, String outerTableName,
+                                            double innerTableScanCost, double outerTableScanCost,
+                                                double innerSel, double outerSel,
+                                            int innerConditionCount, int outerConditionCount) {
+        double startUpCost, runCost, innerNumTuples, outerNumTuples;
+        startUpCost = 0;
+        innerNumTuples = SQLUtils.getTableRowCount(innerTableName) * innerSel;
+        outerNumTuples = SQLUtils.getTableRowCount(outerTableName) * outerSel;
+        runCost = innerTableScanCost + outerTableScanCost + cpuTupleCost * innerNumTuples * innerSel
+                + cpuOperatorCost * (innerNumTuples + outerNumTuples);
+        return (double) Math.round(startUpCost * 100) / 100 + (double) Math.round(runCost * 100) / 100;
+    }
+
+
     // Min, max tuples functions
 
-    public static Pair<Long, Long> calculateHashJoinTuplesRange(String innerTableName, String outerTableName,
+    public Pair<Long, Long> calculateHashJoinTuplesRange(String innerTableName, String outerTableName,
                                                                       double innerTableScanCost, double outerTableScanCost,
                                                                       double startScanCost, int innerConditionCount,
                                                                 int outerConditionCount) {
@@ -136,7 +150,7 @@ public class JoinCostCalculator {
         return range;
     }
 
-    public static Pair<Long, Long> calculateNestedLoopTuplesRange(String innerTableName, String outerTableName,
+    public Pair<Long, Long> calculateNestedLoopTuplesRange(String innerTableName, String outerTableName,
                                                                   double innerTableScanCost, double outerTableScanCost,
                                                                   double startScanCost, int innerConditionCount,
                                                                   int outerConditionCount) {
@@ -178,7 +192,7 @@ public class JoinCostCalculator {
         return range;
     }
 
-    public static Pair<Long, Long> calculateMaterializedNestedLoopTuplesRange(String innerTableName, String outerTableName,
+    public Pair<Long, Long> calculateMaterializedNestedLoopTuplesRange(String innerTableName, String outerTableName,
                                                                   double innerTableScanCost, double outerTableScanCost,
                                                                   double startScanCost, int innerConditionCount,
                                                                   int outerConditionCount) {

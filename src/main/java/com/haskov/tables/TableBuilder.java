@@ -6,7 +6,6 @@ import com.haskov.types.TableBuildResult;
 import com.haskov.types.TableData;
 import com.haskov.types.TableIndexType;
 import com.haskov.utils.SQLUtils;
-import org.apache.commons.lang3.tuple.Pair;
 
 import java.util.*;
 
@@ -31,7 +30,8 @@ public class TableBuilder {
         int columnCount = random.nextInt(3, maxColumns);
         List<Boolean> randomBooleanList = getIndexList(tableIndexType, columnCount);
         boolean isPrimaryKey = true;
-        if (tableIndexType.equals(TableIndexType.FULL_NON_INDEX)) {
+        if (tableIndexType.equals(TableIndexType.FULL_NON_INDEX)
+                || tableIndexType.equals(TableIndexType.FULL_SAME_INDEX)) {
             isPrimaryKey = false;
         }
 
@@ -43,7 +43,8 @@ public class TableBuilder {
                 randomBooleanList,
                 new ArrayList<>(),
                 isPrimaryKey,
-                insertType
+                insertType,
+                tableIndexType
         ));
 
         V2.sql("vacuum freeze analyze " + tableName);
@@ -223,6 +224,12 @@ public class TableBuilder {
         tableQueries.add(insertQuery);
         sql(getCreateQuery(data));
         sql(getInsertQuery(data));
+        if (data.indexType().equals(TableIndexType.FULL_SAME_INDEX)) {
+            String indexQuery = getIndexQuery(data);
+            tableQueries.add(indexQuery);
+            sql(indexQuery);
+            return tableQueries;
+        }
         for (String query : getIndexQueries(data)) {
             tableQueries.add(query);
             sql(query);
@@ -268,7 +275,8 @@ public class TableBuilder {
                     booleansList.set(2, false);
                 }
                 return booleansList;
-            case FULL_INDEX:
+            case FULL_SAME_INDEX:
+            case FULL_UNIQUE_INDEX:
                 booleansList.forEach(e -> booleansList.set(booleansList.indexOf(e), true));
                 return booleansList;
             case FULL_NON_INDEX:
