@@ -30,7 +30,7 @@ public class TestMergeJoinCost {
         Configuration conf = Cmd.args(argArray.split(" "));
         V2.init(conf);
         PlanAnalyzer analyzer = new PlanAnalyzer(conf.tableSize, conf.plan);
-        long tuples = (long) (size * 0.35);
+        long tuples = (long) (size * 0.25);
 
         List<TableBuildResult> tableScripts = analyzer.prepareTables();
         List<String> tables = List.of(tableScripts.getFirst().tableName(), tableScripts.getLast().tableName());
@@ -55,11 +55,8 @@ public class TestMergeJoinCost {
                                 indexedColumns.getFirst())
                 ).where(tables.getFirst() + "." + indexedColumns.getFirst() + " < " + tuples
                         + " and "
-                        + tables.getLast() + "." + indexedColumns.getLast() + " < " + tuples
-                        + " and " + tables.getFirst() + "." + indexedColumns.getFirst() + " >= 0 ")
-                .orderBy(tables.getFirst() + "." + indexedColumns.getFirst(),
-                        tables.getLast() + "." + indexedColumns.getLast()).
-                from(tables.getLast()).build();
+                        + tables.getLast() + "." + indexedColumns.getLast() + " < " + tuples)
+                        .from(tables.getLast()).build();
         PgJsonPlan plan = JsonOperations.findNode(JsonOperations.explainResultsJson(query), expectedNodeType);
         System.out.println(query);
         V2.explain(V2.log, query);
@@ -69,19 +66,19 @@ public class TestMergeJoinCost {
         double sel = Math.min((double) tuples / size, 1);
 
         double scanCost = ScanCostCalculator.calculateIndexOnlyScanCost(tables.getLast(), indexedColumns.getLast(),
-                2, 0, sel);
+                1, 0, sel);
         double doubleScanCost = ScanCostCalculator.calculateIndexOnlyScanCost(tables.getLast(), indexedColumns.getLast(),
                 1, 0, sel);
         double actualCost = JoinCostCalculator.calculateMergeJoinCost(
                 tables.getLast(),
                 tables.getFirst(),
                 ScanCostCalculator.calculateIndexOnlyScanCost(tables.getLast(), indexedColumns.getLast(),
-                        2, 0, sel),
+                        1, 0, sel),
                 ScanCostCalculator.calculateIndexOnlyScanCost(tables.getFirst(), indexedColumns.getFirst(),
                         1, 0, sel),
                 sel,
                 sel,
-                2,
+                1,
                 1
         );
 

@@ -82,7 +82,7 @@ public class SeqScan implements Node, Scan {
 
     @Override
     public Pair<Long, Long> getTuplesRange() {
-        return new ImmutablePair<>(2L, SQLUtils.getTableRowCount(table));
+        return new ImmutablePair<>(0L, SQLUtils.getTableRowCount(table));
     }
 
     @Override

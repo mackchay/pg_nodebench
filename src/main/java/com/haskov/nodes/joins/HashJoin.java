@@ -6,6 +6,7 @@ import com.haskov.costs.JoinCostCalculator;
 import com.haskov.nodes.Node;
 import com.haskov.tables.TableBuilder;
 import com.haskov.types.JoinData;
+import com.haskov.types.JoinNodeType;
 import com.haskov.types.JoinType;
 import com.haskov.types.TableBuildResult;
 import com.haskov.utils.SQLUtils;
@@ -104,14 +105,15 @@ public class HashJoin implements Node, Join {
 
     @Override
     public Pair<Long, Long> getTuplesRange() {
-        Pair<Long, Long> range = costCalculator.calculateHashJoinTuplesRange(
+        Pair<Long, Long> range = costCalculator.calculateTuplesRange(
                 parentTable,
                 childTable,
                 parentScanCost,
                 childScanCost,
                 startUpCost,
                 innerConditionsCount,
-                outerConditionsCount
+                outerConditionsCount,
+                JoinNodeType.HASH_JOIN
         );
         return new ImmutablePair<>(range.getLeft(), range.getRight());
     }

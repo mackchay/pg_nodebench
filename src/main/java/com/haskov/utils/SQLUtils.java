@@ -90,6 +90,18 @@ public class SQLUtils {
         return result != null;
     }
 
+    public static boolean hasIndexOnTable(String tableName) {
+        String query = """
+                SELECT EXISTS (
+                    SELECT 1
+                    FROM pg_index i
+                    JOIN pg_class t ON i.indrelid = t.oid
+                    WHERE t.relname = ?
+                )
+                """;
+        return Boolean.TRUE.equals(selectOne(query, tableName));
+    }
+
     public static String getIndexOnColumn(String tableName, String columnName) {
         String query = """
                 SELECT

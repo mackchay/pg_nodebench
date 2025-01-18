@@ -4,12 +4,12 @@
     {
       "Node Type": "Hash",
       "Plans": [ {
-        "Node Type": "SeqScan"
+        "Node Type": "IndexScan"
       }
       ]
     },
     {
-      "Node Type": "SeqScan"
+      "Node Type": "IndexScan"
     }
   ]
 }

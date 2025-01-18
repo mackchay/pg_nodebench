@@ -4,6 +4,7 @@ import com.google.gson.JsonElement;
 import com.haskov.QueryBuilder;
 import com.haskov.json.JsonPlan;
 import com.haskov.json.PgJsonPlan;
+import com.haskov.nodes.joins.HashJoin;
 import com.haskov.nodes.joins.Join;
 import com.haskov.nodes.scans.Scan;
 import com.haskov.types.TableBuildResult;
@@ -125,7 +126,9 @@ public class NodeTree {
             if (tupleRange.getRight() < maxTuples) {
                 maxTuples = tupleRange.getRight();
             }
-            isRecalculate = true;
+            if (join instanceof HashJoin) {
+                isRecalculate = true;
+            }
         }
 
         if (parent instanceof Scan scan) {

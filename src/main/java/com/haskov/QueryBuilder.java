@@ -108,8 +108,8 @@ public class QueryBuilder {
             cacheMinMax.put(table, new ImmutablePair<>(min, max));
         }
 
-//      long tuples = random.nextLong(minTuples, maxTuples);
-        long tuples = minTuples;
+        long tuples = random.nextLong(minTuples, maxTuples + 1);
+//        long tuples = minTuples;
         long radius = min;
         this.where(table + "." + column + ">" + radius).
                 where(table + "." + column + "<" + (radius + tuples));

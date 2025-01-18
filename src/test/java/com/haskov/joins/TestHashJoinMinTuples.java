@@ -10,6 +10,7 @@ import com.haskov.costs.ScanCostCalculator;
 import com.haskov.json.JsonOperations;
 import com.haskov.json.PgJsonPlan;
 import com.haskov.types.JoinData;
+import com.haskov.types.JoinNodeType;
 import com.haskov.types.JoinType;
 import com.haskov.types.TableBuildResult;
 import com.haskov.utils.SQLUtils;
@@ -57,14 +58,15 @@ public class TestHashJoinMinTuples {
                 1
         );
 
-        long minTuples = new JoinCostCalculator().calculateHashJoinTuplesRange(
+        long minTuples = new JoinCostCalculator().calculateTuplesRange(
                 tables.getFirst(),
                 tables.getLast(),
                 ScanCostCalculator.calculateSeqScanCost(tables.getFirst(), 1),
                 ScanCostCalculator.calculateSeqScanCost(tables.getLast(), 1),
                 0,
                 1,
-                1
+                1,
+                JoinNodeType.HASH_JOIN
         ).getLeft();
 
         String query = new QueryBuilder().select(tables.getFirst() + "." + nonIndexedColumns.getFirst(),
