@@ -30,62 +30,102 @@ public class TestHashJoinCost {
         Configuration conf = Cmd.args(argArray.split(" "));
         V2.init(conf);
         PlanAnalyzer analyzer = new PlanAnalyzer(conf.tableSize, conf.plan);
-        long tuples = (long) (size * 0.15);
-
         List<TableBuildResult> tableScripts = analyzer.prepareTables();
         List<String> tables = List.of(tableScripts.getFirst().tableName(), tableScripts.getLast().tableName());
-        List<String> nonIndexedColumns = new ArrayList<>();
-        for (String table : tables) {
-            Map<String, String> columnsAndTypes = V2.getColumnsAndTypes(table);
-            for (String column : new ArrayList<>(columnsAndTypes.keySet())) {
-                nonIndexedColumns.add(column);
-                break;
+        generateQuery(tables, size);
+    }
+
+    @Test
+    public void testNestedLoop() {
+        test(200, 200);
+        test(500, 500);
+        test(1000, 200);
+        test(5000, 50);
+        test(10000, 100);
+    }
+
+    private void generateQuery(List<String> tables, long size) {
+        String parentTable = tables.get(0);
+        String childTable = tables.get(1);
+
+        Map<String, String> columnsParent = V2.getColumnsAndTypes(parentTable);
+        List<String> parentTableColumns = new ArrayList<>(columnsParent.keySet());
+
+        Map<String, String> columnsChild = V2.getColumnsAndTypes(childTable);
+        List<String> childTableColumns = new ArrayList<>(columnsChild.keySet());
+
+        double sel = 0.9;
+        long tuples = (long) (size * sel);
+
+        QueryBuilder qb = new QueryBuilder();
+        qb.select(parentTable + "." + parentTableColumns.getFirst(),
+                childTable + "." + childTableColumns.getFirst()).join(
+                new JoinData(
+                        parentTable,
+                        childTable,
+                        JoinType.INNER,
+                        parentTableColumns.getFirst(),
+                        childTableColumns.getFirst())
+        ).from(parentTable);
+
+        StringBuilder whereConditions = new StringBuilder();
+        for (String column : childTableColumns) {
+            whereConditions.append(childTable).append(".").append(column).append(" < ").append(tuples);
+            whereConditions.append(" and ");
+        }
+        for (String column : parentTableColumns) {
+            whereConditions.append(parentTable).append(".").append(column).append(" < ").append(tuples);
+            if (parentTableColumns.indexOf(column) != parentTableColumns.size() - 1) {
+                whereConditions.append(" and ");
             }
         }
+        qb.where(whereConditions.toString());
+        String query = qb.build();
 
-        String query = new QueryBuilder().select(tables.getFirst() + "." + nonIndexedColumns.getFirst(),
-                        tables.getLast() + "." + nonIndexedColumns.getLast()).join(
-                        new JoinData(
-                                tables.getLast(),
-                                tables.getFirst(),
-                                JoinType.USUAL,
-                                nonIndexedColumns.getLast(),
-                                nonIndexedColumns.getFirst())
-                ).where(tables.getFirst() + "." + nonIndexedColumns.getFirst() + " < " + tuples
-                        + " and "
-                        + tables.getLast() + "." + nonIndexedColumns.getLast() + " < " + tuples).
-                from(tables.getLast()).build();
+
+
         PgJsonPlan plan = JsonOperations.findNode(JsonOperations.explainResultsJson(query), expectedNodeType);
         System.out.println(query);
         V2.explain(V2.log, query);
         double expectedCost = Objects.requireNonNull(JsonOperations.
                         findNode(JsonOperations.explainResultsJson(query), expectedNodeType)).
                 getJson().get("Total Cost").getAsDouble();
-        double sel = Math.min((double) tuples / size, 1);
 
-        double scanCost = ScanCostCalculator.calculateSeqScanCost(tables.getFirst(), 1);
-        double doubleScanCost = ScanCostCalculator.calculateSeqScanCost(tables.getFirst(), 1);
+        double parentCost = ScanCostCalculator.calculateSeqScanCost(parentTable, parentTableColumns.size());
+        double childCost = ScanCostCalculator.calculateSeqScanCost(childTable, childTableColumns.size());
+
+        double innerCost, outerCost;
+        String innerTable, outerTable;
+        int innerConditions, outerConditions;
+
+        if (parentCost > childCost) {
+            innerCost = parentCost;
+            outerCost = childCost;
+            innerTable = parentTable;
+            outerTable = childTable;
+            innerConditions = parentTableColumns.size();
+            outerConditions = childTableColumns.size();
+        } else {
+            innerCost = childCost;
+            outerCost = parentCost;
+            innerTable = childTable;
+            outerTable = parentTable;
+            innerConditions = childTableColumns.size();
+            outerConditions = parentTableColumns.size();
+        }
+
         double actualCost = JoinCostCalculator.calculateHashJoinCost(
-                tables.getLast(),
-                tables.getFirst(),
-                ScanCostCalculator.calculateSeqScanCost(tables.getLast(), 1),
-                ScanCostCalculator.calculateSeqScanCost(tables.getFirst(), 1),
+                innerTable,
+                outerTable,
+                innerCost,
+                outerCost,
                 sel,
                 sel,
                 0,
-                1,
-                1
+                innerConditions,
+                outerConditions
         );
 
-        Assert.assertEquals(expectedCost, actualCost, 0.03 * actualCost);
-    }
-
-    @Test
-    public void testHashJoin() {
-        //test(200, 50);
-        test(500, 500);
-        test(5000, 500);
-        test(10000, 200);
-        test(100000, 50);
+        Assert.assertEquals(expectedCost, actualCost, 0.1);
     }
 }

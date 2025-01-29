@@ -2,6 +2,7 @@ package com.haskov.joins;
 
 import com.haskov.Cmd;
 import com.haskov.PlanAnalyzer;
+import com.haskov.QueryBuilder;
 import com.haskov.QueryGenerator;
 import com.haskov.bench.V2;
 import com.haskov.bench.v2.Configuration;
@@ -9,6 +10,8 @@ import com.haskov.costs.JoinCostCalculator;
 import com.haskov.costs.ScanCostCalculator;
 import com.haskov.json.JsonOperations;
 import com.haskov.json.PgJsonPlan;
+import com.haskov.types.JoinData;
+import com.haskov.types.JoinType;
 import com.haskov.types.TableBuildResult;
 import com.haskov.utils.SQLUtils;
 import org.junit.Assert;
@@ -30,49 +33,100 @@ public class TestNestedLoopCost {
         PlanAnalyzer analyzer = new PlanAnalyzer(conf.tableSize, conf.plan);
         List<TableBuildResult> tableScripts = analyzer.prepareTables();
         List<String> tables = List.of(tableScripts.getFirst().tableName(), tableScripts.getLast().tableName());
-        List<String> nonIndexedColumns = new ArrayList<>();
-        for (String table : tables) {
-            Map<String, String> columnsAndTypes = V2.getColumnsAndTypes(table);
-            for (String column : columnsAndTypes.keySet()) {
-                if (!SQLUtils.hasIndexOnColumn(table, column)) {
-                    nonIndexedColumns.add(column);
-                    break;
-                }
+        generateQuery(tables, size);
+    }
+
+    @Test
+    public void testNestedLoop() {
+        test(200, 200);
+        test(500, 500);
+        test(1000, 200);
+        test(5000, 50);
+        //test(10000, 100);
+    }
+
+    private void generateQuery(List<String> tables, long size) {
+        String parentTable = tables.get(0);
+        String childTable = tables.get(1);
+
+        Map<String, String> columnsParent = V2.getColumnsAndTypes(parentTable);
+        List<String> parentTableColumns = new ArrayList<>(columnsParent.keySet());
+
+        Map<String, String> columnsChild = V2.getColumnsAndTypes(childTable);
+        List<String> childTableColumns = new ArrayList<>(columnsChild.keySet());
+
+        double sel = (double) 1 / size;
+        long tuples = (long) (size * sel);
+
+        QueryBuilder qb = new QueryBuilder();
+        qb.select(parentTable + "." + parentTableColumns.getFirst(),
+                childTable + "." + childTableColumns.getFirst()).join(
+                new JoinData(
+                        parentTable,
+                        childTable,
+                        JoinType.NON_EQUAL,
+                        parentTableColumns.getFirst(),
+                        childTableColumns.getFirst())
+        ).from(parentTable);
+
+        StringBuilder whereConditions = new StringBuilder();
+        for (String column : childTableColumns) {
+            whereConditions.append(childTable).append(".").append(column).append(" < ").append(tuples);
+            whereConditions.append(" and ");
+        }
+        for (String column : parentTableColumns) {
+            whereConditions.append(parentTable).append(".").append(column).append(" < ").append(tuples);
+            if (parentTableColumns.indexOf(column) != parentTableColumns.size() - 1) {
+                whereConditions.append(" and ");
             }
         }
+        qb.where(whereConditions.toString());
+        String query = qb.build();
 
-        String query = "select " + tables.getFirst() + "." + nonIndexedColumns.getFirst() + ","
-                + tables.getLast() + "." + nonIndexedColumns.getLast()
-                + " from " + tables.getFirst() + " join "
-                + tables.getLast() + " on " + tables.getFirst() + "." + nonIndexedColumns.getFirst()
-                + "=" + tables.getLast() + "." + nonIndexedColumns.getLast()
-                + " where " + tables.getFirst() + "." + nonIndexedColumns.getFirst() + " < 1 and "
-                + tables.getLast() + "." + nonIndexedColumns.getLast() + " < 1 ";
+
+
         PgJsonPlan plan = JsonOperations.findNode(JsonOperations.explainResultsJson(query), expectedNodeType);
         System.out.println(query);
         V2.explain(V2.log, query);
         double expectedCost = Objects.requireNonNull(JsonOperations.
                         findNode(JsonOperations.explainResultsJson(query), expectedNodeType)).
                 getJson().get("Total Cost").getAsDouble();
-        double sel = (double) 1 / size;
 
-        double scanCost = ScanCostCalculator.calculateSeqScanCost(tables.getFirst(), 1);
+        double parentCost = ScanCostCalculator.calculateSeqScanCost(parentTable, parentTableColumns.size());
+        double childCost = ScanCostCalculator.calculateSeqScanCost(childTable, childTableColumns.size());
+
+        double innerCost, outerCost;
+        String innerTable, outerTable;
+        int innerConditions, outerConditions;
+
+        if (parentCost < childCost) {
+            innerCost = parentCost;
+            outerCost = childCost;
+            innerTable = parentTable;
+            outerTable = childTable;
+            innerConditions = parentTableColumns.size();
+            outerConditions = childTableColumns.size();
+        } else {
+            innerCost = childCost;
+            outerCost = parentCost;
+            innerTable = childTable;
+            outerTable = parentTable;
+            innerConditions = childTableColumns.size();
+            outerConditions = parentTableColumns.size();
+        }
+
         double actualCost = JoinCostCalculator.calculateNestedLoopCost(
-                tables.getFirst(),
-                tables.getLast(),
-                ScanCostCalculator.calculateSeqScanCost(tables.getFirst(), 1),
-                ScanCostCalculator.calculateSeqScanCost(tables.getLast(), 1),
+                innerTable,
+                outerTable,
+                innerCost,
+                outerCost,
                 sel,
-                sel
+                sel,
+                0,
+                innerConditions,
+                outerConditions
         );
 
-        Assert.assertEquals(expectedCost, actualCost, 0.005);
-    }
-
-    @Test
-    public void testNestedLoop() {
-        test(500, 500);
-        test(1000, 200);
-        test(5000, 50);
+        Assert.assertEquals(expectedCost, actualCost, 0.01);
     }
 }

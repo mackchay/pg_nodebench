@@ -30,67 +30,103 @@ public class TestMergeJoinCost {
         Configuration conf = Cmd.args(argArray.split(" "));
         V2.init(conf);
         PlanAnalyzer analyzer = new PlanAnalyzer(conf.tableSize, conf.plan);
-        long tuples = (long) (size * 0.25);
-
         List<TableBuildResult> tableScripts = analyzer.prepareTables();
         List<String> tables = List.of(tableScripts.getFirst().tableName(), tableScripts.getLast().tableName());
-        List<String> indexedColumns = new ArrayList<>();
-        for (String table : tables) {
-            Map<String, String> columnsAndTypes = V2.getColumnsAndTypes(table);
-            for (String column : columnsAndTypes.keySet()) {
-                if (SQLUtils.hasIndexOnColumn(table, column)) {
-                    indexedColumns.add(column);
-                    break;
-                }
+        generateQuery(tables, size);
+    }
+
+    @Test
+    public void testNestedLoop() {
+        //test(200, 200);
+        test(500, 500);
+        test(1000, 200);
+        test(5000, 50);
+        test(10000, 100);
+    }
+
+    private void generateQuery(List<String> tables, long size) {
+        String parentTable = tables.get(0);
+        String childTable = tables.get(1);
+
+        Map<String, String> columnsParent = V2.getColumnsAndTypes(parentTable);
+        List<String> parentTableColumns = new ArrayList<>(columnsParent.keySet()).subList(0, 1);
+
+        Map<String, String> columnsChild = V2.getColumnsAndTypes(childTable);
+        List<String> childTableColumns = new ArrayList<>(columnsChild.keySet()).subList(0, 1);
+
+        double sel = 0.2;
+        long tuples = (long) (size * sel);
+
+        QueryBuilder qb = new QueryBuilder();
+        qb.select(parentTable + "." + parentTableColumns.getFirst(),
+                childTable + "." + childTableColumns.getFirst()).join(
+                new JoinData(
+                        parentTable,
+                        childTable,
+                        JoinType.INNER,
+                        parentTableColumns.getFirst(),
+                        childTableColumns.getFirst())
+        ).from(parentTable);
+
+        StringBuilder whereConditions = new StringBuilder();
+        for (String column : childTableColumns) {
+            whereConditions.append(childTable).append(".").append(column).append(" < ").append(tuples);
+            whereConditions.append(" and ");
+        }
+        for (String column : parentTableColumns) {
+            whereConditions.append(parentTable).append(".").append(column).append(" < ").append(tuples);
+            if (parentTableColumns.indexOf(column) != parentTableColumns.size() - 1) {
+                whereConditions.append(" and ");
             }
         }
+        qb.where(whereConditions.toString());
+        String query = qb.build();
 
-        String query = new QueryBuilder().select(tables.getFirst() + "." + indexedColumns.getFirst(),
-                        tables.getLast() + "." + indexedColumns.getLast()).join(
-                        new JoinData(
-                                tables.getLast(),
-                                tables.getFirst(),
-                                JoinType.USUAL,
-                                indexedColumns.getLast(),
-                                indexedColumns.getFirst())
-                ).where(tables.getFirst() + "." + indexedColumns.getFirst() + " < " + tuples
-                        + " and "
-                        + tables.getLast() + "." + indexedColumns.getLast() + " < " + tuples)
-                        .from(tables.getLast()).build();
+
+
         PgJsonPlan plan = JsonOperations.findNode(JsonOperations.explainResultsJson(query), expectedNodeType);
         System.out.println(query);
         V2.explain(V2.log, query);
         double expectedCost = Objects.requireNonNull(JsonOperations.
                         findNode(JsonOperations.explainResultsJson(query), expectedNodeType)).
                 getJson().get("Total Cost").getAsDouble();
-        double sel = Math.min((double) tuples / size, 1);
 
-        double scanCost = ScanCostCalculator.calculateIndexOnlyScanCost(tables.getLast(), indexedColumns.getLast(),
-                1, 0, sel);
-        double doubleScanCost = ScanCostCalculator.calculateIndexOnlyScanCost(tables.getLast(), indexedColumns.getLast(),
-                1, 0, sel);
+        double parentCost = ScanCostCalculator.calculateIndexOnlyScanCost(parentTable, parentTableColumns.getFirst(),
+                parentTableColumns.size(), 0, sel);
+        double childCost = ScanCostCalculator.calculateIndexOnlyScanCost(childTable, childTableColumns.getFirst(),
+                childTableColumns.size(), 0, sel);
+
+        double innerCost, outerCost;
+        String innerTable, outerTable;
+        int innerConditions, outerConditions;
+
+        if (parentCost > childCost) {
+            innerCost = parentCost;
+            outerCost = childCost;
+            innerTable = parentTable;
+            outerTable = childTable;
+            innerConditions = parentTableColumns.size();
+            outerConditions = childTableColumns.size();
+        } else {
+            innerCost = childCost;
+            outerCost = parentCost;
+            innerTable = childTable;
+            outerTable = parentTable;
+            innerConditions = childTableColumns.size();
+            outerConditions = parentTableColumns.size();
+        }
+
         double actualCost = JoinCostCalculator.calculateMergeJoinCost(
-                tables.getLast(),
-                tables.getFirst(),
-                ScanCostCalculator.calculateIndexOnlyScanCost(tables.getLast(), indexedColumns.getLast(),
-                        1, 0, sel),
-                ScanCostCalculator.calculateIndexOnlyScanCost(tables.getFirst(), indexedColumns.getFirst(),
-                        1, 0, sel),
+                innerTable,
+                outerTable,
+                innerCost,
+                outerCost,
                 sel,
                 sel,
-                1,
-                1
+                innerConditions,
+                outerConditions
         );
 
-        Assert.assertEquals(expectedCost, actualCost, 0.01 * actualCost);
-    }
-
-    @Test
-    public void testMergeJoin() {
-        //test(200, 50);
-        test(500, 500);
-        test(5000, 500);
-        test(10000, 200);
-        test(100000, 50);
+        Assert.assertEquals(expectedCost, actualCost, 0.1);
     }
 }

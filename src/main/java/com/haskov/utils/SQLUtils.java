@@ -273,4 +273,10 @@ public class SQLUtils {
         List<List<String>> result = select(query, childTableName, parentTableName);
         return new ImmutablePair<>(result.getFirst().getFirst(), result.getFirst().get(1));
     }
+
+    public static void setStatistics(String tableName, List<String> columns, int statistics) {
+        for (String column : columns) {
+            sql("ALTER TABLE " + tableName + " ALTER COLUMN " + column + " SET STATISTICS " + statistics);
+        }
+    }
 }

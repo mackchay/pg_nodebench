@@ -1,42 +1,36 @@
 package com.haskov.nodes;
 
-import com.google.gson.JsonElement;
 import com.haskov.QueryBuilder;
 import com.haskov.json.JsonPlan;
-import com.haskov.json.PgJsonPlan;
+import com.haskov.nodes.functions.Materialize;
 import com.haskov.nodes.joins.HashJoin;
 import com.haskov.nodes.joins.Join;
+import com.haskov.nodes.joins.MergeJoin;
 import com.haskov.nodes.scans.Scan;
 import com.haskov.types.TableBuildResult;
-import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Objects;
 
 public class NodeTree {
     private Node parent;
     private List<NodeTree> children;
-    private double startUpCost;
-    private double totalCost;
-    private long minTuples;
-    private long maxTuples;
-    private int nonIndexConditions;
-    private int indexConditions;
-    private double sel;
-    private final List<TableBuildResult> tableBuildResults = new ArrayList<>();
+    private NodeTreeData nodeTreeData;
 
     public NodeTree(JsonPlan plan) {
         parent = NodeFactory.createNode(plan.getNodeType());
         children = new ArrayList<>();
-        startUpCost = 0;
-        totalCost = 0;
-        minTuples = 0;
-        maxTuples = Integer.MAX_VALUE;
-        nonIndexConditions = 0;
-        indexConditions = 0;
-        sel = 1;
+        nodeTreeData = new NodeTreeData(
+                0,
+                0,
+                0,
+                Integer.MAX_VALUE,
+                0,
+                0,
+                1,
+                false
+        );
         if (plan.getPlans() != null) {
             for (JsonPlan nodePlan : plan.getPlans()) {
                 children.add(new NodeTree(nodePlan));
@@ -44,107 +38,97 @@ public class NodeTree {
         }
     }
 
-    public NodeTree (PgJsonPlan plan) {
-        parent = NodeFactory.createNode(plan.getNodeType().replace(" ", ""));
-        children = new ArrayList<>();
-        startUpCost = 0;
-        totalCost = 0;
-        minTuples = 0;
-        maxTuples = Integer.MAX_VALUE;
-        if (plan.getJson().get("Plans") != null) {
-            for (JsonElement elem : plan.getJson().get("Plans").getAsJsonArray()) {
-                children.add(new NodeTree(new PgJsonPlan(elem.getAsJsonObject())));
-            }
-        }
-    }
-
     public List<TableBuildResult> createTables(long tableSize) {
         if (parent instanceof Scan scan) {
-            tableBuildResults.add((scan.initScanNode(tableSize)));
-            return tableBuildResults;
+            return new ArrayList<>(List.of(scan.initScanNode(tableSize)));
         }
         if (children.isEmpty()) {
             throw new RuntimeException("Scan or result must be in leaf.");
         }
+        List<TableBuildResult> tables = new ArrayList<>();
         for (NodeTree child : children) {
-            tableBuildResults.addAll(child.createTables(tableSize));
+            tables.addAll(child.createTables(tableSize));
         }
-        parent.initNode(tableBuildResults.stream().map(TableBuildResult::tableName).toList());
-        return tableBuildResults;
+        parent.initNode(tables.stream().map(TableBuildResult::tableName).toList());
+        return tables;
     }
 
     public void prepareQuery() {
         setCosts();
-        setTuples(minTuples, maxTuples, false);
+        setTuples(nodeTreeData.getMinTuples(), nodeTreeData.getMaxTuples(), false);
     }
 
     //TODO prepare query, costs and tuples
     public void setCosts() {
+        parent.prepareQuery();
         if (parent instanceof Scan scan) {
-            parent.prepareQuery();
             Pair<Double, Double> costs = scan.getCosts();
-            startUpCost = costs.getLeft();
-            totalCost = costs.getRight();
+            nodeTreeData.setStartUpCost(costs.getLeft());
+            nodeTreeData.setTotalCost(costs.getRight());
 
             Pair<Integer, Integer> conditions = scan.getConditions();
-            indexConditions = conditions.getLeft();
-            nonIndexConditions = conditions.getRight();
-            sel = scan.getSel();
-
+            nodeTreeData.setIndexConditions(conditions.getLeft());
+            nodeTreeData.setNonIndexConditions(conditions.getRight());
+            nodeTreeData.setSel(scan.getSel());
         }
+
         for (NodeTree child : children) {
             child.setCosts();
-            startUpCost = child.startUpCost;
-            totalCost = child.totalCost;
-            indexConditions = child.indexConditions;
-            nonIndexConditions = child.nonIndexConditions;
-            sel *= child.sel;
+            nodeTreeData.setStartUpCost(child.nodeTreeData.getStartUpCost());
+            nodeTreeData.setTotalCost(child.nodeTreeData.getTotalCost());
+            nodeTreeData.setIndexConditions(child.nodeTreeData.getIndexConditions());
+            nodeTreeData.setNonIndexConditions(child.nodeTreeData.getNonIndexConditions());
+            nodeTreeData.setSel(
+                    nodeTreeData.getSel() * child.nodeTreeData.getSel()
+            );
+            if (child.nodeTreeData.isMaterialized()) {
+                nodeTreeData.setMaterialized(true);
+            }
         }
 
-        parent.prepareQuery();
+        if (parent instanceof Materialize) {
+            nodeTreeData.setMaterialized(true);
+        }
+
         if (parent instanceof Join join) {
             join.prepareJoinQuery(
-                    children.getFirst().totalCost,
-                    children.get(1).totalCost,
-                    children.getFirst().sel,
-                    children.get(1).sel,
-                    children.getFirst().nonIndexConditions + children.getFirst().indexConditions,
-                    children.get(1).nonIndexConditions + children.get(1).indexConditions,
-                    children.getFirst().startUpCost
+                    children.getFirst().nodeTreeData,
+                    children.get(1).nodeTreeData
             );
         }
     }
 
     public void setTuples(long newMinTuples, long newMaxTuples, boolean isRecalculate) {
-        minTuples = newMinTuples;
-        maxTuples = newMaxTuples;
+        nodeTreeData.setMinTuples(newMinTuples);
+        nodeTreeData.setMaxTuples(newMaxTuples);
+
         if (parent instanceof Join join) {
             Pair<Long, Long> tupleRange = join.getTuplesRange();
-            if (tupleRange.getLeft() > minTuples) {
-                minTuples = tupleRange.getLeft();
+            if (tupleRange.getLeft() > nodeTreeData.getMinTuples()) {
+                nodeTreeData.setMinTuples(tupleRange.getLeft());
             }
-            if (tupleRange.getRight() < maxTuples) {
-                maxTuples = tupleRange.getRight();
+            if (tupleRange.getRight() < nodeTreeData.getMaxTuples()) {
+                nodeTreeData.setMaxTuples(tupleRange.getRight());
             }
-            if (join instanceof HashJoin) {
+            if (join instanceof HashJoin || join instanceof MergeJoin) {
                 isRecalculate = true;
             }
         }
 
         if (parent instanceof Scan scan) {
             Pair<Long, Long> tupleRange = scan.getTuplesRange();
-            if (tupleRange.getLeft() > minTuples) {
-                minTuples = tupleRange.getLeft();
+            if (tupleRange.getLeft() > nodeTreeData.getMinTuples()) {
+                nodeTreeData.setMinTuples(tupleRange.getLeft());
             }
-            if (tupleRange.getRight() < maxTuples) {
-                maxTuples = tupleRange.getRight();
+            if (tupleRange.getRight() < nodeTreeData.getMaxTuples()) {
+                nodeTreeData.setMaxTuples(tupleRange.getRight());
             }
             if (isRecalculate) {
-                minTuples = scan.reCalculateMinTuple(minTuples);
+                nodeTreeData.setMinTuples(scan.reCalculateMinTuple(nodeTreeData.getMinTuples()));
             }
         }
         for (NodeTree child : children) {
-            child.setTuples(minTuples, maxTuples, isRecalculate);
+            child.setTuples(nodeTreeData.getMinTuples(), nodeTreeData.getMaxTuples(), isRecalculate);
         }
     }
 
@@ -164,7 +148,7 @@ public class NodeTree {
 //    }
 
     public QueryBuilder buildQuery(QueryBuilder queryBuilder) {
-        queryBuilder.setTuples(minTuples, maxTuples);
+        queryBuilder.setTuples(nodeTreeData.getMinTuples(), nodeTreeData.getMaxTuples());
         if (parent instanceof Scan) {
             return parent.buildQuery(queryBuilder);
         }
@@ -186,23 +170,4 @@ public class NodeTree {
         return queryBuilder;
     }
 
-
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) return true; // Сравнение по ссылке
-        if (o == null || getClass() != o.getClass()) return false; // Проверка на совместимость типов
-        NodeTree nodeTree = (NodeTree) o;
-        return Double.compare(nodeTree.startUpCost, startUpCost) == 0 &&
-                Double.compare(nodeTree.totalCost, totalCost) == 0 &&
-                minTuples == nodeTree.minTuples &&
-                maxTuples == nodeTree.maxTuples &&
-                parent.equals(nodeTree.parent) &&
-                children.equals(nodeTree.children)
-                && tableBuildResults.equals(nodeTree.tableBuildResults);
-    }
-
-    @Override
-    public int hashCode() {
-        return Objects.hash(parent, children, startUpCost, totalCost, minTuples, maxTuples, tableBuildResults);
-    }
 }

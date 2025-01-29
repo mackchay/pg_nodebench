@@ -4,12 +4,12 @@ import com.haskov.QueryBuilder;
 import com.haskov.bench.V2;
 import com.haskov.costs.JoinCostCalculator;
 import com.haskov.nodes.Node;
+import com.haskov.nodes.NodeTreeData;
 import com.haskov.tables.TableBuilder;
 import com.haskov.types.JoinData;
 import com.haskov.types.JoinNodeType;
 import com.haskov.types.JoinType;
 import com.haskov.types.TableBuildResult;
-import com.haskov.utils.SQLUtils;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 
@@ -91,16 +91,14 @@ public class HashJoin implements Node, Join {
     }
 
     @Override
-    public void prepareJoinQuery(double parentTableCost, double childTableCost,
-                                 double parentTableSel, double childTableSel,
-                                 int innerConditionsCount, int outerConditionsCount, double startScanCost) {
-        this.parentScanCost = parentTableCost;
-        this.childScanCost = childTableCost;
-        this.startUpCost = startScanCost;
-        this.innerConditionsCount = innerConditionsCount;
-        this.outerConditionsCount = outerConditionsCount;
-        this.parentTableSel = parentTableSel;
-        this.childTableSel = childTableSel;
+    public void prepareJoinQuery(NodeTreeData parent, NodeTreeData child) {
+        this.parentScanCost = parent.getTotalCost();
+        this.childScanCost = child.getTotalCost();
+        this.startUpCost = child.getStartUpCost();
+        this.innerConditionsCount = child.getIndexConditions() + child.getNonIndexConditions();
+        this.outerConditionsCount = parent.getIndexConditions() + parent.getNonIndexConditions();
+        this.parentTableSel = parent.getSel();
+        this.childTableSel = child.getSel();
     }
 
     @Override

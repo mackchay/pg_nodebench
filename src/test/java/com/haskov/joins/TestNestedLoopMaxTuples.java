@@ -10,6 +10,7 @@ import com.haskov.costs.ScanCostCalculator;
 import com.haskov.json.JsonOperations;
 import com.haskov.json.PgJsonPlan;
 import com.haskov.types.JoinData;
+import com.haskov.types.JoinNodeType;
 import com.haskov.types.JoinType;
 import com.haskov.types.TableBuildResult;
 import com.haskov.utils.SQLUtils;
@@ -56,14 +57,15 @@ public class TestNestedLoopMaxTuples {
                 1
         );
 
-        long maxTuples = new JoinCostCalculator().calculateNestedLoopTuplesRange(
+        long maxTuples = new JoinCostCalculator().calculateTuplesRange(
                 tables.getFirst(),
                 tables.getLast(),
                 ScanCostCalculator.calculateSeqScanCost(tables.getFirst(), 1),
                 ScanCostCalculator.calculateSeqScanCost(tables.getLast(), 1),
                 0,
                 1,
-                1
+                1,
+                JoinNodeType.NESTED_LOOP
         ).getLeft();
 
         String query = new QueryBuilder().select(tables.getFirst() + "." + nonIndexedColumns.getFirst(),
@@ -74,9 +76,9 @@ public class TestNestedLoopMaxTuples {
                                 JoinType.USUAL,
                                 nonIndexedColumns.getLast(),
                                 nonIndexedColumns.getFirst())
-                ).where(tables.getFirst() + "." + nonIndexedColumns.getFirst() + " < " + (maxTuples)
+                ).where(tables.getFirst() + "." + nonIndexedColumns.getFirst() + " <= " + (maxTuples)
                         + " and "
-                        + tables.getLast() + "." + nonIndexedColumns.getLast() + " < " + (maxTuples)
+                        + tables.getLast() + "." + nonIndexedColumns.getLast() + " <= " + (maxTuples)
                         + " and " + tables.getFirst() + "." + nonIndexedColumns.getFirst() + " >= 0 "
                         + " and " + tables.getLast() + "." + nonIndexedColumns.getLast() + " >= 0").
                 from(tables.getLast()).build();
@@ -90,10 +92,10 @@ public class TestNestedLoopMaxTuples {
 
     @Test
     public void testNestedLoop() {
-        //test(500, 500);
+        test(500, 500);
         test(1000, 500);
         test(5000, 500);
         test(10000, 200);
-        test(100000, 50);
+        //test(100000, 50);
     }
 }

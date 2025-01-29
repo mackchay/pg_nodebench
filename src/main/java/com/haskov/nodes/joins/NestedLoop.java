@@ -4,6 +4,7 @@ import com.haskov.QueryBuilder;
 import com.haskov.bench.V2;
 import com.haskov.costs.JoinCostCalculator;
 import com.haskov.nodes.Node;
+import com.haskov.nodes.NodeTreeData;
 import com.haskov.tables.TableBuilder;
 import com.haskov.types.JoinData;
 import com.haskov.types.JoinNodeType;
@@ -25,10 +26,11 @@ public class NestedLoop implements Node, Join {
     private double parentScanCost;
     private double childScanCost;
     private double startUpCost;
-    private int innerConditionsCount;
-    private int outerConditionsCount;
+    private int childConditionsCount;
+    private int parentConditionsCount;
     private double parentTableSel;
     private double childTableSel;
+    private boolean isMaterialized;
     private JoinCostCalculator costCalculator = new JoinCostCalculator();
 
     @Override
@@ -53,7 +55,7 @@ public class NestedLoop implements Node, Join {
         qb.join(new JoinData(
                         parentTable,
                         childTable,
-                        JoinType.USUAL,
+                        JoinType.NON_EQUAL,
                         selectColumns.getLast().substring(selectColumns.getLast().indexOf(".")).replace(".", ""),
                         selectColumns.getFirst().substring(selectColumns.getFirst().indexOf(".")).replace(".", "")
                 )
@@ -84,36 +86,65 @@ public class NestedLoop implements Node, Join {
                 parentScanCost,
                 childScanCost,
                 parentTableSel,
-                childTableSel
+                childTableSel,
+                startUpCost,
+                childConditionsCount,
+                parentConditionsCount
         );
         return new ImmutablePair<>(0.0, cost);
     }
 
     @Override
-    public void prepareJoinQuery(double parentTableCost, double childTableCost,
-                                 double parentTableSel, double childTableSel,
-                                 int innerConditionsCount, int outerConditionsCount, double startScanCost) {
-        this.parentScanCost = parentTableCost;
-        this.childScanCost = childTableCost;
-        this.startUpCost = startScanCost;
-        this.innerConditionsCount = innerConditionsCount;
-        this.outerConditionsCount = outerConditionsCount;
-        this.parentTableSel = parentTableSel;
-        this.childTableSel = childTableSel;
+    public void prepareJoinQuery(NodeTreeData parent, NodeTreeData child) {
+        this.parentScanCost = parent.getTotalCost();
+        this.childScanCost = child.getTotalCost();
+        this.startUpCost = child.getStartUpCost();
+        this.childConditionsCount = child.getIndexConditions() + child.getNonIndexConditions();
+        this.parentConditionsCount = parent.getIndexConditions() + parent.getNonIndexConditions();
+        this.parentTableSel = parent.getSel();
+        this.childTableSel = child.getSel();
+        this.isMaterialized = parent.isMaterialized() || child.isMaterialized();
     }
 
     @Override
     public Pair<Long, Long> getTuplesRange() {
-        Pair<Long, Long> range = costCalculator.calculateTuplesRange(
-                parentTable,
-                childTable,
-                parentScanCost,
-                childScanCost,
-                startUpCost,
-                innerConditionsCount,
-                outerConditionsCount,
-                JoinNodeType.NESTED_LOOP
-        );
+        JoinNodeType type;
+        double innerCost, outerCost;
+        String innerTable, outerTable;
+        int innerConditions, outerConditions;
+
+        if (parentScanCost >= childScanCost) {
+            innerCost = parentScanCost;
+            outerCost = childScanCost;
+            innerTable = parentTable;
+            outerTable = childTable;
+            innerConditions = parentConditionsCount;
+            outerConditions = childConditionsCount;
+        } else {
+            innerCost = childScanCost;
+            outerCost = parentScanCost;
+            innerTable = childTable;
+            outerTable = parentTable;
+            innerConditions = childConditionsCount;
+            outerConditions = parentConditionsCount;
+        }
+
+        if (isMaterialized) {
+            type = JoinNodeType.NESTED_LOOP_MATERIALIZED;
+
+        } else {
+            type = JoinNodeType.NESTED_LOOP;
+        }
+            Pair<Long, Long> range = costCalculator.calculateTuplesRange(
+                    innerTable,
+                    outerTable,
+                    innerCost,
+                    outerCost,
+                    startUpCost,
+                    innerConditions,
+                    outerConditions,
+                    type
+            );
         return new ImmutablePair<>(range.getLeft(), range.getRight());
     }
 

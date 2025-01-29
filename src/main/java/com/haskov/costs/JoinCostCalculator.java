@@ -10,6 +10,7 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
+import static com.haskov.bench.V2.sql;
 import static com.haskov.costs.CostParameters.*;
 
 public class JoinCostCalculator {
@@ -19,16 +20,24 @@ public class JoinCostCalculator {
 
     public static double calculateNestedLoopCost(String innerTableName, String outerTableName,
                                                  double innerTableScanCost, double outerTableScanCost,
-                                                 double innerSel, double outerSel) {
+                                                 double innerSel, double outerSel, double startScanCost,
+                                                 int innerConditionCount, int outerConditionCount) {
         double innerNumTuples, outerNumTuples;
-        innerNumTuples = SQLUtils.getTableRowCount(innerTableName) * innerSel;
-        outerNumTuples = SQLUtils.getTableRowCount(outerTableName) * outerSel;
-        return getNestedLoopCost(innerNumTuples, outerNumTuples, innerTableScanCost, outerTableScanCost);
+        innerNumTuples = SQLUtils.getTableRowCount(innerTableName);
+        outerNumTuples = SQLUtils.getTableRowCount(outerTableName);
+        return getNestedLoopCost(innerNumTuples, outerNumTuples,
+                innerTableScanCost, outerTableScanCost,
+                innerSel, outerSel, startScanCost, innerConditionCount, outerConditionCount);
     }
 
     public static double getNestedLoopCost(double innerNumTuples, double outerNumTuples,
-                                           double innerTableScanCost, double outerTableScanCost) {
+                                           double innerTableScanCost, double outerTableScanCost,
+                                           double innerSel, double outerSel,
+                                           double startScanCost,
+                                           int innerConditionCount, int outerConditionCount) {
         double startUpCost, runCost;
+        innerNumTuples = Math.max(Math.round(innerNumTuples * Math.pow(innerSel, innerConditionCount)), 1);
+        outerNumTuples = Math.max(Math.round(outerNumTuples * Math.pow(outerSel, outerConditionCount)), 1);
         startUpCost = 0;
         runCost = (cpuOperatorCost + cpuTupleCost) * innerNumTuples * outerNumTuples +
                 innerTableScanCost * outerNumTuples + outerTableScanCost;
@@ -48,19 +57,30 @@ public class JoinCostCalculator {
 
     public static double calculateMaterializedNestedLoopCost(String innerTableName, String outerTableName,
                                                              double innerTableScanCost, double outerTableScanCost,
-                                                             double innerSel, double outerSel) {
+                                                             double innerSel, double outerSel,
+                                                             double startScanCost,
+                                                             int innerConditionCount, int outerConditionCount) {
         double innerNumTuples, outerNumTuples;
-        innerNumTuples = SQLUtils.getTableRowCount(innerTableName) * innerSel;
-        outerNumTuples = SQLUtils.getTableRowCount(outerTableName) * outerSel;
-        return getMaterializedNestedLoopCost(innerNumTuples, outerNumTuples, innerTableScanCost, outerTableScanCost);
+        innerNumTuples = SQLUtils.getTableRowCount(innerTableName);
+        outerNumTuples = SQLUtils.getTableRowCount(outerTableName);
+        return getMaterializedNestedLoopCost(innerNumTuples, outerNumTuples,
+                innerTableScanCost, outerTableScanCost,
+                innerSel, outerSel,
+                startScanCost, innerConditionCount, outerConditionCount);
     }
 
     public static double getMaterializedNestedLoopCost(double innerNumTuples, double outerNumTuples,
-                                                       double innerTableScanCost, double outerTableScanCost) {
+                                                       double innerTableScanCost, double outerTableScanCost,
+                                                       double innerSel, double outerSel,
+                                                       double startScanCost,
+                                                       int innerConditionCount, int outerConditionCount) {
         double startUpCost, runCost, rescanCost;
         startUpCost = 0;
+        innerNumTuples = Math.max(Math.round(innerNumTuples * Math.pow(innerSel, innerConditionCount)), 1);
+        outerNumTuples = Math.max(Math.round(outerNumTuples * Math.pow(outerSel, outerConditionCount)), 1);
+
         rescanCost = cpuOperatorCost * innerNumTuples;
-        runCost = (cpuOperatorCost + cpuTupleCost) * innerNumTuples * outerNumTuples +
+        runCost = (cpuTupleCost + cpuOperatorCost) * innerNumTuples * outerNumTuples +
                 rescanCost * (outerNumTuples - 1) + outerTableScanCost + calculateMaterializeCost(innerNumTuples,
                 innerTableScanCost);
         return (double) Math.round(startUpCost * 100) / 100 + (double) Math.round(runCost * 100) / 100;
@@ -99,30 +119,25 @@ public class JoinCostCalculator {
                                          int innerConditionCount, int outerConditionCount) {
         double startUpCost, runCost,
                 hashFunInnerCost, hashFunOuterCost, insertTupleCost,
-                resultTupleCost = 0, rescanCost,
-                innerResSel = innerSel, outerResSel = outerSel;
+                resultTupleCost, rescanCost;
 
         //Expected table with (0,1,..n) columns and same size of tables.
-        if (innerConditionCount > 0) {
-            innerResSel = Math.pow(innerSel, innerConditionCount);
-        }
-        if (outerConditionCount > 0) {
-            outerResSel = Math.pow(outerSel, outerConditionCount);
-        }
+        innerNumTuples = Math.max(Math.round(innerNumTuples * Math.pow(innerSel, innerConditionCount)), 1);
+        outerNumTuples = Math.max(Math.round(outerNumTuples * Math.pow(outerSel, outerConditionCount)), 1);
 
         hashFunInnerCost = cpuOperatorCost * innerNumTuples;
-        insertTupleCost = cpuTupleCost * innerNumTuples * innerResSel;
+        insertTupleCost = cpuTupleCost * innerNumTuples;
         startUpCost = innerTableScanCost + hashFunInnerCost + insertTupleCost + startScanCost;
 
-        outerNumTuples = outerNumTuples * outerResSel;
+
         hashFunOuterCost = cpuOperatorCost * outerNumTuples;
 
         //TODO fix rescanCost
-        double resultTuples = innerNumTuples * innerResSel * outerResSel;
-        rescanCost = cpuTupleCost * resultTuples * 0.1;
+        double resultTuples = Math.max((long)(innerNumTuples * Math.pow(outerSel, outerConditionCount)), 1);
+        rescanCost = cpuOperatorCost * (innerNumTuples + outerNumTuples) * 0.150112;
         //rescanCost = 0;
 
-        resultTupleCost += cpuTupleCost * resultTuples;
+        resultTupleCost = cpuTupleCost * resultTuples;
         runCost = outerTableScanCost + hashFunOuterCost + rescanCost +
                 resultTupleCost;
         return (double) Math.round(startUpCost * 100) / 100 + (double) Math.round(runCost * 100) / 100;
@@ -163,132 +178,6 @@ public class JoinCostCalculator {
 
     // Min, max tuples functions
 
-    public Pair<Long, Long> calculateHashJoinTuplesRange(String innerTableName, String outerTableName,
-                                                                      double innerTableScanCost, double outerTableScanCost,
-                                                                      double startScanCost, int innerConditionCount,
-                                                                int outerConditionCount) {
-        JoinCacheData data = new JoinCacheData(
-                "HashJoin",
-                innerTableScanCost,
-                outerTableScanCost,
-                startScanCost,
-                innerConditionCount,
-                outerConditionCount
-        );
-        if (cache.containsKey(data)) {
-            return cache.get(data);
-        }
-
-        Long numTuples = SQLUtils.getTableRowCount(innerTableName);
-        double sel = (double) 1 / numTuples;
-        double minNestedLoopCost = Math.min(
-                calculateNestedLoopCost(innerTableName, outerTableName, innerTableScanCost,
-                        outerTableScanCost, sel, sel),
-                calculateMaterializedNestedLoopCost(innerTableName, outerTableName,
-                        innerTableScanCost, outerTableScanCost, sel, sel)
-        );
-
-        while (calculateHashJoinCost(innerTableName, outerTableName, innerTableScanCost, outerTableScanCost,
-                sel, sel, startScanCost, innerConditionCount, outerConditionCount)
-                > minNestedLoopCost) {
-            sel *= 1.1;
-            minNestedLoopCost = Math.min(
-                    calculateNestedLoopCost(innerTableName, outerTableName, innerTableScanCost,
-                            outerTableScanCost, sel, sel),
-                    calculateMaterializedNestedLoopCost(innerTableName, outerTableName,
-                            innerTableScanCost, outerTableScanCost, sel, sel)
-            );
-        }
-
-        Pair<Long, Long> range = new ImmutablePair<>((long)((sel + 0.05) * numTuples), numTuples);
-        cache.put(data, range);
-        return range;
-    }
-
-    public Pair<Long, Long> calculateNestedLoopTuplesRange(String innerTableName, String outerTableName,
-                                                                  double innerTableScanCost, double outerTableScanCost,
-                                                                  double startScanCost, int innerConditionCount,
-                                                                  int outerConditionCount) {
-        JoinCacheData data = new JoinCacheData(
-                "NestedLoop",
-                innerTableScanCost,
-                outerTableScanCost,
-                startScanCost,
-                innerConditionCount,
-                outerConditionCount
-        );
-        if (cache.containsKey(data)) {
-            return cache.get(data);
-        }
-
-        Long numTuples = SQLUtils.getTableRowCount(innerTableName);
-        double sel = 1;
-        double nestedLoopCost = calculateNestedLoopCost(innerTableName, outerTableName, innerTableScanCost,
-                outerTableScanCost, sel, sel);
-        while (calculateHashJoinCost(innerTableName, outerTableName, innerTableScanCost, outerTableScanCost,
-                sel, sel, startScanCost, innerConditionCount, outerConditionCount)
-                < calculateNestedLoopCost(innerTableName, outerTableName, innerTableScanCost,
-                outerTableScanCost, sel, sel)
-        ) {
-            sel *= 0.9;
-        }
-
-        double materializedNestedLoopCost = calculateMaterializedNestedLoopCost(innerTableName, outerTableName,
-                innerTableScanCost, outerTableScanCost, sel, sel);
-        while (calculateMaterializedNestedLoopCost(innerTableName, outerTableName,
-                innerTableScanCost, outerTableScanCost, sel, sel)
-                < calculateNestedLoopCost(innerTableName, outerTableName, innerTableScanCost,
-                outerTableScanCost, sel, sel)) {
-            sel *= 0.9;
-        }
-
-        Pair<Long, Long> range = new ImmutablePair<>(1L, (long)(sel * numTuples));
-        cache.put(data, range);
-        return range;
-    }
-
-    public Pair<Long, Long> calculateMaterializedNestedLoopTuplesRange(String innerTableName, String outerTableName,
-                                                                  double innerTableScanCost, double outerTableScanCost,
-                                                                  double startScanCost, int innerConditionCount,
-                                                                  int outerConditionCount) {
-        JoinCacheData data = new JoinCacheData(
-                "MaterializedNestedLoop",
-                innerTableScanCost,
-                outerTableScanCost,
-                startScanCost,
-                innerConditionCount,
-                outerConditionCount
-        );
-
-        if (cache.containsKey(data)) {
-            return cache.get(data);
-        }
-
-        Long numTuples = SQLUtils.getTableRowCount(innerTableName);
-        double minSel = (double) 1 / numTuples;
-        double maxSel = 1;
-
-        while (calculateHashJoinCost(innerTableName, outerTableName, innerTableScanCost, outerTableScanCost,
-                maxSel, maxSel, startScanCost, innerConditionCount, outerConditionCount)
-                < calculateMaterializedNestedLoopCost(innerTableName, outerTableName, innerTableScanCost,
-                outerTableScanCost, maxSel, maxSel)
-        ) {
-            maxSel *= 0.98;
-        }
-
-        while (calculateMaterializedNestedLoopCost(innerTableName, outerTableName,
-                innerTableScanCost, outerTableScanCost, minSel, minSel)
-                > calculateNestedLoopCost(innerTableName, outerTableName, innerTableScanCost,
-                outerTableScanCost, minSel, minSel)) {
-            minSel *= 1.02;
-        }
-
-
-        Pair<Long, Long> range = new ImmutablePair<>((long)(minSel * numTuples), (long)((maxSel) * numTuples));
-        cache.put(data, range);
-        return range;
-    }
-
     public Pair<Long, Long> calculateTuplesRange(String innerTableName, String outerTableName,
                                      double innerTableScanCost, double outerTableScanCost,
                                      double startScanCost, int innerConditionCount,
@@ -312,26 +201,29 @@ public class JoinCostCalculator {
 
         List<Pair<JoinNodeType, Long>> rangeList = new ArrayList<>();
 
-        List<JoinNodeType> types = new ArrayList<>(List.of(
-                JoinNodeType.NESTED_LOOP,
-                JoinNodeType.NESTED_LOOP_MATERIALIZED,
-                JoinNodeType.HASH_JOIN,
-                JoinNodeType.MERGE_JOIN));
+        rangeList.add(new ImmutablePair<>(JoinNodeType.NESTED_LOOP, 1L));
 
-        boolean isIndexed = false;
-        if (SQLUtils.hasIndexOnTable(innerTableName) && SQLUtils.hasIndexOnTable(outerTableName)) {
-            isIndexed = true;
-        } else {
-            types.remove(JoinNodeType.MERGE_JOIN);
-        }
-
-        for (int i = 1; i <= innerNumTuples; i++) {
+        for (int i = 2; i <= innerNumTuples; i++) {
             sel = (double) i / innerNumTuples;
+
+            List<JoinNodeType> types = new ArrayList<>(List.of(
+                    JoinNodeType.NESTED_LOOP,
+                    JoinNodeType.NESTED_LOOP_MATERIALIZED,
+                    JoinNodeType.HASH_JOIN,
+                    JoinNodeType.MERGE_JOIN));
+
+            boolean isIndexed = false;
+            if (SQLUtils.hasIndexOnTable(innerTableName) && SQLUtils.hasIndexOnTable(outerTableName)) {
+                isIndexed = true;
+            }
+
             List<Double> costs = new ArrayList<>(List.of(
-                    getNestedLoopCost(innerNumTuples * sel, outerNumTuples * sel,
-                            innerTableScanCost, outerTableScanCost),
-                    getMaterializedNestedLoopCost(innerNumTuples * sel, outerNumTuples * sel,
-                            innerTableScanCost, outerTableScanCost),
+                    getNestedLoopCost(innerNumTuples, outerNumTuples,
+                            innerTableScanCost, outerTableScanCost, sel, sel,
+                            startScanCost, innerConditionCount, outerConditionCount),
+                    getMaterializedNestedLoopCost(innerNumTuples, outerNumTuples,
+                            innerTableScanCost, outerTableScanCost, sel, sel,
+                            startScanCost, innerConditionCount, outerConditionCount),
                     getHashJoinCost(innerNumTuples, outerNumTuples,
                             innerTableScanCost, outerTableScanCost, sel, sel,
                             startScanCost, innerConditionCount, outerConditionCount),
@@ -340,9 +232,20 @@ public class JoinCostCalculator {
                     )
             );
 
-            if (!isIndexed) {
+            if (!isIndexed || sel < 0.15) {
                 costs.removeLast();
+                types.remove(JoinNodeType.MERGE_JOIN);
             }
+            if (type.equals(JoinNodeType.NESTED_LOOP) || type.equals(JoinNodeType.NESTED_LOOP_MATERIALIZED)) {
+                costs.remove(2);
+                types.remove(2);
+                double newSel = innerNumTuples * Math.pow(sel, Math.max(innerConditionCount, outerConditionCount));
+                if (innerNumTuples * Math.pow(sel, Math.max(innerConditionCount, outerConditionCount)) < 1.5) {
+                    costs.remove(1);
+                    types.remove(1);
+                }
+            }
+
 
             Map<JoinNodeType, Double> mapCosts = IntStream.range(0, types.size())
                     .boxed()
@@ -356,12 +259,15 @@ public class JoinCostCalculator {
                     minKey = entry.getKey();
                 }
             }
-            rangeList.add(new ImmutablePair<>(minKey, (long)(innerNumTuples * sel)));
+            rangeList.add(new ImmutablePair<>(minKey, (long)(i)));
         }
         List<Long> costList = rangeList.stream().filter(pair -> pair.getKey().equals(type))
                 .map(Pair::getValue).toList();
 
-        Pair<Long, Long> range = new ImmutablePair<>(costList.getFirst(), costList.getLast());
+        Pair<Long, Long> range = new ImmutablePair<>(
+                (long)(costList.getFirst()),
+                (long) (costList.getLast())
+        );
         cache.put(data, range);
         return range;
     }

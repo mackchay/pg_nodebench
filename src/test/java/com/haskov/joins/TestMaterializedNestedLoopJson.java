@@ -8,9 +8,9 @@ import org.junit.Test;
 
 import java.util.List;
 
-public class TestNestedLoopJson {
+public class TestMaterializedNestedLoopJson {
     private final static String expectedNodeType = "NestedLoop";
-    private final static String filePath = "testplans/nestedloop.json";
+    private final static String filePath = "testplans/nestedloop_materialize.json";
 
     public void test(long size, int queryCount) {
         String argArray = "-h localhost -j " + filePath + " -S " + size + " -q " + queryCount;
@@ -21,11 +21,11 @@ public class TestNestedLoopJson {
     }
 
     @Test
-    public void testNestedLoop() {
-        test(500, 500);
+    public void testNestedLoopMaterialized() {
+        test(500, 1000);
         test(800, 500);
         test(1000, 100);
-        test(2000, 50);
+        test(2000, 20);
         //test(100000, 100);
     }
 }

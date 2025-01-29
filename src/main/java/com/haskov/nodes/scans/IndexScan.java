@@ -46,7 +46,8 @@ public class IndexScan implements Node, Scan {
     @Override
     public long reCalculateMinTuple(long tuples) {
         double tmpSel = (double) tuples / tableSize;
-        while (tableSize * Math.pow(tmpSel, nonIndexColumnsCount) * Math.pow(tmpSel, indexColumnsCount) < 2) {
+        while (tableSize * Math.pow(tmpSel, nonIndexColumnsCount)
+                * Math.pow(tmpSel, indexColumnsCount) < 2) {
             tmpSel *= 1.05;
         }
         return (long) (tableSize * tmpSel);
@@ -98,6 +99,7 @@ public class IndexScan implements Node, Scan {
         long maxTuples = costCalculator.calculateIndexScanMaxTuples
                 (table, indexColumn, nonIndexColumnsCount * 2,
                         indexColumnsCount * 2);
+        sel = maxTuples / SQLUtils.getTableRowCount(table);
         sel = maxTuples / SQLUtils.getTableRowCount(table);
         double startUpCost = ScanCostCalculator.getIndexScanStartUpCost
                 (table, indexColumn);

@@ -35,7 +35,7 @@ public class TableBuilder {
             isPrimaryKey = false;
         }
 
-        List<String> tableQueries = TableBuilder.createRandomTable(new TableData(
+        TableData data = new TableData(
                 tableName,
                 new ArrayList<>(),
                 columnCount,
@@ -45,7 +45,12 @@ public class TableBuilder {
                 isPrimaryKey,
                 insertType,
                 tableIndexType
-        ));
+        );
+        List<String> tableQueries = TableBuilder.createRandomTable(data);
+
+        if (tableSize > 10000) {
+            setStatistics(data);
+        }
 
         V2.sql("vacuum freeze analyze " + tableName);
         tableNames.put(tableName, 1);
@@ -214,6 +219,19 @@ public class TableBuilder {
             }
         }
         return queries;
+    }
+
+    public static void setStatistics(TableData data) {
+        List<String> columnsList = new ArrayList<>();
+        String tableIdColumns = data.tableName() + "_id";
+        if (!data.isPrimaryKeyReq()) {
+            tableIdColumns = "x0";
+        }
+        columnsList.add(tableIdColumns);
+        for (int i = 1; i < data.columns(); i++) {
+           columnsList.add("x" + i);
+        }
+        SQLUtils.setStatistics(data.tableName(), columnsList, (int)data.size() / 10);
     }
 
     public static List<String> createRandomTable(TableData data) {

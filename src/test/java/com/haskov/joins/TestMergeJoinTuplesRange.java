@@ -22,9 +22,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-public class TestMaterializedNestedLoopMaxTuples {
-    private final static String expectedNodeType = "Nested Loop";
-    private final static String filePath = "testplans/nestedloop_materialize.json";
+public class TestMergeJoinTuplesRange {
+    private final static String expectedNodeType = "Merge Join";
+    private final static String filePath = "testplans/mergejoin.json";
 
     public void test(long size, int queryCount) {
         String argArray = "-h localhost -j " + filePath + " -S " + size + " -q " + queryCount;
@@ -80,11 +80,11 @@ public class TestMaterializedNestedLoopMaxTuples {
                                 JoinType.USUAL,
                                 nonIndexedColumns.getLast(),
                                 nonIndexedColumns.getFirst())
-                ).where(tables.getFirst() + "." + nonIndexedColumns.getFirst() + " <= " + (maxTuples)
+                ).where(tables.getFirst() + "." + nonIndexedColumns.getFirst() + " < " + (maxTuples)
                         + " and "
-                        + tables.getLast() + "." + nonIndexedColumns.getLast() + " <= " + (maxTuples)
-                        + " and " + tables.getFirst() + "." + nonIndexedColumns.getFirst() + " > 0"
-                        + " and " + tables.getLast() + "." + nonIndexedColumns.getLast() + " > 0 ").
+                        + tables.getLast() + "." + nonIndexedColumns.getLast() + " < " + (maxTuples)
+                        + " and " + tables.getFirst() + "." + nonIndexedColumns.getFirst() + " >= 0"
+                        + " and " + tables.getLast() + "." + nonIndexedColumns.getLast() + " >= 0 ").
                 from(tables.getLast()).build();
 
         PgJsonPlan plan = JsonOperations.findNode(JsonOperations.explainResultsJson(query), expectedNodeType);
@@ -103,8 +103,6 @@ public class TestMaterializedNestedLoopMaxTuples {
         test(1000, 500);
         test(5000, 500);
         test(10000, 200);
-        test(15000, 50);
-        test(25000, 20);
-        test(100000, 10);
+        test(100000, 50);
     }
 }

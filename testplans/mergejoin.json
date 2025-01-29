@@ -2,10 +2,10 @@
   "Node Type": "MergeJoin",
   "Plans": [
     {
-      "Node Type": "IndexScan"
+      "Node Type": "IndexOnlyScan"
     },
     {
-      "Node Type": "IndexScan"
+      "Node Type": "IndexOnlyScan"
     }
   ]
 }

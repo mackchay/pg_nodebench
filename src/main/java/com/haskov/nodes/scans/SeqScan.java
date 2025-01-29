@@ -14,10 +14,9 @@ import java.util.*;
 
 import static com.haskov.bench.V2.getColumnsAndTypes;
 import static com.haskov.tables.TableBuilder.buildRandomTable;
-import static com.haskov.utils.SQLUtils.hasIndexOnColumn;
 
 public class SeqScan implements Node, Scan {
-    private int columnsCount = 0;
+    private int columnsConditionsCount = 0;
     private String table = "";
     private List<String> columns = new ArrayList<>();
     private long tableSize;
@@ -40,7 +39,7 @@ public class SeqScan implements Node, Scan {
     public QueryBuilder buildQuery(QueryBuilder qb) {
         Random random = new Random();
         qb.from(table);
-        for (String column : columns.subList(0, columnsCount)) {
+        for (String column : columns.subList(0, columnsConditionsCount)) {
             qb.randomWhere(table, column);
         }
         return qb;
@@ -49,14 +48,14 @@ public class SeqScan implements Node, Scan {
     @Override
     public void prepareQuery() {
         Random random = new Random();
-        columnsCount = random.nextInt(columns.size()) + 1;
+        columnsConditionsCount = random.nextInt(columns.size()) + 1;
         Collections.shuffle(columns);
     }
 
     @Override
     public long reCalculateMinTuple(long tuples) {
         double tmpSel = (double) tuples / tableSize;
-        while (tableSize * Math.pow(tmpSel, columnsCount) < 2) {
+        while (tableSize * Math.pow(tmpSel, columnsConditionsCount) < 2) {
             tmpSel *= 1.05;
         }
         return (long) (tableSize * tmpSel);
@@ -71,13 +70,13 @@ public class SeqScan implements Node, Scan {
 
     @Override
     public Pair<Double, Double> getCosts() {
-        double totalCost = ScanCostCalculator.calculateSeqScanCost(table, columnsCount);
+        double totalCost = ScanCostCalculator.calculateSeqScanCost(table, columnsConditionsCount * 2);
         return new ImmutablePair<>(0.0, totalCost);
     }
 
     @Override
     public Pair<Integer, Integer> getConditions() {
-        return new ImmutablePair<>(0, columnsCount);
+        return new ImmutablePair<>(0, columnsConditionsCount);
     }
 
     @Override

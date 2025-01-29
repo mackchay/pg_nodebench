@@ -109,9 +109,9 @@ public class QueryBuilder {
         }
 
         long tuples = random.nextLong(minTuples, maxTuples + 1);
-//        long tuples = minTuples;
+        //long tuples = maxTuples;
         long radius = min;
-        this.where(table + "." + column + ">" + radius).
+        this.where(table + "." + column + ">=" + radius).
                 where(table + "." + column + "<" + (radius + tuples));
 
         return this;
@@ -321,7 +321,7 @@ public class QueryBuilder {
             if (join.joinType().equals(JoinType.NON_EQUAL)) {
                 query.append(" ").append(" JOIN ").append(join.childTable()).append(" ON ").
                         append(join.childTable()).append(".").append(join.foreignKeyColumn())
-                        .append(" > ").append(join.referencedColumn());
+                        .append(" != ").append(join.parentTable()).append(".").append(join.referencedColumn());
                 continue;
             }
             if (join.joinType().equals(JoinType.USUAL)) {
