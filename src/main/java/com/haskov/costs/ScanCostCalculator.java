@@ -1,48 +1,68 @@
 package com.haskov.costs;
 
+import com.haskov.types.ScanNodeType;
 import com.haskov.utils.SQLUtils;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 
 import static com.haskov.costs.CostParameters.*;
 import static com.haskov.utils.SQLUtils.*;
 
-//TODO optimize class
-public class ScanCostCalculator {
-    private static final Map<ScanCacheData, Long> maxTuplesMap = new HashMap<>();
 
-    public static double calculateSeqScanCost(String tableName, int conditionCount) {
+public class ScanCostCalculator {
+    private final Map<ScanCacheData, Pair<Long, Long>> cacheMap = new HashMap<>();
+
+
+    //Seq Scan
+    public double calculateSeqScanCost(String tableName, int conditionCount) {
 
         Pair<Long, Long> result = SQLUtils.getTablePagesAndRowsCount(tableName);
         double numPages = result.getLeft();
         double numTuples = result.getRight();
+        return getSeqScanCost(numPages, numTuples, conditionCount);
+    }
+
+    private double getSeqScanCost(double numPages, double numTuples, int conditionCount) {
         return (seqPageCost * numPages) + (cpuTupleCost * numTuples) + (cpuOperatorCost * conditionCount * numTuples);
     }
 
-    public static double calculateIndexScanCost(String tableName, String indexedColumn,
+    //Index Scan
+
+    public double calculateIndexScanCost(String tableName, String indexedColumn,
                                                     int indexConditionsCount, int conditionsCount) {
         return calculateIndexScanCost(tableName, indexedColumn, indexConditionsCount, conditionsCount, 1);
     }
 
-    public static double calculateIndexScanCost(String tableName, String indexedColumn,
+    public double calculateIndexScanCost(String tableName, String indexedColumn,
                                                 int indexConditionsCount, int conditionsCount, double sel) {
-        double numIndexTuples, numIndexPages, numTuples, numPages,
-                startup, runCost, idxCpuCost, tableCpuCost, indexIOCost, tableIOCost,
-                maxIOCost, minIOCost, height, idxCostPerTuple;
+        double numIndexTuples, numIndexPages, numTuples, numPages, correlation, height;
 
         Pair<Long, Long> resultTable = getTablePagesAndRowsCount(tableName);
         numPages = resultTable.getLeft();
         numTuples = resultTable.getRight();
+
         Pair<Long, Long> resultIndexTable = getTablePagesAndRowsCount(getIndexOnColumn(tableName, indexedColumn));
         numIndexPages = resultIndexTable.getLeft();
         numIndexTuples = resultIndexTable.getRight();
 
         height = getBtreeHeight(getIndexOnColumn(tableName, indexedColumn));
+        correlation = getCorrelation(tableName, indexedColumn);
 
-        startup = Math.ceil(Math.log(numIndexTuples)/Math.log(2) + (height + 1) * 50) * cpuOperatorCost;
+        return getIndexScanCost(numPages, numTuples, numIndexPages, numIndexTuples,
+                indexConditionsCount, conditionsCount,
+                sel, height, correlation);
+    }
+
+    private double getIndexScanCost(double numPages, double numTuples,
+                                           double numIndexPages, double numIndexTuples,
+                                           int indexConditionsCount, int conditionsCount, double sel,
+                                           double bTreeHeight, double correlation) {
+        double startup, runCost, idxCpuCost, tableCpuCost, indexIOCost, tableIOCost,
+                maxIOCost, minIOCost, idxCostPerTuple;
+
+        startup = Math.ceil(Math.log(numIndexTuples)/Math.log(2) + (bTreeHeight + 1) * 50) * cpuOperatorCost;
 
         idxCostPerTuple = cpuIndexTupleCost + qualOpCost * indexConditionsCount;
 
@@ -54,33 +74,49 @@ public class ScanCostCalculator {
         minIOCost = randomPageCost + (Math.ceil(sel * numPages) - 1) * seqPageCost;
 
         tableIOCost = maxIOCost +
-                Math.pow(getCorrelation(tableName, indexedColumn), 2) * (minIOCost - maxIOCost);
+                Math.pow(correlation, 2) * (minIOCost - maxIOCost);
         runCost = idxCpuCost + indexIOCost + tableCpuCost + tableIOCost;
 
         return (double) Math.round(startup * 100) / 100 + (double) Math.round(runCost * 100) / 100;
     }
 
-    public static double calculateIndexOnlyScanCost(String tableName, String indexedColumn,
+    // Index Only Scan
+
+    public double calculateIndexOnlyScanCost(String tableName, String indexedColumn,
                                                     int indexConditionsCount, int conditionsCount) {
         return calculateIndexOnlyScanCost(tableName, indexedColumn, indexConditionsCount, conditionsCount, 1);
     }
 
-    public static double calculateIndexOnlyScanCost(String tableName, String indexedColumn,
+    public double calculateIndexOnlyScanCost(String tableName, String indexedColumn,
                                                     int indexConditionsCount, int conditionsCount, double sel) {
         double numIndexTuples, numIndexPages, numTuples, numPages,
-                startup, runCost, idxCpuCost, tableCpuCost, indexIOCost, tableIOCost,
-                maxIOCost, minIOCost, height, fracVisiblePages, idxCostPerTuple;
+                 height, visiblePages, correlation;
 
         Pair<Long, Long> resultTable = getTablePagesAndRowsCount(tableName);
         numPages = resultTable.getLeft();
         numTuples = resultTable.getRight();
+
         Pair<Long, Long> resultIndexTable = getTablePagesAndRowsCount(getIndexOnColumn(tableName, indexedColumn));
         numIndexPages = resultIndexTable.getLeft();
         numIndexTuples = resultIndexTable.getRight();
 
         height = getBtreeHeight(getIndexOnColumn(tableName, indexedColumn));
+        visiblePages = getVisiblePages(tableName);
+        correlation = getCorrelation(tableName, indexedColumn);
 
-        startup = Math.ceil(Math.log(numIndexTuples)/Math.log(2) + (height + 1) * 50) * cpuOperatorCost;
+        return getIndexOnlyScanCost(numPages, numTuples, numIndexPages, numIndexTuples,
+                indexConditionsCount, conditionsCount, sel,
+                height, correlation, visiblePages);
+    }
+
+    private double getIndexOnlyScanCost(double numPages, double numTuples,
+                                              double numIndexPages, double numIndexTuples,
+                                              int indexConditionsCount, int conditionsCount, double sel,
+                                              double bTreeHeight, double correlation, double visiblePages) {
+        double startup, runCost, idxCpuCost, tableCpuCost, indexIOCost, tableIOCost,
+                maxIOCost, minIOCost, fracVisiblePages, idxCostPerTuple;
+
+        startup = Math.ceil(Math.log(numIndexTuples)/Math.log(2) + (bTreeHeight + 1) * 50) * cpuOperatorCost;
 
         idxCostPerTuple = cpuIndexTupleCost + qualOpCost * indexConditionsCount;
 
@@ -88,7 +124,7 @@ public class ScanCostCalculator {
         tableCpuCost = sel * numTuples * cpuTupleCost;
         indexIOCost = Math.ceil(sel * numIndexPages) * randomPageCost;
 
-        fracVisiblePages = (1 - getVisiblePages(tableName)/ numPages);
+        fracVisiblePages = (1 - visiblePages/ numPages);
         maxIOCost = fracVisiblePages * numPages  * randomPageCost;
         if (maxIOCost > 0) {
             minIOCost = randomPageCost + (Math.ceil(sel * numPages) - 1) * seqPageCost;
@@ -97,25 +133,55 @@ public class ScanCostCalculator {
         }
 
         tableIOCost = maxIOCost +
-                Math.pow(getCorrelation(tableName, indexedColumn), 2) * (minIOCost - maxIOCost);
+                Math.pow(correlation, 2) * (minIOCost - maxIOCost);
         runCost = idxCpuCost + indexIOCost + tableCpuCost + tableIOCost;
 
         return (double) Math.round(startup * 100) / 100 + (double) Math.round(runCost * 100) / 100;
     }
 
-    public static double calculateBitmapIndexScanCost(String tableName, String indexedColumn,
+    //Bitmap Scan
+
+    public double calculateBitmapIndexScanCost(String tableName, String indexedColumn,
                                                       int indexConditionsCount, double sel) {
 
         double numIndexTuples, numIndexPages,
-                startup, runCost, idxCpuCost, indexIOCost,
-                height, idxCostPerTuple;
+                height;
         Pair<Long, Long> resultIndexTable = getTablePagesAndRowsCount(getIndexOnColumn(tableName, indexedColumn));
         numIndexPages = resultIndexTable.getLeft();
         numIndexTuples = resultIndexTable.getRight();
 
         height = getBtreeHeight(getIndexOnColumn(tableName, indexedColumn));
 
-        startup = Math.ceil(Math.log(numIndexTuples)/Math.log(2) + (height + 1) * 50) * cpuOperatorCost;
+        return getBitmapIndexScanCost(numIndexPages, numIndexTuples, indexConditionsCount, sel,
+                height);
+    }
+
+    public double calculateBitmapHeapAndIndexScanCost(String tableName, String indexedColumn,
+                                                             int indexConditionsCount, int conditionsCount,
+                                                             double sel) {
+
+        Pair<Long, Long> resultTable = getTablePagesAndRowsCount(tableName);
+
+        double numPages = resultTable.getLeft();
+        double numTuples = resultTable.getRight();
+
+        Pair<Long, Long> resultIndexTable = getTablePagesAndRowsCount(getIndexOnColumn(tableName, indexedColumn));
+        double numIndexPages = resultIndexTable.getLeft();
+        double numIndexTuples = resultIndexTable.getRight();
+
+        double height = getBtreeHeight(getIndexOnColumn(tableName, indexedColumn));
+
+        return getBitmapHeapAndIndexScanCost(numPages, numTuples, numIndexPages, numIndexTuples,
+                indexConditionsCount, conditionsCount, sel, height);
+    }
+
+    private double getBitmapIndexScanCost(double numIndexPages, double numIndexTuples,
+                                                 int indexConditionsCount, double sel,
+                                                 double bTreeHeight) {
+        double startup, runCost, idxCpuCost, indexIOCost, idxCostPerTuple;
+
+        startup = Math.ceil(Math.log(numIndexTuples)/Math.log(2) + (bTreeHeight + 1) * 50) * cpuOperatorCost;
+        //startup = 0;
 
         idxCostPerTuple = cpuIndexTupleCost + qualOpCost * indexConditionsCount;
 
@@ -125,147 +191,94 @@ public class ScanCostCalculator {
         return (double) Math.round(startup * 100) / 100 + (double) Math.round(runCost * 100) / 100;
     }
 
-    public static double calculateBitmapHeapAndIndexScanCost(String tableName, String indexedColumn,
-                                                             int indexConditionsCount, int conditionsCount,
-                                                             double sel) {
-        double idxCost = calculateBitmapIndexScanCost(tableName, indexedColumn, indexConditionsCount, sel);
-        Pair<Long, Long> resultTable = getTablePagesAndRowsCount(tableName);
+    private double getBitmapHeapAndIndexScanCost(double numPages, double numTuples,
+                                                        double numIndexPages, double numIndexTuples,
+                                                        int indexConditionsCount, int conditionsCount, double sel,
+                                                        double bTreeHeight) {
 
-        double numPages = resultTable.getLeft();
-        double numTuples = resultTable.getRight() * sel;
-        double indexNumTuples = getTableRowCount(getIndexOnColumn(tableName, indexedColumn)) * sel;
+        double idxCost = getBitmapIndexScanCost(numIndexPages, numIndexTuples, indexConditionsCount,
+                sel, bTreeHeight);
 
-        double formula = 2 * numPages * numTuples / (2 * numPages + numTuples);
+        double formula = 2 * numPages * numTuples * sel / (2 * numPages + numTuples * sel);
         double pagesFetched = Math.min(numPages, formula);
         double costPerPage = randomPageCost - (randomPageCost - seqPageCost) * Math.sqrt(pagesFetched / numPages);
         if (pagesFetched == 1) {
             costPerPage = randomPageCost;
         }
         double startUpCost = idxCost + sel * 0.1 * cpuOperatorCost
-                * indexNumTuples;
-        double runCost = costPerPage * pagesFetched + cpuTupleCost * numTuples
-                + cpuOperatorCost * (conditionsCount + indexConditionsCount) * numTuples;
+                * numIndexTuples * sel;
+        double runCost = costPerPage * pagesFetched + cpuTupleCost * numTuples * sel
+                + cpuOperatorCost * (conditionsCount + indexConditionsCount) * numTuples * sel;
         return (double) Math.round(startUpCost * 100) / 100 + (double) Math.round(runCost * 100) / 100;
     }
 
-
-
     // Calculate max tuples
 
-
-    public Long calculateIndexOnlyScanMaxTuples(String tableName, String columnName,
-                                                       int indexConditionsCount, int conditionsCount) {
-        String scanType = "IndexOnlyScan";
-        Pair<Long, Long> resultTable = getTablePagesAndRowsCount(tableName);
-        double numPages = resultTable.getLeft();
-        double numTuples = resultTable.getRight();
-        ScanCacheData data = new ScanCacheData(indexConditionsCount, conditionsCount, scanType,
-                numPages, numTuples);
-        if (maxTuplesMap.containsKey(data)) {
-            return maxTuplesMap.get(data);
-        }
-        double seqScanCost = calculateSeqScanCost(tableName, conditionsCount + indexConditionsCount);
-
-        Pair<Long, Long> resultIndexTable = getTablePagesAndRowsCount(getIndexOnColumn(tableName, columnName));
-        double numIndexTuples = resultIndexTable.getRight();
-
-        double height = getBtreeHeight(getIndexOnColumn(tableName, columnName));
-        double startup = Math.ceil(Math.log(numIndexTuples)/Math.log(2) + (height + 1) * 50) * cpuOperatorCost;
-
-        double indexOnlyScanCost = calculateIndexOnlyScanCost(tableName, columnName, indexConditionsCount, conditionsCount);
-        long maxTuples = (long) ((((seqScanCost - randomPageCost + seqPageCost - startup) / indexOnlyScanCost) - 0.05)
-                * getTableRowCount(tableName));
-        maxTuplesMap.put(data, maxTuples);
-        return maxTuples;
-    }
-
-
-    public Long calculateIndexScanMaxTuples(String tableName, String columnName,
-                                                   int conditionsCount, int indexConditionsCount) {
-        String scanType = "IndexScan";
+    public Pair<Long, Long> calculateTuplesRange(String tableName, String indexedColumn,
+                                              int indexConditionsCount, int conditionsCount, ScanNodeType type) {
         Pair<Long, Long> resultTable = getTablePagesAndRowsCount(tableName);
         double numPages = resultTable.getLeft();
         double numTuples = resultTable.getRight();
 
-        ScanCacheData data = new ScanCacheData(indexConditionsCount, conditionsCount, scanType,
+        ScanCacheData data = new ScanCacheData(indexConditionsCount, conditionsCount, type,
                 numPages, numTuples);
-        if (maxTuplesMap.containsKey(data)) {
-            return maxTuplesMap.get(data);
+        if (cacheMap.containsKey(data)) {
+            return new ImmutablePair<>(cacheMap.get(data).getLeft(), cacheMap.get(data).getRight());
         }
-        double seqScanCost = calculateSeqScanCost(tableName, conditionsCount + indexConditionsCount);
-        double indexScanCost = calculateIndexScanCost(tableName, columnName, indexConditionsCount, conditionsCount);
-        Pair<Long, Long> resultIndexTable = getTablePagesAndRowsCount(getIndexOnColumn(tableName, columnName));
-        double numIndexTuples = resultIndexTable.getRight();
-
-        double height = getBtreeHeight(getIndexOnColumn(tableName, columnName));
-        double startup = Math.ceil(Math.log(numIndexTuples)/Math.log(2) + (height + 1) * 50) * cpuOperatorCost;
-
-
-        double sel = (seqScanCost - randomPageCost + seqPageCost - startup) / indexScanCost - 0.05;
-
-        double bitmapScanCost = calculateBitmapHeapAndIndexScanCost(tableName, columnName, indexConditionsCount,
-                conditionsCount, sel);
-        indexScanCost = calculateIndexScanCost(tableName, columnName, indexConditionsCount, conditionsCount, sel);
-
-        double sel2 = sel;
-        while (indexScanCost >= bitmapScanCost - 0.05 * bitmapScanCost) {
-            if (sel * numTuples <= 1) {
-                return 2L;
-            }
-            sel2 = 0.5;
-            sel *= sel2;
-            indexScanCost = calculateIndexScanCost(tableName, columnName, indexConditionsCount, conditionsCount,
-                    sel);
-            bitmapScanCost = calculateBitmapHeapAndIndexScanCost(tableName, columnName,
-                    indexConditionsCount, conditionsCount, sel);
-
-        }
-
-        long maxTuples = (long) ((sel - 0.05) * numTuples);
-        maxTuplesMap.put(data, maxTuples);
-        return maxTuples;
-    }
-
-    public Pair<Long, Long> calculateBitmapIndexScanTuplesRange(String tableName, String indexedColumn,
-                                                                       int indexConditionsCount, int conditionsCount) {
-        String scanType = "BitmapScan";
-        Pair<Long, Long> resultTable = getTablePagesAndRowsCount(tableName);
-        double numPages = resultTable.getLeft();
-        double numTuples = resultTable.getRight();
-
-        ScanCacheData data = new ScanCacheData(indexConditionsCount, conditionsCount, scanType,
-                numPages, numTuples);
-        if (maxTuplesMap.containsKey(data)) {
-            return new ImmutablePair<>(3L, maxTuplesMap.get(data));
-        }
-
-        double seqScanCost = calculateSeqScanCost(tableName, conditionsCount + indexConditionsCount);
-        double bitmapScanCost = calculateBitmapHeapAndIndexScanCost(tableName, indexedColumn, indexConditionsCount,
-                conditionsCount, 1);
 
         Pair<Long, Long> resultIndexTable = getTablePagesAndRowsCount(getIndexOnColumn(tableName, indexedColumn));
+        double numIndexPages = resultIndexTable.getLeft();
         double numIndexTuples = resultIndexTable.getRight();
 
-        double height = getBtreeHeight(getIndexOnColumn(tableName, indexedColumn));
-        double startup = Math.ceil(Math.log(numIndexTuples)/Math.log(2) + (height + 1) * 50) * cpuOperatorCost;
+        double btreeHeight = getBtreeHeight(getIndexOnColumn(tableName, indexedColumn));
+        double correlation = getCorrelation(tableName, indexedColumn);
+        double visiblePages = getVisiblePages(tableName);
 
-        double maxSel = (seqScanCost - randomPageCost + seqPageCost - startup - seqPageCost * numPages)
-                / bitmapScanCost - 0.05;
+        List<Pair<ScanNodeType, Long>> rangeList = new ArrayList<>();
 
-        long maxTuples = (long)((maxSel) * numTuples);
-        maxTuplesMap.put(data, maxTuples);
-        return new ImmutablePair<>(3L, maxTuples);
+        rangeList.add(new ImmutablePair<>(ScanNodeType.INDEX_SCAN, 1L));
+
+        for (int i = 2; i <= numTuples; i++) {
+            double sel = 1 / numTuples;
+            List<ScanNodeType> types = new ArrayList<>(List.of(
+                    ScanNodeType.SEQ_SCAN,
+                    ScanNodeType.INDEX_SCAN,
+                    ScanNodeType.INDEX_ONLY_SCAN,
+                    ScanNodeType.BITMAP_SCAN)
+            );
+            List<Double> costs = new ArrayList<>(List.of(
+                    getSeqScanCost(numPages, numTuples, conditionsCount),
+                    getIndexScanCost(numPages, numTuples, numIndexPages, numIndexTuples,
+                            indexConditionsCount, conditionsCount, sel, btreeHeight, correlation),
+                    getIndexOnlyScanCost(numPages, numTuples, numIndexPages, numIndexTuples,
+                            indexConditionsCount, conditionsCount, sel, btreeHeight, correlation, visiblePages),
+                    getBitmapHeapAndIndexScanCost(numPages, numTuples, numIndexPages, numIndexTuples,
+                            indexConditionsCount, conditionsCount, sel, btreeHeight)
+            ));
+
+            ScanNodeType bestType = types.stream()
+                    .min(Comparator.comparingDouble(t -> costs.get(types.indexOf(t))))
+                    .orElse(ScanNodeType.SEQ_SCAN);
+
+            rangeList.add(new ImmutablePair<>(bestType, (long) i));
+        }
+
+        List<Long> costList = rangeList.stream()
+                .filter(pair -> pair.getKey().equals(type))
+                .map(Pair::getValue)
+                .toList();
+
+        Pair<Long, Long> range = new ImmutablePair<>(costList.getFirst(), costList.getLast());
+        cacheMap.put(data, range);
+        return range;
     }
 
     //Helpful Functions
 
-    private static double getInaccurateBits(Long numTuples) {
-        return (double) (Math.max(0, (numTuples - getWorkMem()))) / numTuples;
-    }
-
-    public static double getIndexScanStartUpCost(String tableName, String indexedColumn) {
+    public double getIndexScanStartUpCost(String tableName, String indexedColumn) {
         double numIndexTuples, numIndexPages, height, startup;
         Pair<Long, Long> resultIndexTable = getTablePagesAndRowsCount(getIndexOnColumn(tableName, indexedColumn));
+
         numIndexPages = resultIndexTable.getLeft();
         numIndexTuples = resultIndexTable.getRight();
 

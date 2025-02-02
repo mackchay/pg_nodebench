@@ -91,9 +91,11 @@ public class TestMergeJoinCost {
                         findNode(JsonOperations.explainResultsJson(query), expectedNodeType)).
                 getJson().get("Total Cost").getAsDouble();
 
-        double parentCost = ScanCostCalculator.calculateIndexOnlyScanCost(parentTable, parentTableColumns.getFirst(),
+        ScanCostCalculator costCalculator = new ScanCostCalculator();
+
+        double parentCost = costCalculator.calculateIndexOnlyScanCost(parentTable, parentTableColumns.getFirst(),
                 parentTableColumns.size(), 0, sel);
-        double childCost = ScanCostCalculator.calculateIndexOnlyScanCost(childTable, childTableColumns.getFirst(),
+        double childCost = costCalculator.calculateIndexOnlyScanCost(childTable, childTableColumns.getFirst(),
                 childTableColumns.size(), 0, sel);
 
         double innerCost, outerCost;

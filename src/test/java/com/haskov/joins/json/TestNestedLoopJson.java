@@ -1,17 +1,16 @@
-package com.haskov.joins;
+package com.haskov.joins.json;
 
 import com.haskov.Cmd;
 import com.haskov.QueryGenerator;
 import com.haskov.bench.V2;
 import com.haskov.bench.v2.Configuration;
-import com.haskov.test.TestUtils;
 import org.junit.Test;
 
 import java.util.List;
 
-public class TestHashJoinJson {
-    private final static String expectedNodeType = "HashJoin";
-    private final static String filePath = "testplans/hashjoin.json";
+public class TestNestedLoopJson {
+    private final static String expectedNodeType = "NestedLoop";
+    private final static String filePath = "testplans/nestedloop.json";
 
     public void test(long size, int queryCount) {
         String argArray = "-h localhost -j " + filePath + " -S " + size + " -q " + queryCount;
@@ -22,10 +21,11 @@ public class TestHashJoinJson {
     }
 
     @Test
-    public void testHashJoin() {
-        test(800, 1000);
-        test(1000, 800);
-        test(10000, 500);
-        test(100000, 100);
+    public void testNestedLoop() {
+        test(500, 500);
+        test(800, 500);
+        test(1000, 100);
+        test(2000, 50);
+        //test(100000, 100);
     }
 }

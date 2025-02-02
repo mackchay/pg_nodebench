@@ -91,8 +91,10 @@ public class TestMaterializedNestedLoopCost {
                         findNode(JsonOperations.explainResultsJson(query), expectedNodeType)).
                 getJson().get("Total Cost").getAsDouble();
 
-        double parentCost = ScanCostCalculator.calculateSeqScanCost(parentTable, parentTableColumns.size());
-        double childCost = ScanCostCalculator.calculateSeqScanCost(childTable, childTableColumns.size());
+        ScanCostCalculator costCalculator = new ScanCostCalculator();
+
+        double parentCost = costCalculator.calculateSeqScanCost(parentTable, parentTableColumns.size());
+        double childCost = costCalculator.calculateSeqScanCost(childTable, childTableColumns.size());
 
         double innerCost, outerCost;
         String innerTable, outerTable;
@@ -121,7 +123,6 @@ public class TestMaterializedNestedLoopCost {
                 outerCost,
                 sel,
                 sel,
-                0,
                 innerConditions,
                 outerConditions
         );

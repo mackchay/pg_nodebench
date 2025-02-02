@@ -5,6 +5,7 @@ import com.haskov.bench.V2;
 import com.haskov.costs.ScanCostCalculator;
 import com.haskov.nodes.Node;
 import com.haskov.types.InsertType;
+import com.haskov.types.ScanNodeType;
 import com.haskov.types.TableBuildResult;
 import com.haskov.types.TableIndexType;
 import com.haskov.utils.SQLUtils;
@@ -45,12 +46,7 @@ public class BitmapIndexScan implements Node, Scan {
     }
 
     @Override
-    public long reCalculateMinTuple(long tuples) {
-        return tuples;
-    }
-
-    @Override
-    public void prepareQuery() {
+    public void prepareScanQuery() {
         Random random = new Random();
         nonIndexColumnsCount = random.nextInt(nonIndexColumns.size()) + 1;
         Collections.shuffle(indexColumns);
@@ -87,12 +83,14 @@ public class BitmapIndexScan implements Node, Scan {
 
     @Override
     public Pair<Double, Double> getCosts() {
-        long maxTuples = costCalculator.calculateBitmapIndexScanTuplesRange
-                (table, indexColumn, indexColumnsCount * 2, 0).getRight();
+        long maxTuples = costCalculator.calculateTuplesRange
+                (table, indexColumn,
+                        indexColumnsCount * 2, nonIndexColumnsCount * 2,
+                        ScanNodeType.BITMAP_SCAN).getRight();
         sel = maxTuples / SQLUtils.getTableRowCount(table);
-        double startUpCost = ScanCostCalculator.getIndexScanStartUpCost
+        double startUpCost = costCalculator.getIndexScanStartUpCost
                 (table, indexColumn);
-        double totalCost = ScanCostCalculator.calculateIndexOnlyScanCost
+        double totalCost = costCalculator.calculateIndexOnlyScanCost
                 (table, indexColumn, indexColumnsCount * 2,
                         nonIndexColumnsCount * 2, sel);
         return new ImmutablePair<>(startUpCost, totalCost);
@@ -105,8 +103,9 @@ public class BitmapIndexScan implements Node, Scan {
 
     @Override
     public Pair<Long, Long> getTuplesRange() {
-        Pair<Long, Long> range = costCalculator.calculateBitmapIndexScanTuplesRange
-                (table, indexColumn, indexColumnsCount * 2, nonIndexColumnsCount * 2);
+        Pair<Long, Long> range = costCalculator.calculateTuplesRange
+                (table, indexColumn, indexColumnsCount * 2, nonIndexColumnsCount * 2,
+                        ScanNodeType.BITMAP_SCAN);
         long minTuples = range.getLeft();
         long maxTuples = range.getRight();
         sel = maxTuples / SQLUtils.getTableRowCount(table);

@@ -95,7 +95,7 @@ public class QueryBuilder {
         return this;
     }
 
-
+    // Метод для добавления случайного метода
     public QueryBuilder randomWhere(String table, String column) {
         this.select(table + "." + column);
         long min, max;
@@ -110,7 +110,7 @@ public class QueryBuilder {
 
         long tuples = random.nextLong(minTuples, maxTuples + 1);
         //long tuples = maxTuples;
-        long radius = min;
+        long radius = random.nextLong(min, max - tuples + 2);
         this.where(table + "." + column + ">=" + radius).
                 where(table + "." + column + "<" + (radius + tuples));
 
@@ -123,110 +123,9 @@ public class QueryBuilder {
         return this;
     }
 
-    public void addRandomWhere(String table, String column) {
-        addRandomWhere(table, column, "SeqScan");
-    }
-
-    public void addRandomWhere(String table, String column, String nodeType) {
-        switch (nodeType) {
-            case "IndexOnlyScan" -> addRandomWhereConditionForIndexOnlyScan(table, column);
-            case "IndexScan" -> addRandomWhereConditionForIndexScan(table, column);
-            case "BitmapHeapScan", "BitmapIndexScan", "BitmapScan" ->
-                    addRandomWhereConditionForBitmapScan(table, column);
-            default -> addRandomWhereCondition(table, column);
-        }
-    }
-
-    private void addRandomWhereCondition(String table, String column) {
-        this.select(table + "." + column);
-        long min = Long.parseLong(SQLUtils.getMin(table, column));
-        long max = Long.parseLong(SQLUtils.getMax(table, column));
-        Long maxTuples = SQLUtils.getTableRowCount(table);
-        Long tuples = random.nextLong(0, maxTuples);
-        Long radius = random.nextLong(min, max);
-        this.where(table + "." + column + ">" + radius).
-                where(table + "." + column + "<" + (radius + tuples));
-    }
-
-    private void addRandomWhereConditionForIndexScan(String table, String column) {
-        this.select(table + "." + column);
-        long min = Long.parseLong(SQLUtils.getMin(table, column));
-        long max = Long.parseLong(SQLUtils.getMax(table, column));
-
-        long maxTuples = scanCostCalculator.calculateIndexScanMaxTuples(table, column,
-                indexConditionCount, conditionCount);
-        if (maxTuples < 1) {
-            throw new RuntimeException("Table is too small for Index Only Scan node.");
-        }
-        //long tuples = random.nextLong(0, maxTuples);
-        long tuples = maxTuples;
-        long radius = maxTuples < max - min ? random.nextLong(min, max - tuples + 1) : 0;
-        this.where(table + "." + column + ">" + radius).
-                where(table + "." + column + "<" + (radius + tuples));
-    }
-
     public QueryBuilder join(JoinData join) {
         joins.add(join);
         return this;
-    }
-
-    private void addRandomWhereConditionForIndexOnlyScan(String table, String column) {
-        this.select(table + "." + column);
-        long min = Long.parseLong(SQLUtils.getMin(table, column));
-        long max = Long.parseLong(SQLUtils.getMax(table, column));
-
-        long maxTuples = scanCostCalculator.calculateIndexOnlyScanMaxTuples(table, column,
-                indexConditionCount, conditionCount);
-        if (maxTuples < 1) {
-            throw new RuntimeException("Table is too small for Index Only Scan node.");
-        }
-//        long tuples = maxTuples;
-//        long radius = 0;
-        long tuples = random.nextLong(0, maxTuples);
-        long radius = random.nextLong(min, max - tuples);
-        this.where(table + "." + column + ">" + radius).
-                where(table + "." + column + "<" + (radius + tuples));
-    }
-
-    private void addRandomWhereConditionForBitmapScan(String table, String column) {
-        this.select(table + "." + column);
-        long min = Long.parseLong(SQLUtils.getMin(table, column));
-        long max = Long.parseLong(SQLUtils.getMax(table, column));
-
-        Pair<Long, Long> tuplesRange = scanCostCalculator.calculateBitmapIndexScanTuplesRange(table, column,
-                indexConditionCount, conditionCount);
-        if (Math.max(tuplesRange.getLeft(), tuplesRange.getRight()) < 1) {
-            throw new RuntimeException("Table size is too small for Bitmap Index Scan.");
-        }
-        long tuples = random.nextLong(tuplesRange.getLeft(), tuplesRange.getRight());
-        long radius = random.nextLong(min, max - tuples + 1);
-        this.where(table + "." + column + ">" + radius).
-                where(table + "." + column + "<" + (radius + tuples));
-    }
-
-    private String randomWhereTypes(StringBuilder whereClause, String type) {
-        switch (type.toLowerCase()) {
-            case "int4":
-            case "integer":
-            case "int":
-                whereClause.append("= ").append(random.nextInt(Integer.MIN_VALUE, Integer.MAX_VALUE));
-                break;
-
-            case "varchar":
-            case "text":
-                whereClause.append("LIKE '%").append(getRandomString(random.nextInt(1, 50))).append("%'");
-                break;
-
-            case "bool":
-            case "boolean":
-                whereClause.append("= ").append(random.nextBoolean());
-                break;
-
-            default:
-                whereClause.append("IS NOT NULL");
-        }
-
-        return whereClause.toString();
     }
 
     // Генератор случайной строки

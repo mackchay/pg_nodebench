@@ -1,4 +1,4 @@
-package com.haskov.joins;
+package com.haskov.joins.json;
 
 import com.haskov.Cmd;
 import com.haskov.QueryGenerator;
@@ -8,9 +8,9 @@ import org.junit.Test;
 
 import java.util.List;
 
-public class TestMergeJoinJson {
-    private final static String expectedNodeType = "MergeJoin";
-    private final static String filePath = "testplans/mergejoin.json";
+public class TestHashJoinJson {
+    private final static String expectedNodeType = "HashJoin";
+    private final static String filePath = "testplans/hashjoin.json";
 
     public void test(long size, int queryCount) {
         String argArray = "-h localhost -j " + filePath + " -S " + size + " -q " + queryCount;
@@ -21,11 +21,10 @@ public class TestMergeJoinJson {
     }
 
     @Test
-    public void testMergeJoin() {
-        //test(200, 1000);
-        //test(800, 1000);
-        test(1000, 800);
-        test(10000, 500);
-        test(100000, 100);
+    public void testHashJoin() {
+        test(500, 1000);
+        test(1000, 500);
+        test(10000, 100);
+        test(100000, 50);
     }
 }

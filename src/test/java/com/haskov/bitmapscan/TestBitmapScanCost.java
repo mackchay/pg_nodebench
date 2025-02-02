@@ -1,6 +1,8 @@
 package com.haskov.bitmapscan;
 
 import com.haskov.Cmd;
+import com.haskov.PlanAnalyzer;
+import com.haskov.QueryBuilder;
 import com.haskov.bench.V2;
 import com.haskov.bench.v2.Configuration;
 import com.haskov.costs.ScanCostCalculator;
@@ -8,71 +10,83 @@ import com.haskov.json.JsonOperations;
 import com.haskov.json.PgJsonPlan;
 import com.haskov.nodes.Node;
 import com.haskov.nodes.NodeFactory;
+import com.haskov.types.TableBuildResult;
+import com.haskov.utils.SQLUtils;
 import org.junit.Assert;
 import org.junit.Test;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
 public class TestBitmapScanCost {
-    private Configuration initDB(int size) {
-        String argArray = "-h localhost -j testplans/bitmapscan.json -S " + size;
-        String[] args = List.of(argArray.split(" ")).toArray(new String[0]);
-        Configuration conf = Cmd.args(args);
-        V2.init(conf);
-        return conf;
-    }
+    private final static String expectedNodeType = "Bitmap Heap Scan";
+    private final static String filePath = "testplans/bitmapscan.json";
 
-    //TODO: fix test
-    private void checkTestBitmapScan(int sizeOfTable, String conditions, int idxConditionCount,
-                                     int conditionCount, double selectivity) {
-//        Configuration conf = initDB(sizeOfTable);
-//        Node node = NodeFactory.createNode("BitmapScan");
-//        List<String> tables = node.prepareTables(conf.tableSize);
-//        String query = "select * from " + tables.getFirst() + conditions;
-//        double actualCost = ScanCostCalculator.calculateBitmapHeapAndIndexScanCost(tables.getFirst(), "x",
-//                idxConditionCount, conditionCount, selectivity);
-//        PgJsonPlan plan = JsonOperations.findNode(JsonOperations.explainResultsJson(query), "Bitmap Heap Scan");
-//        V2.explain(LoggerFactory.getLogger("TestBitmapScanCost"), query);
-//        double expectedCost = Objects.requireNonNull(JsonOperations.
-//                        findNode(JsonOperations.explainResultsJson(query), "Bitmap Heap Scan")).
-//                getJson().get("Total Cost").getAsDouble();
-//        Assert.assertEquals(expectedCost, actualCost, expectedCost * 0.05);
+    public void test(long size, int queryCount) {
+        String argArray = "-h localhost -j " + filePath + " -S " + size + " -q " + queryCount;
+        Configuration conf = Cmd.args(argArray.split(" "));
+        V2.init(conf);
+        PlanAnalyzer analyzer = new PlanAnalyzer(conf.tableSize, conf.plan);
+        List<TableBuildResult> tableScripts = analyzer.prepareTables();
+        List<String> tables = List.of(tableScripts.getFirst().tableName(), tableScripts.getLast().tableName());
+        generateQuery(tables, size);
     }
 
     @Test
     public void testBitmapScan() {
-        checkTestBitmapScan(500, " where x < 51", 1, 0,
-                (double) 50 / 500);
-        checkTestBitmapScan(10000, " where x < 1001", 1, 0,
-                (double) 1000 /10000);
-        checkTestBitmapScan(100000, " where x < 10001", 1, 0,
-                (double) 10000 /100000);
+        //test(200, 200);
+        test(500, 500);
+        test(1000, 200);
+        test(5000, 50);
+        test(10000, 50);
+        test(100000, 100);
     }
 
-    @Test
-    public void testBitmapScanConditions() {
-        checkTestBitmapScan(500, " where x > 0 and x < 51", 2, 0,
-                (double) 50 /500);
-        checkTestBitmapScan(10000, " where x > 0 and x < 1501", 2, 0,
-                (double) 1500 /10000);
-        checkTestBitmapScan(100000, " where x > 0 and x < 10001", 2, 0,
-                (double) 10000 /100000);
-        checkTestBitmapScan(100000, " where x > 0 and x < 40001", 2, 0,
-                (double) 40000 /100000);
-    }
+    private void generateQuery(List<String> tables, long size) {
+        String table = tables.get(0);
 
-    @Test
-    public void testBitmapScanMoreConditions() {
-        checkTestBitmapScan(500, " where x > 0 and x < 51 and y > 0 and y < 51",
-                2, 2,
-                (double) 50 / 500);
-        checkTestBitmapScan(100000, " where x > 0 and x < 501 and y > 0 and y < 501",
-                2, 2,
-                (double) 500 /100000);
-        checkTestBitmapScan(100000, " where x > 0 and x < 30001 and y > 0 and y < 30001",
-                2, 2,
-                (double) 30000/100000);
+        Map<String, String> columnsAndTypes = V2.getColumnsAndTypes(table);
+        List<String> columns = new ArrayList<>(columnsAndTypes.keySet());
+
+        double sel = 0.2;
+        long tuples = (long) (size * sel);
+
+        List<String> nonIndexColumns = new ArrayList<>();
+        List<String> indexColumns = new ArrayList<>();
+
+        QueryBuilder qb = new QueryBuilder();
+        for (String column : columns) {
+            if (SQLUtils.hasIndexOnColumn(table, column)) {
+                indexColumns.add(column);
+            } else {
+                nonIndexColumns.add(column);
+                qb.select(table + "." + column).from(table);
+                qb.where(table + "." + column + " < " + tuples);
+            }
+        }
+
+        qb.select(table + "." + indexColumns.getFirst()).from(table);
+        qb.where(table + "." + indexColumns.getFirst() + " < " + tuples);
+
+        String query = qb.build();
+
+
+        PgJsonPlan plan = JsonOperations.findNode(JsonOperations.explainResultsJson(query), expectedNodeType);
+        System.out.println(query);
+        V2.explain(V2.log, query);
+        double expectedCost = Objects.requireNonNull(JsonOperations.
+                        findNode(JsonOperations.explainResultsJson(query), expectedNodeType)).
+                getJson().get("Total Cost").getAsDouble();
+        ScanCostCalculator costCalculator = new ScanCostCalculator();
+
+        double actualCost = costCalculator.calculateBitmapHeapAndIndexScanCost(table, indexColumns.getFirst(),
+                1, nonIndexColumns.size(), sel);
+        double bitmapIndexCost = costCalculator.calculateBitmapIndexScanCost(table, indexColumns.getFirst(),
+                1, sel);
+
+        Assert.assertEquals(expectedCost, actualCost, 0.1);
     }
 }

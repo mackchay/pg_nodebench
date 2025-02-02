@@ -93,11 +93,11 @@ public class SQLUtils {
     public static boolean hasIndexOnTable(String tableName) {
         String query = """
                 SELECT EXISTS (
-                    SELECT 1
-                    FROM pg_index i
-                    JOIN pg_class t ON i.indrelid = t.oid
-                    WHERE t.relname = ?
-                )
+                        SELECT 1
+                        FROM pg_stat_all_indexes
+                        WHERE relname = ?
+                        LIMIT 1
+                    )
                 """;
         return Boolean.TRUE.equals(selectOne(query, tableName));
     }

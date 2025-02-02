@@ -1,5 +1,6 @@
 plugins {
     id 'java'
+    id 'com.github.johnrengelman.shadow' version '8.1.1' // Fat JAR плагин
 }
 
 group = 'com.haskov'
@@ -7,6 +8,17 @@ version = '1.0-SNAPSHOT'
 
 repositories {
     mavenCentral()
+}
+
+
+jar {
+    manifest {
+        attributes 'Main-Class': 'com.haskov.Main'
+    }
+}
+
+shadowJar {
+    archiveClassifier.set('') // Убираем "-all" из названия JAR
 }
 
 dependencies {
@@ -27,3 +39,4 @@ dependencies {
     implementation 'ch.qos.logback:logback-classic:1.5.0'
 }
 
+build.dependsOn shadowJar

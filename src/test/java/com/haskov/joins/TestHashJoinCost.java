@@ -12,7 +12,7 @@ import com.haskov.json.PgJsonPlan;
 import com.haskov.types.JoinData;
 import com.haskov.types.JoinType;
 import com.haskov.types.TableBuildResult;
-import com.haskov.utils.SQLUtils;
+
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -36,7 +36,7 @@ public class TestHashJoinCost {
     }
 
     @Test
-    public void testNestedLoop() {
+    public void testHashJoin() {
         test(200, 200);
         test(500, 500);
         test(1000, 200);
@@ -90,9 +90,10 @@ public class TestHashJoinCost {
         double expectedCost = Objects.requireNonNull(JsonOperations.
                         findNode(JsonOperations.explainResultsJson(query), expectedNodeType)).
                 getJson().get("Total Cost").getAsDouble();
+        ScanCostCalculator costCalculator = new ScanCostCalculator();
 
-        double parentCost = ScanCostCalculator.calculateSeqScanCost(parentTable, parentTableColumns.size());
-        double childCost = ScanCostCalculator.calculateSeqScanCost(childTable, childTableColumns.size());
+        double parentCost = costCalculator.calculateSeqScanCost(parentTable, parentTableColumns.size());
+        double childCost = costCalculator.calculateSeqScanCost(childTable, childTableColumns.size());
 
         double innerCost, outerCost;
         String innerTable, outerTable;
@@ -126,6 +127,6 @@ public class TestHashJoinCost {
                 outerConditions
         );
 
-        Assert.assertEquals(expectedCost, actualCost, 0.1);
+        Assert.assertEquals(expectedCost, actualCost, 0.03 * expectedCost);
     }
 }

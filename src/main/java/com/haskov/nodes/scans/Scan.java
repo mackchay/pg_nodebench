@@ -10,8 +10,12 @@ public interface Scan {
      */
     public TableBuildResult initScanNode(Long tableSize);
 
-    long reCalculateMinTuple(long tuples);
 
+    /**
+     * @param tableSize размер таблицы в строках
+     * @return результат генерации таблицы: название таблицы и sql-скрипты,
+     * которые были использованы для ее создания
+     */
     public TableBuildResult createTable(Long tableSize);
 
     /**
@@ -28,5 +32,11 @@ public interface Scan {
      */
     Pair<Long, Long> getTuplesRange();
 
+    public default void prepareScanQuery() {
+
+    }
+    /**
+     * @return возвращает селективность
+     */
     double getSel();
 }

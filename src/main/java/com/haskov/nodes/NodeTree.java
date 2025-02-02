@@ -3,9 +3,7 @@ package com.haskov.nodes;
 import com.haskov.QueryBuilder;
 import com.haskov.json.JsonPlan;
 import com.haskov.nodes.functions.Materialize;
-import com.haskov.nodes.joins.HashJoin;
 import com.haskov.nodes.joins.Join;
-import com.haskov.nodes.joins.MergeJoin;
 import com.haskov.nodes.scans.Scan;
 import com.haskov.types.TableBuildResult;
 import org.apache.commons.lang3.tuple.Pair;
@@ -55,13 +53,14 @@ public class NodeTree {
 
     public void prepareQuery() {
         setCosts();
-        setTuples(nodeTreeData.getMinTuples(), nodeTreeData.getMaxTuples(), false);
+        setTuples(nodeTreeData.getMinTuples(), nodeTreeData.getMaxTuples());
     }
 
     //TODO prepare query, costs and tuples
     public void setCosts() {
-        parent.prepareQuery();
         if (parent instanceof Scan scan) {
+            scan.prepareScanQuery();
+
             Pair<Double, Double> costs = scan.getCosts();
             nodeTreeData.setStartUpCost(costs.getLeft());
             nodeTreeData.setTotalCost(costs.getRight());
@@ -74,6 +73,7 @@ public class NodeTree {
 
         for (NodeTree child : children) {
             child.setCosts();
+
             nodeTreeData.setStartUpCost(child.nodeTreeData.getStartUpCost());
             nodeTreeData.setTotalCost(child.nodeTreeData.getTotalCost());
             nodeTreeData.setIndexConditions(child.nodeTreeData.getIndexConditions());
@@ -81,6 +81,7 @@ public class NodeTree {
             nodeTreeData.setSel(
                     nodeTreeData.getSel() * child.nodeTreeData.getSel()
             );
+
             if (child.nodeTreeData.isMaterialized()) {
                 nodeTreeData.setMaterialized(true);
             }
@@ -98,7 +99,7 @@ public class NodeTree {
         }
     }
 
-    public void setTuples(long newMinTuples, long newMaxTuples, boolean isRecalculate) {
+    public void setTuples(long newMinTuples, long newMaxTuples) {
         nodeTreeData.setMinTuples(newMinTuples);
         nodeTreeData.setMaxTuples(newMaxTuples);
 
@@ -110,9 +111,6 @@ public class NodeTree {
             if (tupleRange.getRight() < nodeTreeData.getMaxTuples()) {
                 nodeTreeData.setMaxTuples(tupleRange.getRight());
             }
-            if (join instanceof HashJoin || join instanceof MergeJoin) {
-                isRecalculate = true;
-            }
         }
 
         if (parent instanceof Scan scan) {
@@ -120,15 +118,13 @@ public class NodeTree {
             if (tupleRange.getLeft() > nodeTreeData.getMinTuples()) {
                 nodeTreeData.setMinTuples(tupleRange.getLeft());
             }
+
             if (tupleRange.getRight() < nodeTreeData.getMaxTuples()) {
                 nodeTreeData.setMaxTuples(tupleRange.getRight());
             }
-            if (isRecalculate) {
-                nodeTreeData.setMinTuples(scan.reCalculateMinTuple(nodeTreeData.getMinTuples()));
-            }
         }
         for (NodeTree child : children) {
-            child.setTuples(nodeTreeData.getMinTuples(), nodeTreeData.getMaxTuples(), isRecalculate);
+            child.setTuples(nodeTreeData.getMinTuples(), nodeTreeData.getMaxTuples());
         }
     }
 

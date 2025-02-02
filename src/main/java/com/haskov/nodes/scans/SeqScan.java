@@ -20,6 +20,7 @@ public class SeqScan implements Node, Scan {
     private String table = "";
     private List<String> columns = new ArrayList<>();
     private long tableSize;
+    private ScanCostCalculator costCalculator = new ScanCostCalculator();
 
     @Override
     public TableBuildResult initScanNode(Long tableSize) {
@@ -37,7 +38,6 @@ public class SeqScan implements Node, Scan {
 
     @Override
     public QueryBuilder buildQuery(QueryBuilder qb) {
-        Random random = new Random();
         qb.from(table);
         for (String column : columns.subList(0, columnsConditionsCount)) {
             qb.randomWhere(table, column);
@@ -46,21 +46,11 @@ public class SeqScan implements Node, Scan {
     }
 
     @Override
-    public void prepareQuery() {
+    public void prepareScanQuery() {
         Random random = new Random();
         columnsConditionsCount = random.nextInt(columns.size()) + 1;
         Collections.shuffle(columns);
     }
-
-    @Override
-    public long reCalculateMinTuple(long tuples) {
-        double tmpSel = (double) tuples / tableSize;
-        while (tableSize * Math.pow(tmpSel, columnsConditionsCount) < 2) {
-            tmpSel *= 1.05;
-        }
-        return (long) (tableSize * tmpSel);
-    }
-
 
     public TableBuildResult createTable(Long tableSize) {
         String tableName = "pg_seqscan";
@@ -70,7 +60,7 @@ public class SeqScan implements Node, Scan {
 
     @Override
     public Pair<Double, Double> getCosts() {
-        double totalCost = ScanCostCalculator.calculateSeqScanCost(table, columnsConditionsCount * 2);
+        double totalCost = costCalculator.calculateSeqScanCost(table, columnsConditionsCount * 2);
         return new ImmutablePair<>(0.0, totalCost);
     }
 
@@ -81,7 +71,7 @@ public class SeqScan implements Node, Scan {
 
     @Override
     public Pair<Long, Long> getTuplesRange() {
-        return new ImmutablePair<>(0L, SQLUtils.getTableRowCount(table));
+        return new ImmutablePair<>(0L, tableSize);
     }
 
     @Override

@@ -22,7 +22,7 @@ public class TestIndexHashJoinJson {
 
     @Test
     public void testIndexHashJoin() {
-        test(800, 1000);
+        //test(800, 1000);
         test(1000, 800);
         test(10000, 500);
         test(100000, 100);

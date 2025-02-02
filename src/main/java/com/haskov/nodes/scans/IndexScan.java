@@ -4,6 +4,7 @@ import com.haskov.QueryBuilder;
 import com.haskov.bench.V2;
 import com.haskov.costs.ScanCostCalculator;
 import com.haskov.nodes.Node;
+import com.haskov.types.ScanNodeType;
 import com.haskov.types.TableBuildResult;
 import com.haskov.utils.SQLUtils;
 import org.apache.commons.lang3.tuple.ImmutablePair;
@@ -44,22 +45,12 @@ public class IndexScan implements Node, Scan {
     }
 
     @Override
-    public long reCalculateMinTuple(long tuples) {
-        double tmpSel = (double) tuples / tableSize;
-        while (tableSize * Math.pow(tmpSel, nonIndexColumnsCount)
-                * Math.pow(tmpSel, indexColumnsCount) < 2) {
-            tmpSel *= 1.05;
-        }
-        return (long) (tableSize * tmpSel);
-    }
-
-    @Override
     public String buildQuery() {
         return buildQuery(new QueryBuilder()).build();
     }
 
     @Override
-    public void prepareQuery() {
+    public void prepareScanQuery() {
         Random random = new Random();
         nonIndexColumnsCount = random.nextInt(nonIndexColumns.size()) + 1;
         indexColumnsCount = 1;
@@ -96,14 +87,15 @@ public class IndexScan implements Node, Scan {
 
     @Override
     public Pair<Double, Double> getCosts() {
-        long maxTuples = costCalculator.calculateIndexScanMaxTuples
-                (table, indexColumn, nonIndexColumnsCount * 2,
-                        indexColumnsCount * 2);
+        long maxTuples = costCalculator.calculateTuplesRange(
+                table, indexColumn, nonIndexColumnsCount * 2,
+                        indexColumnsCount * 2,
+                ScanNodeType.INDEX_SCAN).getRight();
         sel = maxTuples / SQLUtils.getTableRowCount(table);
         sel = maxTuples / SQLUtils.getTableRowCount(table);
-        double startUpCost = ScanCostCalculator.getIndexScanStartUpCost
+        double startUpCost = costCalculator.getIndexScanStartUpCost
                 (table, indexColumn);
-        double totalCost = ScanCostCalculator.calculateIndexScanCost
+        double totalCost = costCalculator.calculateIndexScanCost
                 (table, indexColumn, indexColumnsCount * 2,
                         nonIndexColumnsCount * 2, sel);
         return new ImmutablePair<>(startUpCost, totalCost);
@@ -111,16 +103,16 @@ public class IndexScan implements Node, Scan {
 
     @Override
     public Pair<Integer, Integer> getConditions() {
-        return new ImmutablePair<>(nonIndexColumnsCount * 2, indexColumnsCount * 2);
+        return new ImmutablePair<>(nonIndexColumnsCount, indexColumnsCount);
     }
 
     @Override
     public Pair<Long, Long> getTuplesRange() {
-        long minTuples = 0;
-        long maxTuples = costCalculator.calculateIndexScanMaxTuples
-                (table, indexColumn, nonIndexColumnsCount * 2, indexColumnsCount * 2);
-        sel = maxTuples / SQLUtils.getTableRowCount(table);
-        return new ImmutablePair<>(minTuples, maxTuples);
+        Pair<Long, Long> range = costCalculator.calculateTuplesRange
+                (table, indexColumn, nonIndexColumnsCount * 2, indexColumnsCount * 2,
+                        ScanNodeType.INDEX_SCAN);
+        sel = range.getRight() / SQLUtils.getTableRowCount(table);
+        return new ImmutablePair<>(range.getLeft(), range.getRight());
     }
 
     @Override

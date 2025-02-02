@@ -44,13 +44,14 @@ public class TestHashJoinMinTuples {
             }
         }
         double sel = Math.min((double) 50000 / size, 1);
+        ScanCostCalculator costCalculator = new ScanCostCalculator();
 
-        double scanCost = ScanCostCalculator.calculateSeqScanCost(tables.getFirst(), 1);
+        double scanCost = costCalculator.calculateSeqScanCost(tables.getFirst(), 1);
         double actualCost = JoinCostCalculator.calculateHashJoinCost(
                 tables.getFirst(),
                 tables.getLast(),
-                ScanCostCalculator.calculateSeqScanCost(tables.getFirst(), 1),
-                ScanCostCalculator.calculateSeqScanCost(tables.getLast(), 1),
+                costCalculator.calculateSeqScanCost(tables.getFirst(), 1),
+                costCalculator.calculateSeqScanCost(tables.getLast(), 1),
                 sel,
                 sel,
                 0,
@@ -61,8 +62,8 @@ public class TestHashJoinMinTuples {
         long minTuples = new JoinCostCalculator().calculateTuplesRange(
                 tables.getFirst(),
                 tables.getLast(),
-                ScanCostCalculator.calculateSeqScanCost(tables.getFirst(), 1),
-                ScanCostCalculator.calculateSeqScanCost(tables.getLast(), 1),
+                costCalculator.calculateSeqScanCost(tables.getFirst(), 1),
+                costCalculator.calculateSeqScanCost(tables.getLast(), 1),
                 0,
                 1,
                 1,

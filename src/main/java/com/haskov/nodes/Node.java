@@ -11,10 +11,6 @@ public interface Node {
 
     }
 
-    public default void prepareQuery() {
-
-    }
-
     public String buildQuery();
 
     public default QueryBuilder buildQuery(QueryBuilder qb) {
