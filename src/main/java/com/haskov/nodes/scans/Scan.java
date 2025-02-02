@@ -1,9 +1,10 @@
 package com.haskov.nodes.scans;
 
+import com.haskov.nodes.Node;
 import com.haskov.types.TableBuildResult;
 import org.apache.commons.lang3.tuple.Pair;
 
-public interface Scan {
+public interface Scan extends Node {
 
     /**
      * Required to be called first
@@ -18,19 +19,6 @@ public interface Scan {
      */
     public TableBuildResult createTable(Long tableSize);
 
-    /**
-     * @return startUpCost, totalCost
-     */
-    Pair<Double, Double> getCosts();
-
-    /**
-     * @return indexConditionsCount, nonIndexConditionsCount
-     */
-    Pair<Integer, Integer> getConditions();
-    /**
-     * @return minTuples, maxTuples
-     */
-    Pair<Long, Long> getTuplesRange();
 
     public default void prepareScanQuery() {
 

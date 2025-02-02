@@ -15,7 +15,7 @@ import java.util.*;
 import static com.haskov.bench.V2.getColumnsAndTypes;
 import static com.haskov.tables.TableBuilder.buildRandomTable;
 
-public class SeqScan implements Node, Scan {
+public class SeqScan implements Scan {
     private int columnsConditionsCount = 0;
     private String table = "";
     private List<String> columns = new ArrayList<>();
@@ -29,11 +29,6 @@ public class SeqScan implements Node, Scan {
         this.tableSize = tableSize;
         columns = new ArrayList<>(getColumnsAndTypes(table).keySet());
         return result;
-    }
-
-    @Override
-    public String buildQuery() {
-        return buildQuery(new QueryBuilder()).build();
     }
 
     @Override
@@ -59,7 +54,7 @@ public class SeqScan implements Node, Scan {
     }
 
     @Override
-    public Pair<Double, Double> getCosts() {
+    public Pair<Double, Double> getCosts(double sel) {
         double totalCost = costCalculator.calculateSeqScanCost(table, columnsConditionsCount * 2);
         return new ImmutablePair<>(0.0, totalCost);
     }
@@ -72,6 +67,11 @@ public class SeqScan implements Node, Scan {
     @Override
     public Pair<Long, Long> getTuplesRange() {
         return new ImmutablePair<>(0L, tableSize);
+    }
+
+    @Override
+    public List<String> getTables() {
+        return List.of(table);
     }
 
     @Override

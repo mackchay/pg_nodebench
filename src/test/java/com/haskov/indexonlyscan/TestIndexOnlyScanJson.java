@@ -22,7 +22,7 @@ public class TestIndexOnlyScanJson {
     }
 
     @Test
-    public void testSeqScan() {
+    public void testIndexOnlyScan() {
         test(1000, 1000);
         test(10000, 500);
         test(100000, 100);

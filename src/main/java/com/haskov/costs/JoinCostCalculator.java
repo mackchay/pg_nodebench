@@ -7,6 +7,8 @@ import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 
 import java.util.*;
+import java.util.function.Function;
+
 import static com.haskov.costs.CostParameters.*;
 
 public class JoinCostCalculator {
@@ -290,9 +292,10 @@ public class JoinCostCalculator {
      *
      * @param innerTableName     Название внутренней таблицы.
      * @param outerTableName     Название внешней таблицы.
-     * @param innerTableScanCost Стоимость сканирования внутренней таблицы.
-     * @param outerTableScanCost Стоимость сканирования внешней таблицы.
-     * @param startScanCost      Начальная стоимость сканирования.
+     * @param innerCostFunction  Функция, которая вычисляет стоимость внутреннего узла, в зависимости от селективности
+     * @param outerCostFunction  Функция, которая вычисляет стоимость внешнего узла, в зависимости от селективности
+     * @param minTuples          Ограничение на минимальное количество строк.
+     * @param maxTuples          Ограничение на максимльное количество строк.
      * @param innerConditionCount Количество условий соединения для внутренней таблицы.
      * @param outerConditionCount Количество условий соединения для внешней таблицы.
      * @param type               Тип соединения (Hash Join, Merge Join, etc..).
@@ -300,13 +303,16 @@ public class JoinCostCalculator {
      */
     public Pair<Long, Long> calculateTuplesRange(
             String innerTableName, String outerTableName,
-            double innerTableScanCost, double outerTableScanCost,
-            double startScanCost, int innerConditionCount,
+            Function<Double, Pair<Double, Double>> innerCostFunction,
+            Function<Double, Pair<Double, Double>> outerCostFunction,
+            long minTuples,
+            long maxTuples,
+            int innerConditionCount,
             int outerConditionCount, JoinNodeType type) {
 
         JoinCacheData data = new JoinCacheData(
-                type.toString(), innerTableScanCost, outerTableScanCost,
-                startScanCost, innerConditionCount, outerConditionCount);
+                type.toString(), innerTableName, outerTableName,
+                innerConditionCount, outerConditionCount);
 
         if (cache.containsKey(data)) {
             return cache.get(data);
@@ -314,13 +320,21 @@ public class JoinCostCalculator {
 
         double innerNumTuples = SQLUtils.getTableRowCount(innerTableName);
         double outerNumTuples = SQLUtils.getTableRowCount(outerTableName);
+
         boolean isIndexed = SQLUtils.hasIndexOnTable(innerTableName) && SQLUtils.hasIndexOnTable(outerTableName);
 
         List<Pair<JoinNodeType, Long>> rangeList = new ArrayList<>();
-        rangeList.add(new ImmutablePair<>(JoinNodeType.NESTED_LOOP, 1L));
+        if (minTuples < 2) {
+            rangeList.add(new ImmutablePair<>(JoinNodeType.NESTED_LOOP, 1L));
+        }
 
-        for (int i = 2; i <= innerNumTuples; i++) {
+        for (long i = Math.max(minTuples, 2); i <= maxTuples; i++) {
             double sel = (double) i / innerNumTuples;
+
+            double innerTableScanCost = innerCostFunction.apply(sel).getRight();
+            double outerTableScanCost = outerCostFunction.apply(sel).getRight();
+            double startScanCost = Math.max(innerCostFunction.apply(sel).getLeft(),
+                    outerCostFunction.apply(sel).getLeft());
 
             List<JoinNodeType> types = new ArrayList<>(List.of(
                     JoinNodeType.NESTED_LOOP,
@@ -329,7 +343,10 @@ public class JoinCostCalculator {
                     JoinNodeType.MERGE_JOIN));
 
             List<Double> costs = List.of(
-                    getNestedLoopCost(innerNumTuples, outerNumTuples, innerTableScanCost, outerTableScanCost, sel,
+                    getNestedLoopCost(innerNumTuples, outerNumTuples,
+                            innerTableScanCost,
+                            outerTableScanCost,
+                            sel,
                             sel, startScanCost, innerConditionCount, outerConditionCount),
                     getMaterializedNestedLoopCost(innerNumTuples, outerNumTuples, innerTableScanCost,
                             outerTableScanCost, sel, sel, innerConditionCount, outerConditionCount),
@@ -366,7 +383,7 @@ public class JoinCostCalculator {
                     .min(Comparator.comparingDouble(t -> costs.get(types.indexOf(t))))
                     .orElse(JoinNodeType.NESTED_LOOP);
 
-            rangeList.add(new ImmutablePair<>(bestType, (long) i));
+            rangeList.add(new ImmutablePair<>(bestType, i));
         }
 
         List<Long> costList = rangeList.stream()

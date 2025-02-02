@@ -12,19 +12,29 @@ import static com.haskov.utils.SQLUtils.*;
 
 
 public class ScanCostCalculator {
-    private final Map<ScanCacheData, Pair<Long, Long>> cacheMap = new HashMap<>();
+    private final Map<ScanCacheData, Pair<Long, Long>> cacheMapTuples = new HashMap<>();
+    private final Map<ScanCacheData, Double> cacheMapCosts = new HashMap<>();
 
 
     //Seq Scan
     public double calculateSeqScanCost(String tableName, int conditionCount) {
+        ScanCacheData cacheData = new ScanCacheData(
+                0, conditionCount, ScanNodeType.SEQ_SCAN, 0.0, 0.0);
+        if (cacheMapCosts.containsKey(cacheData)) {
+            return cacheMapCosts.get(cacheData);
+        }
 
         Pair<Long, Long> result = SQLUtils.getTablePagesAndRowsCount(tableName);
         double numPages = result.getLeft();
         double numTuples = result.getRight();
-        return getSeqScanCost(numPages, numTuples, conditionCount);
+
+        double totalCost = getSeqScanCost(numPages, numTuples, conditionCount);
+
+        cacheMapCosts.put(cacheData, totalCost);
+        return totalCost;
     }
 
-    private double getSeqScanCost(double numPages, double numTuples, int conditionCount) {
+    public double getSeqScanCost(double numPages, double numTuples, int conditionCount) {
         return (seqPageCost * numPages) + (cpuTupleCost * numTuples) + (cpuOperatorCost * conditionCount * numTuples);
     }
 
@@ -222,8 +232,8 @@ public class ScanCostCalculator {
 
         ScanCacheData data = new ScanCacheData(indexConditionsCount, conditionsCount, type,
                 numPages, numTuples);
-        if (cacheMap.containsKey(data)) {
-            return new ImmutablePair<>(cacheMap.get(data).getLeft(), cacheMap.get(data).getRight());
+        if (cacheMapTuples.containsKey(data)) {
+            return new ImmutablePair<>(cacheMapTuples.get(data).getLeft(), cacheMapTuples.get(data).getRight());
         }
 
         Pair<Long, Long> resultIndexTable = getTablePagesAndRowsCount(getIndexOnColumn(tableName, indexedColumn));
@@ -239,7 +249,7 @@ public class ScanCostCalculator {
         rangeList.add(new ImmutablePair<>(ScanNodeType.INDEX_SCAN, 1L));
 
         for (int i = 2; i <= numTuples; i++) {
-            double sel = 1 / numTuples;
+            double sel = i / numTuples;
             List<ScanNodeType> types = new ArrayList<>(List.of(
                     ScanNodeType.SEQ_SCAN,
                     ScanNodeType.INDEX_SCAN,
@@ -247,7 +257,7 @@ public class ScanCostCalculator {
                     ScanNodeType.BITMAP_SCAN)
             );
             List<Double> costs = new ArrayList<>(List.of(
-                    getSeqScanCost(numPages, numTuples, conditionsCount),
+                    getSeqScanCost(numPages, numTuples, indexConditionsCount + conditionsCount),
                     getIndexScanCost(numPages, numTuples, numIndexPages, numIndexTuples,
                             indexConditionsCount, conditionsCount, sel, btreeHeight, correlation),
                     getIndexOnlyScanCost(numPages, numTuples, numIndexPages, numIndexTuples,
@@ -255,6 +265,10 @@ public class ScanCostCalculator {
                     getBitmapHeapAndIndexScanCost(numPages, numTuples, numIndexPages, numIndexTuples,
                             indexConditionsCount, conditionsCount, sel, btreeHeight)
             ));
+
+            if (!type.equals(ScanNodeType.INDEX_ONLY_SCAN)) {
+                types.remove(ScanNodeType.INDEX_ONLY_SCAN);
+            }
 
             ScanNodeType bestType = types.stream()
                     .min(Comparator.comparingDouble(t -> costs.get(types.indexOf(t))))
@@ -268,8 +282,9 @@ public class ScanCostCalculator {
                 .map(Pair::getValue)
                 .toList();
 
-        Pair<Long, Long> range = new ImmutablePair<>(costList.getFirst(), costList.getLast());
-        cacheMap.put(data, range);
+        Pair<Long, Long> range = new ImmutablePair<>((Math.round(costList.getFirst() * 1.05)),
+                (Math.round(costList.getLast() / 1.05)));
+        cacheMapTuples.put(data, range);
         return range;
     }
 

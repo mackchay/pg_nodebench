@@ -30,7 +30,7 @@ public class IndexOnlyScan implements Node, Scan {
         this.tableSize = tableSize;
         Map<String, String> columnsAndTypes = V2.getColumnsAndTypes(table);
         String[] columns = columnsAndTypes.keySet().toArray(new String[0]);
-        indexColumns.addAll(Arrays.asList(columns));
+        indexColumns = new ArrayList<>(Arrays.asList(columns));
         indexColumnsCount = 1;
         return result;
     }
@@ -64,12 +64,10 @@ public class IndexOnlyScan implements Node, Scan {
     }
 
     @Override
-    public Pair<Double, Double> getCosts() {
+    public Pair<Double, Double> getCosts(double sel) {
         Pair<Long, Long> range = costCalculator.calculateTuplesRange
-                (table, indexColumn, 0, indexColumnsCount * 2,
+                (table, indexColumn, indexColumnsCount * 2, 0,
                         ScanNodeType.INDEX_ONLY_SCAN);
-        long maxTuples = range.getRight();
-        sel = maxTuples / tableSize;
         double startUpCost = costCalculator.getIndexScanStartUpCost
                 (table, indexColumn);
         double totalCost = costCalculator.calculateIndexOnlyScanCost
@@ -89,8 +87,13 @@ public class IndexOnlyScan implements Node, Scan {
                         ScanNodeType.INDEX_ONLY_SCAN);
         long maxTuples = range.getRight();
         long minTuples = range.getLeft();
-        sel = maxTuples / SQLUtils.getTableRowCount(table);
+        sel = maxTuples / tableSize;
         return new ImmutablePair<>(minTuples, maxTuples);
+    }
+
+    @Override
+    public List<String> getTables() {
+        return List.of(table);
     }
 
     @Override
@@ -98,8 +101,4 @@ public class IndexOnlyScan implements Node, Scan {
         return sel;
     }
 
-    @Override
-    public String buildQuery() {
-        return "";
-    }
 }

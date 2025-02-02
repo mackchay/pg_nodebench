@@ -82,12 +82,7 @@ public class BitmapIndexScan implements Node, Scan {
     }
 
     @Override
-    public Pair<Double, Double> getCosts() {
-        long maxTuples = costCalculator.calculateTuplesRange
-                (table, indexColumn,
-                        indexColumnsCount * 2, nonIndexColumnsCount * 2,
-                        ScanNodeType.BITMAP_SCAN).getRight();
-        sel = maxTuples / SQLUtils.getTableRowCount(table);
+    public Pair<Double, Double> getCosts(double sel) {
         double startUpCost = costCalculator.getIndexScanStartUpCost
                 (table, indexColumn);
         double totalCost = costCalculator.calculateIndexOnlyScanCost
@@ -113,12 +108,13 @@ public class BitmapIndexScan implements Node, Scan {
     }
 
     @Override
+    public List<String> getTables() {
+        return List.of(table);
+    }
+
+    @Override
     public double getSel() {
         return sel;
     }
 
-    @Override
-    public String buildQuery() {
-        return "";
-    }
 }

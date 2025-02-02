@@ -36,7 +36,7 @@ public class TestIndexScanCost {
     }
 
     @Test
-    public void testBitmapScan() {
+    public void testIndexScan() {
         //test(200, 200);
         test(500, 500);
         test(1000, 200);

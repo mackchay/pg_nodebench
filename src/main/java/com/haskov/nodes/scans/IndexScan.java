@@ -15,7 +15,7 @@ import java.util.*;
 import static com.haskov.tables.TableBuilder.buildRandomTable;
 
 
-public class IndexScan implements Node, Scan {
+public class IndexScan implements Scan {
     private List<String> nonIndexColumns = new ArrayList<>();
     private List<String> indexColumns = new ArrayList<>();
     private int nonIndexColumnsCount = 0;
@@ -42,11 +42,6 @@ public class IndexScan implements Node, Scan {
             }
         }
         return result;
-    }
-
-    @Override
-    public String buildQuery() {
-        return buildQuery(new QueryBuilder()).build();
     }
 
     @Override
@@ -86,13 +81,11 @@ public class IndexScan implements Node, Scan {
     }
 
     @Override
-    public Pair<Double, Double> getCosts() {
+    public Pair<Double, Double> getCosts(double sel) {
         long maxTuples = costCalculator.calculateTuplesRange(
                 table, indexColumn, nonIndexColumnsCount * 2,
                         indexColumnsCount * 2,
                 ScanNodeType.INDEX_SCAN).getRight();
-        sel = maxTuples / SQLUtils.getTableRowCount(table);
-        sel = maxTuples / SQLUtils.getTableRowCount(table);
         double startUpCost = costCalculator.getIndexScanStartUpCost
                 (table, indexColumn);
         double totalCost = costCalculator.calculateIndexScanCost
@@ -113,6 +106,11 @@ public class IndexScan implements Node, Scan {
                         ScanNodeType.INDEX_SCAN);
         sel = range.getRight() / SQLUtils.getTableRowCount(table);
         return new ImmutablePair<>(range.getLeft(), range.getRight());
+    }
+
+    @Override
+    public List<String> getTables() {
+        return List.of(table);
     }
 
     @Override

@@ -1,6 +1,8 @@
 package com.haskov.seqscan;
 
 import com.haskov.Cmd;
+import com.haskov.PlanAnalyzer;
+import com.haskov.QueryBuilder;
 import com.haskov.bench.V2;
 import com.haskov.bench.v2.Configuration;
 import com.haskov.costs.ScanCostCalculator;
@@ -8,41 +10,77 @@ import com.haskov.json.JsonOperations;
 import com.haskov.json.PgJsonPlan;
 import com.haskov.nodes.Node;
 import com.haskov.nodes.NodeFactory;
+import com.haskov.types.TableBuildResult;
+import com.haskov.utils.SQLUtils;
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
 public class TestSeqScanCost {
+    private final static String expectedNodeType = "Seq Scan";
+    private final static String filePath = "testplans/seqscan.json";
 
-    private Configuration initDB(int size) {
-        String argArray = "-h localhost -j testplans/seqscan.json -S " + size;
-        String[] args = List.of(argArray.split(" ")).toArray(new String[0]);
-        Configuration conf = Cmd.args(args);
+    public void test(long size, int queryCount) {
+        String argArray = "-h localhost -j " + filePath + " -S " + size + " -q " + queryCount;
+        Configuration conf = Cmd.args(argArray.split(" "));
         V2.init(conf);
-        return conf;
-    }
-
-    //TODO: fix test
-    private void checkTestSeqScan(int sizeOfTable, String conditions, int conditionCount) {
-//        Configuration conf = initDB(sizeOfTable);
-//        Node node = NodeFactory.createNode("SeqScan");
-//        List<String> tables = node.prepareTables(conf.tableSize);
-//        String query = "select * from " + tables.getFirst() + conditions;
-//        double actualCost = ScanCostCalculator.calculateSeqScanCost(tables.getFirst(), conditionCount);
-//        PgJsonPlan plan = JsonOperations.findNode(JsonOperations.explainResultsJson(query), "Seq Scan");
-//        double expectedCost = Objects.requireNonNull(JsonOperations.
-//                        findNode(JsonOperations.explainResultsJson(query), "Seq Scan")).
-//                getJson().get("Total Cost").getAsDouble();
-//        Assert.assertEquals(expectedCost, actualCost, 0.005);
+        PlanAnalyzer analyzer = new PlanAnalyzer(conf.tableSize, conf.plan);
+        List<TableBuildResult> tableScripts = analyzer.prepareTables();
+        List<String> tables = List.of(tableScripts.getFirst().tableName(), tableScripts.getLast().tableName());
+        generateQuery(tables, size);
     }
 
     @Test
-    public void testSeqScan() {
-        checkTestSeqScan(500, "", 0);
-        checkTestSeqScan(1000, " where x > 0", 1);
-        checkTestSeqScan(10000, " where x > 0 and x < 5000", 2);
-        checkTestSeqScan(100000, " where x > 0 and x < 5000 and y > 1000 and y < 8000", 4);
+    public void testIndexScan() {
+        //test(200, 200);
+        test(500, 500);
+        test(1000, 200);
+        test(5000, 50);
+        test(10000, 50);
+        test(100000, 100);
+    }
+
+    private void generateQuery(List<String> tables, long size) {
+        String table = tables.get(0);
+
+        Map<String, String> columnsAndTypes = V2.getColumnsAndTypes(table);
+        List<String> columns = new ArrayList<>(columnsAndTypes.keySet());
+
+        double sel = 0.75;
+        long tuples = (long) (size * sel);
+
+        List<String> nonIndexColumns = new ArrayList<>();
+        List<String> indexColumns = new ArrayList<>();
+
+        QueryBuilder qb = new QueryBuilder();
+        for (String column : columns) {
+            qb.select(table + "." + column).from(table);
+            qb.where(table + "." + column + " < " + tuples);
+            if (SQLUtils.hasIndexOnColumn(table, column)) {
+                indexColumns.add(column);
+            } else {
+                nonIndexColumns.add(column);
+            }
+        }
+
+        String query = qb.build();
+
+
+        PgJsonPlan plan = JsonOperations.findNode(JsonOperations.explainResultsJson(query), expectedNodeType);
+        System.out.println(query);
+        V2.explain(V2.log, query);
+        double expectedCost = Objects.requireNonNull(JsonOperations.
+                        findNode(JsonOperations.explainResultsJson(query), expectedNodeType)).
+                getJson().get("Total Cost").getAsDouble();
+
+        ScanCostCalculator costCalculator = new ScanCostCalculator();
+
+        double actualCost = costCalculator.calculateSeqScanCost(table, nonIndexColumns.size());
+
+        Assert.assertEquals(expectedCost, actualCost, 0.01);
     }
 }

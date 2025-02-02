@@ -15,42 +15,30 @@ import org.apache.commons.lang3.tuple.Pair;
 
 import java.util.*;
 
-public class MergeJoin implements Node, Join {
-    private String parentTable;
-    private String childTable;
-    private List<String> parentColumns;
-    private List<String> childColumns;
-    private double parentScanCost;
-    private double childScanCost;
-    private double startUpCost;
-    private int innerConditionsCount;
-    private int outerConditionsCount;
-    private double parentTableSel;
-    private double childTableSel;
-    private JoinCostCalculator costCalculator = new JoinCostCalculator();
+public class MergeJoin implements Join {
+    private Node nodeLeft;
+    private Node nodeRight;
 
-    @Override
-    public void initNode(List<String> tables) {
-        //Expected 2 tables.
-        parentTable = tables.get(1);
-        childTable = tables.getFirst();
-        Map<String, String> columnsAndTypesParent = V2.getColumnsAndTypes(parentTable);
-        parentColumns = new ArrayList<>(columnsAndTypesParent.keySet());
-        Map<String, String> columnsAndTypesChild = V2.getColumnsAndTypes(childTable);
-        childColumns = new ArrayList<>(columnsAndTypesChild.keySet());
-    }
+    private String leftTable;
+    private String rightTable;
+    private List<String> rightTableColumns;
+    private List<String> leftTableColumns;
+
+    private int leftConditionsCount;
+    private int rightConditionsCount;
+    private final JoinCostCalculator costCalculator = new JoinCostCalculator();
 
 
     @Override
     public QueryBuilder buildQuery(QueryBuilder qb) {
 
-        Collections.shuffle(parentColumns);
-        Collections.shuffle(childColumns);
+        Collections.shuffle(leftTableColumns);
+        Collections.shuffle(rightTableColumns);
         List<String> selectColumns = qb.getSelectColumns();
 
         qb.join(new JoinData(
-                        parentTable,
-                        childTable,
+                        leftTable,
+                        rightTable,
                         JoinType.USUAL,
                         selectColumns.getLast().substring(selectColumns.getLast().indexOf(".")).replace(".", ""),
                         selectColumns.getFirst().substring(selectColumns.getFirst().indexOf(".")).replace(".", "")
@@ -62,61 +50,90 @@ public class MergeJoin implements Node, Join {
         return qb;
     }
 
-    @Override
-    public TableBuildResult prepareJoinTable(String childName, String parentTable) {
-        return new TableBuildResult(
-                childName,
-                TableBuilder.addForeignKey(
-                        childName,
-                        parentTable,
-                        this.getClass().getSimpleName()
-                )
-        );
-    }
 
     @Override
-    public Pair<Double, Double> getCosts() {
-        double cost = JoinCostCalculator.calculateMergeJoinCost(
-                parentTable,
-                childTable,
-                parentScanCost,
-                childScanCost,
-                parentTableSel,
-                childTableSel,
+    public Pair<Double, Double> getCosts(double sel) {
+        Pair<Double, Double> rightCosts = getCosts(sel);
+        Pair<Double, Double> leftCosts = getCosts(sel);
+
+        String innerTable, outerTable;
+        double innerScanCost, outerScanCost;
+        int innerConditionsCount, outerConditionsCount;
+
+        if (rightCosts.getRight() > leftCosts.getRight()) {
+            innerTable = rightTable;
+            outerTable = leftTable;
+            innerScanCost = rightCosts.getRight();
+            outerScanCost = leftCosts.getRight();
+            innerConditionsCount = rightConditionsCount;
+            outerConditionsCount = leftConditionsCount;
+        } else {
+            innerTable = leftTable;
+            outerTable = rightTable;
+            innerScanCost = rightCosts.getLeft();
+            outerScanCost = leftCosts.getLeft();
+            innerConditionsCount = rightConditionsCount;
+            outerConditionsCount = leftConditionsCount;
+        }
+
+        double totalCost = JoinCostCalculator.calculateMergeJoinCost(
+                innerTable,
+                outerTable,
+                innerScanCost,
+                outerScanCost,
+                sel,
+                sel,
                 innerConditionsCount,
                 outerConditionsCount
         );
-        return new ImmutablePair<>(0.0, cost);
-    }
-
-    @Override
-    public void prepareJoinQuery(NodeTreeData parent, NodeTreeData child) {
-        this.parentScanCost = parent.getTotalCost();
-        this.childScanCost = child.getTotalCost();
-        this.startUpCost = child.getStartUpCost();
-        this.innerConditionsCount = child.getIndexConditions() + child.getNonIndexConditions();
-        this.outerConditionsCount = parent.getIndexConditions() + parent.getNonIndexConditions();
-        this.parentTableSel = parent.getSel();
-        this.childTableSel = child.getSel();
+        return new ImmutablePair<>(0.0, totalCost);
     }
 
     @Override
     public Pair<Long, Long> getTuplesRange() {
+        Pair<Long, Long> leftTuplesRange = nodeLeft.getTuplesRange();
+        Pair<Long, Long> rightTuplesRange = nodeRight.getTuplesRange();
+
+        long minTuples = Math.min(leftTuplesRange.getLeft(), rightTuplesRange.getLeft());
+        long maxTuples = Math.max(leftTuplesRange.getRight(), rightTuplesRange.getRight());
         Pair<Long, Long> range = costCalculator.calculateTuplesRange(
-                parentTable,
-                childTable,
-                parentScanCost,
-                childScanCost,
-                startUpCost,
-                innerConditionsCount,
-                outerConditionsCount,
+                rightTable,
+                leftTable,
+                nodeRight::getCosts,
+                nodeLeft::getCosts,
+                minTuples,
+                maxTuples,
+                leftConditionsCount,
+                rightConditionsCount,
                 JoinNodeType.MERGE_JOIN
         );
         return new ImmutablePair<>(range.getLeft(), range.getRight());
     }
 
     @Override
-    public String buildQuery() {
-        return "";
+    public List<String> getTables() {
+        return List.of(leftTable, rightTable);
+    }
+
+    @Override
+    public Pair<Integer, Integer> getConditions() {
+        return new ImmutablePair<>(leftConditionsCount, rightConditionsCount);
+    }
+
+    @Override
+    public void initInternalNode(List<Node> nodes) {
+        nodeLeft = nodes.getFirst();
+        nodeRight = nodes.getLast();
+
+        rightTable = nodeRight.getTables().getFirst();
+        leftTable = nodeLeft.getTables().getFirst();
+
+        Map<String, String> columnsAndTypesParent = V2.getColumnsAndTypes(rightTable);
+        rightTableColumns = new ArrayList<>(columnsAndTypesParent.keySet());
+        Map<String, String> columnsAndTypesChild = V2.getColumnsAndTypes(leftTable);
+        leftTableColumns = new ArrayList<>(columnsAndTypesChild.keySet());
+
+        this.leftConditionsCount = nodeLeft.getConditions().getLeft() + nodeLeft.getConditions().getRight();
+        this.rightConditionsCount = nodeRight.getConditions().getLeft() + nodeRight.getConditions().getRight();
     }
 }

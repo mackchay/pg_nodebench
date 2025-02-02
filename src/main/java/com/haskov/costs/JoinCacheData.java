@@ -1,12 +1,9 @@
 package com.haskov.costs;
 
-import java.util.Objects;
-
 public record JoinCacheData (
     String joinType,
-    Double innerTableScanCost,
-    Double outerTableScanCost,
-    Double startScanCost,
+    String innerNumTuples,
+    String outerNumTuples,
     Integer innerConditionCount,
     Integer outerConditionCount
 ) {

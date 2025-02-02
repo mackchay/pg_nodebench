@@ -5,6 +5,7 @@ import com.haskov.bench.V2;
 import com.haskov.costs.JoinCostCalculator;
 import com.haskov.nodes.Node;
 import com.haskov.nodes.NodeTreeData;
+import com.haskov.nodes.functions.Materialize;
 import com.haskov.tables.TableBuilder;
 import com.haskov.types.JoinData;
 import com.haskov.types.JoinNodeType;
@@ -18,43 +19,31 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
-public class NestedLoop implements Node, Join {
-    private String parentTable;
-    private String childTable;
-    private List<String> parentColumns;
-    private List<String> childColumns;
-    private double parentScanCost;
-    private double childScanCost;
-    private double startUpCost;
-    private int childConditionsCount;
-    private int parentConditionsCount;
-    private double parentTableSel;
-    private double childTableSel;
-    private boolean isMaterialized;
+public class NestedLoop implements Join {
+    private Node nodeLeft;
+    private Node nodeRight;
+
+    private String leftTable;
+    private String rightTable;
+    private List<String> rightTableColumns;
+    private List<String> leftTableColumns;
+
+    private int leftConditionsCount;
+    private int rightConditionsCount;
     private JoinCostCalculator costCalculator = new JoinCostCalculator();
 
-    @Override
-    public void initNode(List<String> tables) {
-        //Expected 2 tables.
-        parentTable = tables.get(1);
-        childTable = tables.getFirst();
-        Map<String, String> columnsAndTypesParent = V2.getColumnsAndTypes(parentTable);
-        parentColumns = new ArrayList<>(columnsAndTypesParent.keySet());
-        Map<String, String> columnsAndTypesChild = V2.getColumnsAndTypes(childTable);
-        childColumns = new ArrayList<>(columnsAndTypesChild.keySet());
-    }
 
 
     @Override
     public QueryBuilder buildQuery(QueryBuilder qb) {
 
-        Collections.shuffle(parentColumns);
-        Collections.shuffle(childColumns);
+        Collections.shuffle(rightTableColumns);
+        Collections.shuffle(leftTableColumns);
         List<String> selectColumns = qb.getSelectColumns();
 
         qb.join(new JoinData(
-                        parentTable,
-                        childTable,
+                        rightTable,
+                        leftTable,
                         JoinType.NON_EQUAL,
                         selectColumns.getLast().substring(selectColumns.getLast().indexOf(".")).replace(".", ""),
                         selectColumns.getFirst().substring(selectColumns.getFirst().indexOf(".")).replace(".", "")
@@ -66,90 +55,95 @@ public class NestedLoop implements Node, Join {
         return qb;
     }
 
-    @Override
-    public TableBuildResult prepareJoinTable(String childName, String parentTable) {
-        return new TableBuildResult(
-                childName,
-                TableBuilder.addForeignKey(
-                        childName,
-                        parentTable,
-                        this.getClass().getSimpleName()
-                )
-        );
-    }
 
     @Override
-    public Pair<Double, Double> getCosts() {
-        double cost = JoinCostCalculator.calculateNestedLoopCost(
-                parentTable,
-                childTable,
-                parentScanCost,
-                childScanCost,
-                parentTableSel,
-                childTableSel,
+    public Pair<Double, Double> getCosts(double sel) {
+        Pair<Double, Double> rightCosts = getCosts(sel);
+        Pair<Double, Double> leftCosts = getCosts(sel);
+
+        String innerTable, outerTable;
+        double innerScanCost, outerScanCost;
+        int innerConditionsCount, outerConditionsCount;
+
+        if (rightCosts.getRight() > leftCosts.getRight()) {
+            innerTable = rightTable;
+            outerTable = leftTable;
+            innerScanCost = rightCosts.getRight();
+            outerScanCost = leftCosts.getRight();
+            innerConditionsCount = rightConditionsCount;
+            outerConditionsCount = leftConditionsCount;
+        } else {
+            innerTable = leftTable;
+            outerTable = rightTable;
+            innerScanCost = rightCosts.getLeft();
+            outerScanCost = leftCosts.getLeft();
+            innerConditionsCount = rightConditionsCount;
+            outerConditionsCount = leftConditionsCount;
+        }
+        double startUpCost = Math.max(leftCosts.getLeft(), rightCosts.getLeft());
+
+        double totalCost = JoinCostCalculator.calculateNestedLoopCost(
+                innerTable,
+                outerTable,
+                innerScanCost,
+                outerScanCost,
+                sel,
+                sel,
                 startUpCost,
-                childConditionsCount,
-                parentConditionsCount
+                innerConditionsCount,
+                outerConditionsCount
         );
-        return new ImmutablePair<>(0.0, cost);
-    }
-
-    @Override
-    public void prepareJoinQuery(NodeTreeData parent, NodeTreeData child) {
-        this.parentScanCost = parent.getTotalCost();
-        this.childScanCost = child.getTotalCost();
-        this.startUpCost = child.getStartUpCost();
-        this.childConditionsCount = child.getIndexConditions() + child.getNonIndexConditions();
-        this.parentConditionsCount = parent.getIndexConditions() + parent.getNonIndexConditions();
-        this.parentTableSel = parent.getSel();
-        this.childTableSel = child.getSel();
-        this.isMaterialized = parent.isMaterialized() || child.isMaterialized();
+        return new ImmutablePair<>(startUpCost, totalCost);
     }
 
     @Override
     public Pair<Long, Long> getTuplesRange() {
-        JoinNodeType type;
-        double innerCost, outerCost;
-        String innerTable, outerTable;
-        int innerConditions, outerConditions;
+        JoinNodeType type = (nodeRight instanceof Materialize || nodeLeft instanceof Materialize)
+            ? JoinNodeType.NESTED_LOOP_MATERIALIZED : JoinNodeType.NESTED_LOOP;
+        Pair<Long, Long> leftTuplesRange = nodeLeft.getTuplesRange();
+        Pair<Long, Long> rightTuplesRange = nodeRight.getTuplesRange();
 
-        if (parentScanCost >= childScanCost) {
-            innerCost = parentScanCost;
-            outerCost = childScanCost;
-            innerTable = parentTable;
-            outerTable = childTable;
-            innerConditions = parentConditionsCount;
-            outerConditions = childConditionsCount;
-        } else {
-            innerCost = childScanCost;
-            outerCost = parentScanCost;
-            innerTable = childTable;
-            outerTable = parentTable;
-            innerConditions = childConditionsCount;
-            outerConditions = parentConditionsCount;
-        }
-
-        if (isMaterialized) {
-            type = JoinNodeType.NESTED_LOOP_MATERIALIZED;
-
-        } else {
-            type = JoinNodeType.NESTED_LOOP;
-        }
-            Pair<Long, Long> range = costCalculator.calculateTuplesRange(
-                    innerTable,
-                    outerTable,
-                    innerCost,
-                    outerCost,
-                    startUpCost,
-                    innerConditions,
-                    outerConditions,
-                    type
-            );
+        long minTuples = Math.min(leftTuplesRange.getLeft(), rightTuplesRange.getLeft());
+        long maxTuples = Math.max(leftTuplesRange.getRight(), rightTuplesRange.getRight());
+        Pair<Long, Long> range = costCalculator.calculateTuplesRange(
+                rightTable,
+                leftTable,
+                nodeRight::getCosts,
+                nodeLeft::getCosts,
+                minTuples,
+                maxTuples,
+                leftConditionsCount,
+                rightConditionsCount,
+                type
+        );
         return new ImmutablePair<>(range.getLeft(), range.getRight());
     }
 
     @Override
-    public String buildQuery() {
-        return "";
+    public List<String> getTables() {
+        return List.of(leftTable, rightTable);
+    }
+
+    @Override
+    public Pair<Integer, Integer> getConditions() {
+        return new ImmutablePair<>(leftConditionsCount, rightConditionsCount);
+    }
+
+    @Override
+    public void initInternalNode(List<Node> nodes) {
+        nodeLeft = nodes.getFirst();
+        nodeRight = nodes.getLast();
+
+        rightTable = nodeRight.getTables().getFirst();
+        leftTable = nodeLeft.getTables().getFirst();
+
+        Map<String, String> columnsAndTypesParent = V2.getColumnsAndTypes(rightTable);
+        rightTableColumns = new ArrayList<>(columnsAndTypesParent.keySet());
+
+        Map<String, String> columnsAndTypesChild = V2.getColumnsAndTypes(leftTable);
+        leftTableColumns = new ArrayList<>(columnsAndTypesChild.keySet());
+
+        this.leftConditionsCount = nodeLeft.getConditions().getLeft() + nodeLeft.getConditions().getRight();
+        this.rightConditionsCount = nodeRight.getConditions().getLeft() + nodeRight.getConditions().getRight();
     }
 }
