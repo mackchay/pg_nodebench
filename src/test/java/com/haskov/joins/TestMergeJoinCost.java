@@ -5,6 +5,8 @@ import com.haskov.PlanAnalyzer;
 import com.haskov.QueryBuilder;
 import com.haskov.bench.V2;
 import com.haskov.bench.v2.Configuration;
+import com.haskov.costs.join.MergeJoinCostCalculator;
+import com.haskov.costs.join.NestedLoopJoinCostCalculator;
 import com.haskov.costs.scan.IndexOnlyScanCostCalculator;
 import com.haskov.costs.scan.JoinCostCalculator;
 import com.haskov.json.JsonOperations;
@@ -118,9 +120,9 @@ public class TestMergeJoinCost {
             outerConditions = parentTableColumns.size();
         }
 
-        double actualCost = JoinCostCalculator.calculateMergeJoinCost(
-                innerTable,
-                outerTable,
+        MergeJoinCostCalculator joinCostCalculator = new MergeJoinCostCalculator(innerTable, outerTable);
+
+        double actualCost = joinCostCalculator.calculateCost(
                 innerCost,
                 outerCost,
                 sel,

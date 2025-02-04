@@ -2,6 +2,8 @@ package com.haskov.nodes.joins;
 
 import com.haskov.QueryBuilder;
 import com.haskov.bench.V2;
+import com.haskov.costs.join.JoinTupleRangeCalculator;
+import com.haskov.costs.join.NestedLoopJoinCostCalculator;
 import com.haskov.costs.scan.JoinCostCalculator;
 import com.haskov.nodes.Node;
 import com.haskov.nodes.functions.Materialize;
@@ -25,8 +27,8 @@ public class NestedLoop implements Join {
     private List<String> rightTableColumns;
     private List<String> leftTableColumns;
 
-    private JoinCostCalculator costCalculator = new JoinCostCalculator();
-
+    private JoinTupleRangeCalculator tupleRangeCalculator;
+    private JoinNodeType type;
 
 
     @Override
@@ -61,51 +63,53 @@ public class NestedLoop implements Join {
     public Pair<Double, Double> getCosts(double sel) {
         Pair<Double, Double> rightCosts = getCosts(sel);
         Pair<Double, Double> leftCosts = getCosts(sel);
+
         int leftConditionsCount = nodeLeft.getConditions().getLeft() +
                 nodeLeft.getConditions().getRight();
         int rightConditionsCount = nodeRight.getConditions().getLeft() +
                 nodeRight.getConditions().getRight();
-
-        String innerTable, outerTable;
         double innerScanCost, outerScanCost;
         int innerConditionsCount, outerConditionsCount;
 
+        double startUpCost = Math.max(leftCosts.getLeft(), rightCosts.getLeft());
+
         if (rightCosts.getRight() > leftCosts.getRight()) {
-            innerTable = rightTable;
-            outerTable = leftTable;
             innerScanCost = rightCosts.getRight();
             outerScanCost = leftCosts.getRight();
             innerConditionsCount = rightConditionsCount;
             outerConditionsCount = leftConditionsCount;
         } else {
-            innerTable = leftTable;
-            outerTable = rightTable;
-            innerScanCost = rightCosts.getLeft();
-            outerScanCost = leftCosts.getLeft();
+            innerScanCost = leftCosts.getRight();
+            outerScanCost = rightCosts.getLeft();
             innerConditionsCount = rightConditionsCount;
             outerConditionsCount = leftConditionsCount;
         }
-        double startUpCost = Math.max(leftCosts.getLeft(), rightCosts.getLeft());
 
-        double totalCost = JoinCostCalculator.calculateNestedLoopCost(
-                innerTable,
-                outerTable,
-                innerScanCost,
-                outerScanCost,
-                sel,
-                sel,
-                startUpCost,
-                innerConditionsCount,
-                outerConditionsCount
-        );
+        double totalCost;
+        if (type.equals(JoinNodeType.NESTED_LOOP_MATERIALIZED)) {
+            totalCost = tupleRangeCalculator.getNestedLoopCalculator().calculateMaterializedCost(
+                    innerScanCost,
+                    outerScanCost,
+                    sel,
+                    sel,
+                    innerConditionsCount,
+                    outerConditionsCount
+            );
+        } else {
+            totalCost = tupleRangeCalculator.getNestedLoopCalculator().calculateCost(
+                    innerScanCost,
+                    outerScanCost,
+                    sel,
+                    sel,
+                    innerConditionsCount,
+                    outerConditionsCount
+            );
+        }
         return new ImmutablePair<>(startUpCost, totalCost);
     }
 
     @Override
     public Pair<Long, Long> getTuplesRange() {
-        JoinNodeType type = (nodeRight instanceof Materialize || nodeLeft instanceof Materialize)
-            ? JoinNodeType.NESTED_LOOP_MATERIALIZED : JoinNodeType.NESTED_LOOP;
-
         Pair<Long, Long> leftTuplesRange = nodeLeft.getTuplesRange();
         Pair<Long, Long> rightTuplesRange = nodeRight.getTuplesRange();
         int leftConditionsCount = nodeLeft.getConditions().getLeft() + nodeLeft.getConditions().getRight();
@@ -113,16 +117,11 @@ public class NestedLoop implements Join {
 
         long minTuples = Math.min(leftTuplesRange.getLeft(), rightTuplesRange.getLeft());
         long maxTuples = Math.max(leftTuplesRange.getRight(), rightTuplesRange.getRight());
-        Pair<Long, Long> range = costCalculator.calculateTuplesRange(
-                rightTable,
-                leftTable,
-                nodeRight::getCosts,
-                nodeLeft::getCosts,
+        Pair<Long, Long> range = tupleRangeCalculator.calculateTuplesRange(
                 minTuples,
                 maxTuples,
                 leftConditionsCount,
-                rightConditionsCount,
-                type
+                rightConditionsCount
         );
         return new ImmutablePair<>(range.getLeft(), range.getRight());
     }
@@ -152,5 +151,11 @@ public class NestedLoop implements Join {
 
         Map<String, String> columnsAndTypesChild = V2.getColumnsAndTypes(leftTable);
         leftTableColumns = new ArrayList<>(columnsAndTypesChild.keySet());
+
+        type = (nodeRight instanceof Materialize || nodeLeft instanceof Materialize)
+                ? JoinNodeType.NESTED_LOOP_MATERIALIZED : JoinNodeType.NESTED_LOOP;
+
+        tupleRangeCalculator = new JoinTupleRangeCalculator(leftTable, rightTable,
+                nodeLeft::getCosts, nodeRight::getCosts, type);
     }
 }

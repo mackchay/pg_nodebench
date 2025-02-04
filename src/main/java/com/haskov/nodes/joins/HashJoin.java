@@ -2,6 +2,8 @@ package com.haskov.nodes.joins;
 
 import com.haskov.QueryBuilder;
 import com.haskov.bench.V2;
+import com.haskov.costs.join.HashJoinCostCalculator;
+import com.haskov.costs.join.JoinTupleRangeCalculator;
 import com.haskov.costs.scan.JoinCostCalculator;
 import com.haskov.nodes.Node;
 import com.haskov.types.JoinData;
@@ -21,7 +23,7 @@ public class HashJoin implements Join {
     private List<String> rightTableColumns;
     private List<String> leftTableColumns;
 
-    private final JoinCostCalculator costCalculator = new JoinCostCalculator();
+    private JoinTupleRangeCalculator tupleRangeCalculator;
 
 
     @Override
@@ -57,42 +59,36 @@ public class HashJoin implements Join {
         Pair<Double, Double> rightCosts = getCosts(sel);
         Pair<Double, Double> leftCosts = getCosts(sel);
 
-        String innerTable, outerTable;
-        double innerScanCost, outerScanCost;
-        int innerConditionsCount, outerConditionsCount;
-
         int leftConditionsCount = nodeLeft.getConditions().getLeft() +
                 nodeLeft.getConditions().getRight();
         int rightConditionsCount = nodeRight.getConditions().getLeft() +
                 nodeRight.getConditions().getRight();
+        double innerScanCost, outerScanCost;
+        int innerConditionsCount, outerConditionsCount;
+
+        double startUpCost = Math.max(leftCosts.getLeft(), rightCosts.getLeft());
 
         if (rightCosts.getRight() < leftCosts.getRight()) {
-            innerTable = rightTable;
-            outerTable = leftTable;
             innerScanCost = rightCosts.getRight();
             outerScanCost = leftCosts.getRight();
             innerConditionsCount = rightConditionsCount;
             outerConditionsCount = leftConditionsCount;
         } else {
-            innerTable = leftTable;
-            outerTable = rightTable;
-            innerScanCost = rightCosts.getLeft();
-            outerScanCost = leftCosts.getLeft();
+            innerScanCost = leftCosts.getRight();
+            outerScanCost = rightCosts.getLeft();
             innerConditionsCount = rightConditionsCount;
             outerConditionsCount = leftConditionsCount;
         }
-        double startUpCost = Math.max(leftCosts.getLeft(), rightCosts.getLeft());
 
-        double totalCost = JoinCostCalculator.calculateHashJoinCost(
-                innerTable,
-                outerTable,
+        double totalCost;
+        totalCost = tupleRangeCalculator.getHashJoinCalculator().calculateCost(
                 innerScanCost,
                 outerScanCost,
                 sel,
                 sel,
-                startUpCost,
                 innerConditionsCount,
-                outerConditionsCount
+                outerConditionsCount,
+                startUpCost
         );
         return new ImmutablePair<>(startUpCost, totalCost);
     }
@@ -101,24 +97,16 @@ public class HashJoin implements Join {
     public Pair<Long, Long> getTuplesRange() {
         Pair<Long, Long> leftTuplesRange = nodeLeft.getTuplesRange();
         Pair<Long, Long> rightTuplesRange = nodeRight.getTuplesRange();
-
-        int leftConditionsCount = nodeLeft.getConditions().getLeft() +
-                nodeLeft.getConditions().getRight();
-        int rightConditionsCount = nodeRight.getConditions().getLeft() +
-                nodeRight.getConditions().getRight();
+        int leftConditionsCount = nodeLeft.getConditions().getLeft() + nodeLeft.getConditions().getRight();
+        int rightConditionsCount = nodeRight.getConditions().getLeft() + nodeRight.getConditions().getRight();
 
         long minTuples = Math.min(leftTuplesRange.getLeft(), rightTuplesRange.getLeft());
         long maxTuples = Math.max(leftTuplesRange.getRight(), rightTuplesRange.getRight());
-        Pair<Long, Long> range = costCalculator.calculateTuplesRange(
-                rightTable,
-                leftTable,
-                nodeRight::getCosts,
-                nodeLeft::getCosts,
+        Pair<Long, Long> range = tupleRangeCalculator.calculateTuplesRange(
                 minTuples,
                 maxTuples,
                 leftConditionsCount,
-                rightConditionsCount,
-                JoinNodeType.HASH_JOIN
+                rightConditionsCount
         );
         return new ImmutablePair<>(range.getLeft(), range.getRight());
     }
@@ -149,5 +137,8 @@ public class HashJoin implements Join {
         rightTableColumns = new ArrayList<>(columnsAndTypesParent.keySet());
         Map<String, String> columnsAndTypesChild = V2.getColumnsAndTypes(leftTable);
         leftTableColumns = new ArrayList<>(columnsAndTypesChild.keySet());
+
+        tupleRangeCalculator = new JoinTupleRangeCalculator(leftTable, rightTable,
+                nodeLeft::getCosts, nodeRight::getCosts, JoinNodeType.HASH_JOIN);
     }
 }

@@ -5,6 +5,7 @@ import com.haskov.PlanAnalyzer;
 import com.haskov.QueryBuilder;
 import com.haskov.bench.V2;
 import com.haskov.bench.v2.Configuration;
+import com.haskov.costs.join.NestedLoopJoinCostCalculator;
 import com.haskov.costs.scan.JoinCostCalculator;
 import com.haskov.costs.scan.SeqScanCostCalculator;
 import com.haskov.json.JsonOperations;
@@ -115,10 +116,9 @@ public class TestMaterializedNestedLoopCost {
             innerConditions = childTableColumns.size();
             outerConditions = parentTableColumns.size();
         }
+        NestedLoopJoinCostCalculator joinCostCalculator = new NestedLoopJoinCostCalculator(innerTable, outerTable);
 
-        double actualCost = JoinCostCalculator.calculateMaterializedNestedLoopCost(
-                innerTable,
-                outerTable,
+        double actualCost = joinCostCalculator.calculateMaterializedCost(
                 innerCost,
                 outerCost,
                 sel,

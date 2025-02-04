@@ -2,7 +2,7 @@ package com.haskov.nodes.joins;
 
 import com.haskov.QueryBuilder;
 import com.haskov.bench.V2;
-import com.haskov.costs.scan.JoinCostCalculator;
+import com.haskov.costs.join.JoinTupleRangeCalculator;
 import com.haskov.nodes.Node;
 import com.haskov.types.JoinData;
 import com.haskov.types.JoinNodeType;
@@ -21,7 +21,7 @@ public class MergeJoin implements Join {
     private List<String> rightTableColumns;
     private List<String> leftTableColumns;
 
-    private final JoinCostCalculator costCalculator = new JoinCostCalculator();
+    private JoinTupleRangeCalculator tupleRangeCalculator;
 
 
     @Override
@@ -54,45 +54,40 @@ public class MergeJoin implements Join {
 
     @Override
     public Pair<Double, Double> getCosts(double sel) {
-        Pair<Double, Double> rightCosts = nodeRight.getCosts(sel);
-        Pair<Double, Double> leftCosts = nodeLeft.getCosts(sel);
-
-        String innerTable, outerTable;
-        double innerScanCost, outerScanCost;
-        int innerConditionsCount, outerConditionsCount;
+        Pair<Double, Double> rightCosts = getCosts(sel);
+        Pair<Double, Double> leftCosts = getCosts(sel);
 
         int leftConditionsCount = nodeLeft.getConditions().getLeft() +
                 nodeLeft.getConditions().getRight();
         int rightConditionsCount = nodeRight.getConditions().getLeft() +
                 nodeRight.getConditions().getRight();
+        double innerScanCost, outerScanCost;
+        int innerConditionsCount, outerConditionsCount;
 
-        if (rightCosts.getRight() < leftCosts.getRight()) {
-            innerTable = rightTable;
-            outerTable = leftTable;
+        double startUpCost = Math.max(leftCosts.getLeft(), rightCosts.getLeft());
+
+        if (rightCosts.getRight() > leftCosts.getRight()) {
             innerScanCost = rightCosts.getRight();
             outerScanCost = leftCosts.getRight();
             innerConditionsCount = rightConditionsCount;
             outerConditionsCount = leftConditionsCount;
         } else {
-            innerTable = leftTable;
-            outerTable = rightTable;
-            innerScanCost = rightCosts.getLeft();
-            outerScanCost = leftCosts.getLeft();
+            innerScanCost = leftCosts.getRight();
+            outerScanCost = rightCosts.getLeft();
             innerConditionsCount = rightConditionsCount;
             outerConditionsCount = leftConditionsCount;
         }
 
-        double totalCost = JoinCostCalculator.calculateMergeJoinCost(
-                innerTable,
-                outerTable,
-                innerScanCost,
-                outerScanCost,
-                sel,
-                sel,
-                innerConditionsCount,
-                outerConditionsCount
+        double totalCost;
+        totalCost = tupleRangeCalculator.getMergeJoinCalculator().calculateCost(
+                    innerScanCost,
+                    outerScanCost,
+                    sel,
+                    sel,
+                    innerConditionsCount,
+                    outerConditionsCount
         );
-        return new ImmutablePair<>(0.0, totalCost);
+        return new ImmutablePair<>(startUpCost, totalCost);
     }
 
     @Override
@@ -107,16 +102,11 @@ public class MergeJoin implements Join {
 
         long minTuples = Math.min(leftTuplesRange.getLeft(), rightTuplesRange.getLeft());
         long maxTuples = Math.max(leftTuplesRange.getRight(), rightTuplesRange.getRight());
-        Pair<Long, Long> range = costCalculator.calculateTuplesRange(
-                rightTable,
-                leftTable,
-                nodeRight::getCosts,
-                nodeLeft::getCosts,
+        Pair<Long, Long> range = tupleRangeCalculator.calculateTuplesRange(
                 minTuples,
                 maxTuples,
                 leftConditionsCount,
-                rightConditionsCount,
-                JoinNodeType.MERGE_JOIN
+                rightConditionsCount
         );
         return new ImmutablePair<>(range.getLeft(), range.getRight());
     }
@@ -147,5 +137,8 @@ public class MergeJoin implements Join {
         rightTableColumns = new ArrayList<>(columnsAndTypesParent.keySet());
         Map<String, String> columnsAndTypesChild = V2.getColumnsAndTypes(leftTable);
         leftTableColumns = new ArrayList<>(columnsAndTypesChild.keySet());
+
+        tupleRangeCalculator = new JoinTupleRangeCalculator(leftTable, rightTable,
+                nodeLeft::getCosts, nodeRight::getCosts, JoinNodeType.MERGE_JOIN);
     }
 }

@@ -13,7 +13,7 @@ import static com.haskov.utils.SQLUtils.*;
 import static com.haskov.utils.SQLUtils.getVisiblePages;
 
 @Getter
-public class TupleRangeCalculator {
+public class ScanTupleRangeCalculator {
     private final SeqScanCostCalculator seqScanCalculator;
     private final IndexOnlyScanCostCalculator indexOnlyCalculator;
     private final IndexScanCostCalculator indexCalculator;
@@ -26,7 +26,7 @@ public class TupleRangeCalculator {
     private final long numTuples;
 
 
-    public TupleRangeCalculator(String tableName, String indexedColumn) {
+    public ScanTupleRangeCalculator(String tableName, String indexedColumn) {
         Pair<Long, Long> result = getTablePagesAndRowsCount(tableName);
         long numPages = result.getLeft();
         long numTuples = result.getRight();
@@ -71,7 +71,7 @@ public class TupleRangeCalculator {
                     ScanNodeType.BITMAP_SCAN)
             );
             List<Double> costs = new ArrayList<>(List.of(
-                    seqScanCalculator.calculateCost(conditionsCount),
+                    seqScanCalculator.calculateCost(conditionsCount + indexConditionsCount),
                     indexCalculator.calculateCost(indexConditionsCount, conditionsCount, sel),
                     indexOnlyCalculator.calculateCost(indexConditionsCount, sel),
                     bitmapCalculator.calculateCost(indexConditionsCount, conditionsCount, sel)
@@ -94,7 +94,7 @@ public class TupleRangeCalculator {
                 .map(Pair::getValue)
                 .toList();
 
-        double error = 1.1;
+        double error = 1.05;
         Pair<Long, Long> range = new ImmutablePair<>((Math.round(costList.getFirst() * error)),
                 (Math.round(costList.getLast() / error)));
         cacheMapTuples.put(data, range);

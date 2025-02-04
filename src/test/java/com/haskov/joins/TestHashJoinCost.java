@@ -5,6 +5,8 @@ import com.haskov.PlanAnalyzer;
 import com.haskov.QueryBuilder;
 import com.haskov.bench.V2;
 import com.haskov.bench.v2.Configuration;
+import com.haskov.costs.join.HashJoinCostCalculator;
+import com.haskov.costs.join.NestedLoopJoinCostCalculator;
 import com.haskov.costs.scan.JoinCostCalculator;
 import com.haskov.costs.scan.SeqScanCostCalculator;
 import com.haskov.json.JsonOperations;
@@ -116,16 +118,16 @@ public class TestHashJoinCost {
             outerConditions = parentTableColumns.size();
         }
 
-        double actualCost = JoinCostCalculator.calculateHashJoinCost(
-                innerTable,
-                outerTable,
+        HashJoinCostCalculator joinCostCalculator = new HashJoinCostCalculator(innerTable, outerTable);
+
+        double actualCost = joinCostCalculator.calculateCost(
                 innerCost,
                 outerCost,
                 sel,
                 sel,
-                0,
                 innerConditions,
-                outerConditions
+                outerConditions,
+                0
         );
 
         Assert.assertEquals(expectedCost, actualCost, 0.03 * expectedCost);

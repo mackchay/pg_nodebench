@@ -2,7 +2,7 @@ package com.haskov.costs.scan;
 
 import org.apache.commons.lang3.tuple.Pair;
 
-import static com.haskov.costs.scan.CostParameters.*;
+import static com.haskov.costs.CostParameters.*;
 import static com.haskov.utils.SQLUtils.*;
 
 public class IndexOnlyScanCostCalculator {

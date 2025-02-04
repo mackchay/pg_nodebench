@@ -3,7 +3,7 @@ package com.haskov.nodes.scans;
 import com.haskov.QueryBuilder;
 import com.haskov.bench.V2;
 import com.haskov.costs.scan.BitmapScanCostCalculator;
-import com.haskov.costs.scan.TupleRangeCalculator;
+import com.haskov.costs.scan.ScanTupleRangeCalculator;
 import com.haskov.nodes.Node;
 import com.haskov.types.InsertType;
 import com.haskov.types.ScanNodeType;
@@ -24,7 +24,7 @@ public class BitmapIndexScan implements Node, Scan {
     private int nonIndexColumnsCount = 0;
     private int indexColumnsCount = 0;
     private String table = "";
-    private TupleRangeCalculator tupleCalculator;
+    private ScanTupleRangeCalculator tupleCalculator;
 
     @Override
     public TableBuildResult initScanNode(Long tableSize) {
@@ -42,7 +42,7 @@ public class BitmapIndexScan implements Node, Scan {
         }
         indexColumnsCount = 1;
 
-        tupleCalculator = new TupleRangeCalculator(table, indexColumns.getFirst());
+        tupleCalculator = new ScanTupleRangeCalculator(table, indexColumns.getFirst());
         return result;
     }
 

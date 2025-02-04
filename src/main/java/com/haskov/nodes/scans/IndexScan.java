@@ -3,7 +3,7 @@ package com.haskov.nodes.scans;
 import com.haskov.QueryBuilder;
 import com.haskov.bench.V2;
 import com.haskov.costs.scan.IndexScanCostCalculator;
-import com.haskov.costs.scan.TupleRangeCalculator;
+import com.haskov.costs.scan.ScanTupleRangeCalculator;
 import com.haskov.types.ScanNodeType;
 import com.haskov.types.TableBuildResult;
 import com.haskov.utils.SQLUtils;
@@ -22,7 +22,7 @@ public class IndexScan implements Scan {
     private int indexColumnsCount = 0;
     private String indexColumn = "";
     private String table = "";
-    private TupleRangeCalculator tupleCalculator;
+    private ScanTupleRangeCalculator tupleCalculator;
 
     @Override
     public TableBuildResult initScanNode(Long tableSize) {
@@ -39,7 +39,7 @@ public class IndexScan implements Scan {
             }
         }
 
-        tupleCalculator = new TupleRangeCalculator(table, indexColumns.getFirst());
+        tupleCalculator = new ScanTupleRangeCalculator(table, indexColumns.getFirst());
         return result;
     }
 
