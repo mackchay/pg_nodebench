@@ -2,7 +2,8 @@ package com.haskov.nodes.scans;
 
 import com.haskov.QueryBuilder;
 import com.haskov.bench.V2;
-import com.haskov.costs.ScanCostCalculator;
+import com.haskov.costs.scan.BitmapScanCostCalculator;
+import com.haskov.costs.scan.TupleRangeCalculator;
 import com.haskov.nodes.Node;
 import com.haskov.types.InsertType;
 import com.haskov.types.ScanNodeType;
@@ -18,14 +19,12 @@ import static com.haskov.tables.TableBuilder.buildRandomTable;
 
 
 public class BitmapIndexScan implements Node, Scan {
-    private List<String> nonIndexColumns = new ArrayList<>();
-    private List<String> indexColumns = new ArrayList<>();
+    private final List<String> nonIndexColumns = new ArrayList<>();
+    private final List<String> indexColumns = new ArrayList<>();
     private int nonIndexColumnsCount = 0;
     private int indexColumnsCount = 0;
-    private String indexColumn = "";
     private String table = "";
-    private final ScanCostCalculator costCalculator = new ScanCostCalculator();
-    private long sel = 0;
+    private TupleRangeCalculator tupleCalculator;
 
     @Override
     public TableBuildResult initScanNode(Long tableSize) {
@@ -42,6 +41,8 @@ public class BitmapIndexScan implements Node, Scan {
             }
         }
         indexColumnsCount = 1;
+
+        tupleCalculator = new TupleRangeCalculator(table, indexColumns.getFirst());
         return result;
     }
 
@@ -51,12 +52,12 @@ public class BitmapIndexScan implements Node, Scan {
         nonIndexColumnsCount = random.nextInt(nonIndexColumns.size()) + 1;
         Collections.shuffle(indexColumns);
         Collections.shuffle(nonIndexColumns);
-        indexColumn = indexColumns.getFirst();
     }
 
     @Override
     public QueryBuilder buildQuery(QueryBuilder qb) {
-        Random random = new Random();
+        Pair<Long, Long> tupleRange = getTuplesRange();
+        qb.setMinMaxTuples(tupleRange.getLeft(), tupleRange.getRight());
 
         qb.from(table);
         qb.setIndexConditionCount((indexColumnsCount)*2);
@@ -64,7 +65,6 @@ public class BitmapIndexScan implements Node, Scan {
 
         for (int j = 0; j < indexColumnsCount; j++) {
             qb.randomWhere(table, indexColumns.get(j));
-            indexColumn = indexColumns.get(j);
         }
         for (int j = 0; j < nonIndexColumnsCount; j++) {
             qb.randomWhere(table, nonIndexColumns.get(j));
@@ -83,10 +83,9 @@ public class BitmapIndexScan implements Node, Scan {
 
     @Override
     public Pair<Double, Double> getCosts(double sel) {
-        double startUpCost = costCalculator.getIndexScanStartUpCost
-                (table, indexColumn);
-        double totalCost = costCalculator.calculateIndexOnlyScanCost
-                (table, indexColumn, indexColumnsCount * 2,
+        BitmapScanCostCalculator costCalculator = tupleCalculator.getBitmapCalculator();
+        double startUpCost = costCalculator.calculateStartUpCost();
+        double totalCost = costCalculator.calculateCost(indexColumnsCount * 2,
                         nonIndexColumnsCount * 2, sel);
         return new ImmutablePair<>(startUpCost, totalCost);
     }
@@ -98,23 +97,17 @@ public class BitmapIndexScan implements Node, Scan {
 
     @Override
     public Pair<Long, Long> getTuplesRange() {
-        Pair<Long, Long> range = costCalculator.calculateTuplesRange
-                (table, indexColumn, indexColumnsCount * 2, nonIndexColumnsCount * 2,
+        Pair<Long, Long> range = tupleCalculator.calculateTuplesRange
+                (indexColumnsCount * 2, nonIndexColumnsCount * 2,
                         ScanNodeType.BITMAP_SCAN);
         long minTuples = range.getLeft();
         long maxTuples = range.getRight();
-        sel = maxTuples / SQLUtils.getTableRowCount(table);
         return new ImmutablePair<>(minTuples, maxTuples);
     }
 
     @Override
     public List<String> getTables() {
         return List.of(table);
-    }
-
-    @Override
-    public double getSel() {
-        return sel;
     }
 
 }

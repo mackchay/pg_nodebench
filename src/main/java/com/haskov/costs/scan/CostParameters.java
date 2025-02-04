@@ -1,7 +1,6 @@
-package com.haskov.costs;
+package com.haskov.costs.scan;
 
 import com.haskov.utils.SQLUtils;
-import lombok.Getter;
 
 import java.util.Map;
 

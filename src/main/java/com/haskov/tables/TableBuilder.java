@@ -18,7 +18,7 @@ public class TableBuilder {
     public static TableBuildResult buildRandomTable(String tableName, long tableSize,
                                                     InsertType insertType, TableIndexType tableIndexType) {
         if (SQLUtils.isTableExists(tableName) &&
-                SQLUtils.getTablePagesAndRowsCount(tableName).getRight().equals(tableSize)) {
+                SQLUtils.getTableRowCount(tableName).equals(tableSize)) {
             if (tableNames.containsKey(tableName)) {
                 tableName += tableNames.get(tableName);
             }

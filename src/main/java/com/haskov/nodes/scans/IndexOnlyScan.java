@@ -2,10 +2,10 @@ package com.haskov.nodes.scans;
 
 import com.haskov.QueryBuilder;
 import com.haskov.bench.V2;
-import com.haskov.costs.ScanCostCalculator;
+import com.haskov.costs.scan.IndexOnlyScanCostCalculator;
+import com.haskov.costs.scan.TupleRangeCalculator;
 import com.haskov.nodes.Node;
 import com.haskov.types.*;
-import com.haskov.utils.SQLUtils;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 
@@ -19,19 +19,18 @@ public class IndexOnlyScan implements Node, Scan {
     private int indexColumnsCount = 0;
     private String indexColumn = "";
     private String table = "";
-    private final ScanCostCalculator costCalculator = new ScanCostCalculator();
-    private long sel = 0;
-    private long tableSize;
+    private TupleRangeCalculator tupleCalculator;
 
     @Override
     public TableBuildResult initScanNode(Long tableSize) {
         TableBuildResult result = createTable(tableSize);
         table = result.tableName();
-        this.tableSize = tableSize;
         Map<String, String> columnsAndTypes = V2.getColumnsAndTypes(table);
         String[] columns = columnsAndTypes.keySet().toArray(new String[0]);
         indexColumns = new ArrayList<>(Arrays.asList(columns));
         indexColumnsCount = 1;
+
+        tupleCalculator = new TupleRangeCalculator(table, indexColumns.getFirst());
         return result;
     }
 
@@ -43,6 +42,8 @@ public class IndexOnlyScan implements Node, Scan {
 
     @Override
     public QueryBuilder buildQuery(QueryBuilder qb) {
+        Pair<Long, Long> tupleRange = getTuplesRange();
+        qb.setMinMaxTuples(tupleRange.getLeft(), tupleRange.getRight());
 
         qb.setIndexConditionCount(indexColumnsCount * 2);
         qb.from(table);
@@ -65,13 +66,9 @@ public class IndexOnlyScan implements Node, Scan {
 
     @Override
     public Pair<Double, Double> getCosts(double sel) {
-        Pair<Long, Long> range = costCalculator.calculateTuplesRange
-                (table, indexColumn, indexColumnsCount * 2, 0,
-                        ScanNodeType.INDEX_ONLY_SCAN);
-        double startUpCost = costCalculator.getIndexScanStartUpCost
-                (table, indexColumn);
-        double totalCost = costCalculator.calculateIndexOnlyScanCost
-                (table, indexColumn, 0, indexColumnsCount * 2, sel);
+        IndexOnlyScanCostCalculator costCalculator = tupleCalculator.getIndexOnlyCalculator();
+        double startUpCost = costCalculator.calculateStartUpCost();
+        double totalCost = costCalculator.calculateCost(indexColumnsCount * 2, sel);
         return new ImmutablePair<>(startUpCost, totalCost);
     }
 
@@ -82,23 +79,17 @@ public class IndexOnlyScan implements Node, Scan {
 
     @Override
     public Pair<Long, Long> getTuplesRange() {
-        Pair<Long, Long> range = costCalculator.calculateTuplesRange
-                (table, indexColumn, indexColumnsCount * 2, 0,
+        Pair<Long, Long> range = tupleCalculator.calculateTuplesRange
+                (indexColumnsCount * 2, 0,
                         ScanNodeType.INDEX_ONLY_SCAN);
         long maxTuples = range.getRight();
         long minTuples = range.getLeft();
-        sel = maxTuples / tableSize;
         return new ImmutablePair<>(minTuples, maxTuples);
     }
 
     @Override
     public List<String> getTables() {
         return List.of(table);
-    }
-
-    @Override
-    public double getSel() {
-        return sel;
     }
 
 }

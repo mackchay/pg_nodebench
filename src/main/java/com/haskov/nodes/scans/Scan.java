@@ -23,8 +23,4 @@ public interface Scan extends Node {
     public default void prepareScanQuery() {
 
     }
-    /**
-     * @return возвращает селективность
-     */
-    double getSel();
 }

@@ -5,11 +5,9 @@ import com.haskov.PlanAnalyzer;
 import com.haskov.QueryBuilder;
 import com.haskov.bench.V2;
 import com.haskov.bench.v2.Configuration;
-import com.haskov.costs.ScanCostCalculator;
+import com.haskov.costs.scan.SeqScanCostCalculator;
 import com.haskov.json.JsonOperations;
 import com.haskov.json.PgJsonPlan;
-import com.haskov.nodes.Node;
-import com.haskov.nodes.NodeFactory;
 import com.haskov.types.TableBuildResult;
 import com.haskov.utils.SQLUtils;
 import org.junit.Assert;
@@ -77,9 +75,9 @@ public class TestSeqScanCost {
                         findNode(JsonOperations.explainResultsJson(query), expectedNodeType)).
                 getJson().get("Total Cost").getAsDouble();
 
-        ScanCostCalculator costCalculator = new ScanCostCalculator();
+        SeqScanCostCalculator costCalculator = new SeqScanCostCalculator(table);
 
-        double actualCost = costCalculator.calculateSeqScanCost(table, nonIndexColumns.size());
+        double actualCost = costCalculator.calculateCost(nonIndexColumns.size());
 
         Assert.assertEquals(expectedCost, actualCost, 0.01);
     }

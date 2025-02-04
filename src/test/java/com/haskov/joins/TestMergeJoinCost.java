@@ -5,14 +5,13 @@ import com.haskov.PlanAnalyzer;
 import com.haskov.QueryBuilder;
 import com.haskov.bench.V2;
 import com.haskov.bench.v2.Configuration;
-import com.haskov.costs.JoinCostCalculator;
-import com.haskov.costs.ScanCostCalculator;
+import com.haskov.costs.scan.IndexOnlyScanCostCalculator;
+import com.haskov.costs.scan.JoinCostCalculator;
 import com.haskov.json.JsonOperations;
 import com.haskov.json.PgJsonPlan;
 import com.haskov.types.JoinData;
 import com.haskov.types.JoinType;
 import com.haskov.types.TableBuildResult;
-import com.haskov.utils.SQLUtils;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -91,12 +90,13 @@ public class TestMergeJoinCost {
                         findNode(JsonOperations.explainResultsJson(query), expectedNodeType)).
                 getJson().get("Total Cost").getAsDouble();
 
-        ScanCostCalculator costCalculator = new ScanCostCalculator();
+        IndexOnlyScanCostCalculator costCalculator = new IndexOnlyScanCostCalculator(parentTable,
+                parentTableColumns.getFirst());
+        IndexOnlyScanCostCalculator costCalculator1 = new IndexOnlyScanCostCalculator(childTable,
+                childTableColumns.getFirst());
 
-        double parentCost = costCalculator.calculateIndexOnlyScanCost(parentTable, parentTableColumns.getFirst(),
-                parentTableColumns.size(), 0, sel);
-        double childCost = costCalculator.calculateIndexOnlyScanCost(childTable, childTableColumns.getFirst(),
-                childTableColumns.size(), 0, sel);
+        double parentCost = costCalculator.calculateCost(parentTableColumns.size(), sel);
+        double childCost = costCalculator1.calculateCost(childTableColumns.size(), sel);
 
         double innerCost, outerCost;
         String innerTable, outerTable;

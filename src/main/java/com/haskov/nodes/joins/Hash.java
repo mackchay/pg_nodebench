@@ -16,6 +16,11 @@ public class Hash implements InternalNode {
     }
 
     @Override
+    public QueryBuilder buildQuery(QueryBuilder qb) {
+        return child.buildQuery(qb);
+    }
+
+    @Override
     public Pair<Double, Double> getCosts(double sel) {
         return child.getCosts(sel);
     }

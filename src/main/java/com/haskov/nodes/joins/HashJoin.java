@@ -2,7 +2,7 @@ package com.haskov.nodes.joins;
 
 import com.haskov.QueryBuilder;
 import com.haskov.bench.V2;
-import com.haskov.costs.JoinCostCalculator;
+import com.haskov.costs.scan.JoinCostCalculator;
 import com.haskov.nodes.Node;
 import com.haskov.types.JoinData;
 import com.haskov.types.JoinNodeType;
@@ -21,14 +21,17 @@ public class HashJoin implements Join {
     private List<String> rightTableColumns;
     private List<String> leftTableColumns;
 
-    private int leftConditionsCount;
-    private int rightConditionsCount;
-
     private final JoinCostCalculator costCalculator = new JoinCostCalculator();
 
 
     @Override
     public QueryBuilder buildQuery(QueryBuilder qb) {
+        Pair<Long, Long> tupleRange = getTuplesRange();
+        qb.setMinMaxTuples(tupleRange.getLeft(), tupleRange.getRight());
+        qb = nodeLeft.buildQuery(qb);
+
+        qb.setMinMaxTuplesForce(tupleRange.getLeft(), tupleRange.getRight());
+        qb = nodeRight.buildQuery(qb);
 
         Collections.shuffle(rightTableColumns);
         Collections.shuffle(leftTableColumns);
@@ -58,7 +61,12 @@ public class HashJoin implements Join {
         double innerScanCost, outerScanCost;
         int innerConditionsCount, outerConditionsCount;
 
-        if (rightCosts.getRight() > leftCosts.getRight()) {
+        int leftConditionsCount = nodeLeft.getConditions().getLeft() +
+                nodeLeft.getConditions().getRight();
+        int rightConditionsCount = nodeRight.getConditions().getLeft() +
+                nodeRight.getConditions().getRight();
+
+        if (rightCosts.getRight() < leftCosts.getRight()) {
             innerTable = rightTable;
             outerTable = leftTable;
             innerScanCost = rightCosts.getRight();
@@ -94,6 +102,11 @@ public class HashJoin implements Join {
         Pair<Long, Long> leftTuplesRange = nodeLeft.getTuplesRange();
         Pair<Long, Long> rightTuplesRange = nodeRight.getTuplesRange();
 
+        int leftConditionsCount = nodeLeft.getConditions().getLeft() +
+                nodeLeft.getConditions().getRight();
+        int rightConditionsCount = nodeRight.getConditions().getLeft() +
+                nodeRight.getConditions().getRight();
+
         long minTuples = Math.min(leftTuplesRange.getLeft(), rightTuplesRange.getLeft());
         long maxTuples = Math.max(leftTuplesRange.getRight(), rightTuplesRange.getRight());
         Pair<Long, Long> range = costCalculator.calculateTuplesRange(
@@ -117,6 +130,10 @@ public class HashJoin implements Join {
 
     @Override
     public Pair<Integer, Integer> getConditions() {
+        int leftConditionsCount = nodeLeft.getConditions().getLeft() +
+                nodeLeft.getConditions().getRight();
+        int rightConditionsCount = nodeRight.getConditions().getLeft() +
+                nodeRight.getConditions().getRight();
         return new ImmutablePair<>(leftConditionsCount, rightConditionsCount);
     }
 
@@ -132,8 +149,5 @@ public class HashJoin implements Join {
         rightTableColumns = new ArrayList<>(columnsAndTypesParent.keySet());
         Map<String, String> columnsAndTypesChild = V2.getColumnsAndTypes(leftTable);
         leftTableColumns = new ArrayList<>(columnsAndTypesChild.keySet());
-
-        this.leftConditionsCount = nodeLeft.getConditions().getLeft() + nodeLeft.getConditions().getRight();
-        this.rightConditionsCount = nodeRight.getConditions().getLeft() + nodeRight.getConditions().getRight();
     }
 }

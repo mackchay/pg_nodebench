@@ -5,14 +5,13 @@ import com.haskov.PlanAnalyzer;
 import com.haskov.QueryBuilder;
 import com.haskov.bench.V2;
 import com.haskov.bench.v2.Configuration;
-import com.haskov.costs.JoinCostCalculator;
-import com.haskov.costs.ScanCostCalculator;
+import com.haskov.costs.scan.JoinCostCalculator;
+import com.haskov.costs.scan.SeqScanCostCalculator;
 import com.haskov.json.JsonOperations;
 import com.haskov.json.PgJsonPlan;
 import com.haskov.types.JoinData;
 import com.haskov.types.JoinType;
 import com.haskov.types.TableBuildResult;
-import com.haskov.utils.SQLUtils;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -91,10 +90,11 @@ public class TestMaterializedNestedLoopCost {
                         findNode(JsonOperations.explainResultsJson(query), expectedNodeType)).
                 getJson().get("Total Cost").getAsDouble();
 
-        ScanCostCalculator costCalculator = new ScanCostCalculator();
+        SeqScanCostCalculator costCalculator = new SeqScanCostCalculator(parentTable);
+        SeqScanCostCalculator costCalculator1 = new SeqScanCostCalculator(childTable);
 
-        double parentCost = costCalculator.calculateSeqScanCost(parentTable, parentTableColumns.size());
-        double childCost = costCalculator.calculateSeqScanCost(childTable, childTableColumns.size());
+        double parentCost = costCalculator.calculateCost(parentTableColumns.size());
+        double childCost = costCalculator1.calculateCost(childTableColumns.size());
 
         double innerCost, outerCost;
         String innerTable, outerTable;

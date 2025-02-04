@@ -19,6 +19,7 @@ public class Aggregate implements InternalNode {
 
     @Override
     public QueryBuilder buildQuery(QueryBuilder qb) {
+        qb = child.buildQuery(qb);
         if (!qb.hasSelectColumns()) {
             throw new RuntimeException("Aggregate requires a select columns: requires Scan or Result.");
         }

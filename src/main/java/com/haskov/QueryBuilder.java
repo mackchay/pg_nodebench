@@ -24,10 +24,11 @@ public class QueryBuilder {
     private final Random random = new Random();
     private final List<String> groupByColumns = new ArrayList<>();
     private final List<String> unionQueries = new ArrayList<>();
-    private static final ScanCostCalculator scanCostCalculator = new ScanCostCalculator();
     private Long minTuples = 0L;
     private Long maxTuples = Long.MAX_VALUE;
-    private Map<String, Pair<Long, Long>> cacheMinMax = new HashMap<>();
+
+    private Long min = 0L;
+    private Long max = Long.MAX_VALUE;
 
     //Максимальное количество столбцов среди всех запросов с UNION ALL
     private int maxSelectColumns = 0;
@@ -38,10 +39,47 @@ public class QueryBuilder {
     @Setter
     private int conditionCount = 0;
 
+    public QueryBuilder merge(QueryBuilder qb) {
+        selectColumns.addAll(qb.selectColumns);
+        whereConditions.addAll(qb.whereConditions);
+        orderByColumns.addAll(qb.orderByColumns);
+        joins.addAll(qb.joins);
+        groupByColumns.addAll(qb.groupByColumns);
+        unionQueries.addAll(qb.unionQueries);
+        return this;
+    }
+
     // Метод для указания таблицы
     public QueryBuilder from(String table) {
         tableName = table;
         return this;
+    }
+
+    public void setMinMaxTuples(long minTuples, long maxTuples) {
+        if (this.minTuples < minTuples) {
+            this.minTuples = minTuples;
+        }
+        if (this.maxTuples > maxTuples) {
+            this.maxTuples = maxTuples;
+        }
+    }
+
+    public void setMinMaxTuplesForce(long minTuples, long maxTuples) {
+        this.minTuples = minTuples;
+        this.maxTuples = maxTuples;
+    }
+
+
+    /**
+     * @return minTuples, maxTuples
+     */
+    public Pair<Long, Long> getMinMaxTuples() {
+        return new ImmutablePair<>(minTuples, maxTuples);
+    }
+
+    public void setMinMax(long min, long max) {
+        this.min = min;
+        this.max = max;
     }
 
     // Метод для указания столбцов в SELECT
@@ -98,15 +136,6 @@ public class QueryBuilder {
     // Метод для добавления случайного метода
     public QueryBuilder randomWhere(String table, String column) {
         this.select(table + "." + column);
-        long min, max;
-        if (cacheMinMax.containsKey(table)) {
-            min = cacheMinMax.get(table).getLeft();
-            max = cacheMinMax.get(table).getRight();
-        } else {
-            min = Long.parseLong(SQLUtils.getMin(table, column));
-            max = Long.parseLong(SQLUtils.getMax(table, column));
-            cacheMinMax.put(table, new ImmutablePair<>(min, max));
-        }
 
         long tuples = random.nextLong(minTuples, maxTuples + 1);
         //long tuples = maxTuples;

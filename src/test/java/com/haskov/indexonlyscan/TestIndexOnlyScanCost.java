@@ -5,19 +5,12 @@ import com.haskov.PlanAnalyzer;
 import com.haskov.QueryBuilder;
 import com.haskov.bench.V2;
 import com.haskov.bench.v2.Configuration;
-import com.haskov.costs.CostCalculator;
-import com.haskov.costs.JoinCostCalculator;
-import com.haskov.costs.ScanCostCalculator;
+import com.haskov.costs.scan.IndexOnlyScanCostCalculator;
 import com.haskov.json.JsonOperations;
 import com.haskov.json.PgJsonPlan;
-import com.haskov.nodes.Node;
-import com.haskov.nodes.NodeFactory;
-import com.haskov.types.JoinData;
-import com.haskov.types.JoinType;
 import com.haskov.types.TableBuildResult;
 import org.junit.Assert;
 import org.junit.Test;
-import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -72,10 +65,10 @@ public class TestIndexOnlyScanCost {
                         findNode(JsonOperations.explainResultsJson(query), expectedNodeType)).
                 getJson().get("Total Cost").getAsDouble();
 
-        ScanCostCalculator costCalculator = new ScanCostCalculator();
 
-        double actualCost = costCalculator.calculateIndexOnlyScanCost(table, column,
-                1,0, sel);
+        IndexOnlyScanCostCalculator costCalculator = new IndexOnlyScanCostCalculator(table, column);
+
+        double actualCost = costCalculator.calculateCost(1, sel);
 
         Assert.assertEquals(expectedCost, actualCost, 0.1);
     }

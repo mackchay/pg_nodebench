@@ -8,9 +8,7 @@ import java.util.List;
 
 public interface Node {
 
-    public default QueryBuilder buildQuery(QueryBuilder qb) {
-        return qb;
-    }
+    public QueryBuilder buildQuery(QueryBuilder queryBuilder);
 
     /**
      * @return startUpCost, totalCost

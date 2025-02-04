@@ -41,6 +41,10 @@ public class NodeTree {
             tables.addAll(child.createTables(tableSize));
         }
 
+        if (parent instanceof InternalNode internalNode) {
+            internalNode.initInternalNode(children.stream().map(e -> e.parent).toList());
+        }
+
         return tables;
     }
 
@@ -53,41 +57,13 @@ public class NodeTree {
         for (NodeTree child : children) {
             child.prepareQuery();
         }
-
-        if (parent instanceof InternalNode internalNode) {
-            internalNode.initInternalNode(children.stream().map(e -> e.parent).toList());
-        }
     }
 
     public String buildQuery() {
         QueryBuilder qb = new QueryBuilder();
-        Pair<Long, Long> tuplesRange = parent.getTuplesRange();
-        qb.setTuples(tuplesRange.getLeft(), tuplesRange.getRight());
         qb.setMinMax(0L, tableSize - 1);
-        return buildQuery(qb).build();
-    }
-
-    public QueryBuilder buildQuery(QueryBuilder queryBuilder) {
-
-        if (parent instanceof Scan) {
-            return parent.buildQuery(queryBuilder);
-        }
-        for (NodeTree child : children) {
-            queryBuilder = child.buildQuery(queryBuilder);
-            if (parent instanceof Join) {
-                continue;
-            }
-            if (children.size() == 1) {
-                queryBuilder = parent.buildQuery(queryBuilder);
-            }
-            if (children.indexOf(child) != children.size() - 1) {
-                queryBuilder = parent.buildQuery(queryBuilder);
-            }
-        }
-        if (parent instanceof Join) {
-            parent.buildQuery(queryBuilder);
-        }
-        return queryBuilder;
+        qb.setMinMaxTuples(0L, tableSize - 1);
+        return parent.buildQuery(qb).build();
     }
 
 }

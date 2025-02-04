@@ -1,12 +1,10 @@
 package com.haskov.nodes.scans;
 
 import com.haskov.QueryBuilder;
-import com.haskov.costs.ScanCostCalculator;
-import com.haskov.nodes.Node;
+import com.haskov.costs.scan.SeqScanCostCalculator;
 import com.haskov.types.InsertType;
 import com.haskov.types.TableBuildResult;
 import com.haskov.types.TableIndexType;
-import com.haskov.utils.SQLUtils;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 
@@ -20,7 +18,7 @@ public class SeqScan implements Scan {
     private String table = "";
     private List<String> columns = new ArrayList<>();
     private long tableSize;
-    private ScanCostCalculator costCalculator = new ScanCostCalculator();
+    private SeqScanCostCalculator costCalculator;
 
     @Override
     public TableBuildResult initScanNode(Long tableSize) {
@@ -28,11 +26,14 @@ public class SeqScan implements Scan {
         table = result.tableName();
         this.tableSize = tableSize;
         columns = new ArrayList<>(getColumnsAndTypes(table).keySet());
+        costCalculator = new SeqScanCostCalculator(table);
         return result;
     }
 
     @Override
     public QueryBuilder buildQuery(QueryBuilder qb) {
+        Pair<Long, Long> tupleRange = getTuplesRange();
+        qb.setMinMaxTuples(tupleRange.getLeft(), tupleRange.getRight());
         qb.from(table);
         for (String column : columns.subList(0, columnsConditionsCount)) {
             qb.randomWhere(table, column);
@@ -55,7 +56,7 @@ public class SeqScan implements Scan {
 
     @Override
     public Pair<Double, Double> getCosts(double sel) {
-        double totalCost = costCalculator.calculateSeqScanCost(table, columnsConditionsCount * 2);
+        double totalCost = costCalculator.calculateCost(columnsConditionsCount * 2);
         return new ImmutablePair<>(0.0, totalCost);
     }
 
@@ -72,10 +73,5 @@ public class SeqScan implements Scan {
     @Override
     public List<String> getTables() {
         return List.of(table);
-    }
-
-    @Override
-    public double getSel() {
-        return 1;
     }
 }

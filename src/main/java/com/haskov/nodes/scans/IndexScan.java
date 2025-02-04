@@ -2,8 +2,8 @@ package com.haskov.nodes.scans;
 
 import com.haskov.QueryBuilder;
 import com.haskov.bench.V2;
-import com.haskov.costs.ScanCostCalculator;
-import com.haskov.nodes.Node;
+import com.haskov.costs.scan.IndexScanCostCalculator;
+import com.haskov.costs.scan.TupleRangeCalculator;
 import com.haskov.types.ScanNodeType;
 import com.haskov.types.TableBuildResult;
 import com.haskov.utils.SQLUtils;
@@ -22,15 +22,12 @@ public class IndexScan implements Scan {
     private int indexColumnsCount = 0;
     private String indexColumn = "";
     private String table = "";
-    private final ScanCostCalculator costCalculator = new ScanCostCalculator();
-    private long sel = 0;
-    private long tableSize;
+    private TupleRangeCalculator tupleCalculator;
 
     @Override
     public TableBuildResult initScanNode(Long tableSize) {
         TableBuildResult result = createTable(tableSize);
         table = result.tableName();
-        this.tableSize = tableSize;
         Map<String, String> columnsAndTypes = V2.getColumnsAndTypes(table);
         String[] columns = columnsAndTypes.keySet().toArray(new String[0]);
         for (String column : columns) {
@@ -41,6 +38,8 @@ public class IndexScan implements Scan {
                 nonIndexColumns.add(column);
             }
         }
+
+        tupleCalculator = new TupleRangeCalculator(table, indexColumns.getFirst());
         return result;
     }
 
@@ -56,7 +55,8 @@ public class IndexScan implements Scan {
 
     @Override
     public QueryBuilder buildQuery(QueryBuilder qb) {
-        Random random = new Random();
+        Pair<Long, Long> tupleRange = getTuplesRange();
+        qb.setMinMaxTuples(tupleRange.getLeft(), tupleRange.getRight());
 
         indexColumnsCount = 1;
 
@@ -82,14 +82,10 @@ public class IndexScan implements Scan {
 
     @Override
     public Pair<Double, Double> getCosts(double sel) {
-        long maxTuples = costCalculator.calculateTuplesRange(
-                table, indexColumn, nonIndexColumnsCount * 2,
-                        indexColumnsCount * 2,
-                ScanNodeType.INDEX_SCAN).getRight();
-        double startUpCost = costCalculator.getIndexScanStartUpCost
-                (table, indexColumn);
-        double totalCost = costCalculator.calculateIndexScanCost
-                (table, indexColumn, indexColumnsCount * 2,
+        IndexScanCostCalculator costCalculator = tupleCalculator.getIndexCalculator();
+        double startUpCost = costCalculator.calculateStartUpCost();
+        double totalCost = costCalculator.calculateCost
+                (indexColumnsCount * 2,
                         nonIndexColumnsCount * 2, sel);
         return new ImmutablePair<>(startUpCost, totalCost);
     }
@@ -101,20 +97,14 @@ public class IndexScan implements Scan {
 
     @Override
     public Pair<Long, Long> getTuplesRange() {
-        Pair<Long, Long> range = costCalculator.calculateTuplesRange
-                (table, indexColumn, nonIndexColumnsCount * 2, indexColumnsCount * 2,
+        Pair<Long, Long> range = tupleCalculator.calculateTuplesRange
+                (nonIndexColumnsCount * 2, indexColumnsCount * 2,
                         ScanNodeType.INDEX_SCAN);
-        sel = range.getRight() / SQLUtils.getTableRowCount(table);
         return new ImmutablePair<>(range.getLeft(), range.getRight());
     }
 
     @Override
     public List<String> getTables() {
         return List.of(table);
-    }
-
-    @Override
-    public double getSel() {
-        return sel;
     }
 }
