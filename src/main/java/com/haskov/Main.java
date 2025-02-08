@@ -12,8 +12,8 @@ public class Main {
     public static void main(String[] args) {
         Configuration conf = Cmd.args(args);
         V2.init(conf);
-        QueryGenerator g = new QueryGenerator();
-        g.generate(conf.tableSize, conf.plan, conf.queryCount);
+        NodeBenchMaster master = new NodeBenchMaster(conf);
+        master.start();
         V2.closeConnection();
     }
 }

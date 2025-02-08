@@ -5,27 +5,24 @@ import com.haskov.json.PgJsonPlan;
 import com.haskov.nodes.NodeTree;
 
 import com.haskov.types.TableBuildResult;
+import lombok.Getter;
 
 import java.util.List;
 
 public class PlanAnalyzer {
     private final long tableSize;
     private final JsonPlan plan;
-    private final NodeTree nodeTree;
+    @Getter
+    private final NodeTree root;
 
     public PlanAnalyzer(long tableSize, JsonPlan plan) {
         this.tableSize = tableSize;
         this.plan = plan;
-        this.nodeTree = new NodeTree(plan);
-    }
-
-    public String buildQuery() {
-        nodeTree.prepareQuery();
-        return nodeTree.buildQuery();
+        this.root = new NodeTree(plan);
     }
 
     public List<TableBuildResult> prepareTables() {
-        return nodeTree.createTables(tableSize);
+        return root.createTables(tableSize);
     }
 
     public boolean comparePlans(PgJsonPlan pgJsonPlan) {

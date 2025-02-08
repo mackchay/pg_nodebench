@@ -5,9 +5,9 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.util.List;
 
-public class SQLScriptsGenerator {
+public class SQLScriptsOutput {
 
-    public void generate(List<String> tableScripts, List<String> queries) {
+    public void writeScripts(List<String> tableScripts, List<String> queries) {
         generateFile("queries.txt", queries);
         generateFile("tables.txt", tableScripts);
     }

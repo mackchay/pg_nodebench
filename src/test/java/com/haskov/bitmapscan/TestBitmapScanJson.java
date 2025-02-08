@@ -1,6 +1,7 @@
 package com.haskov.bitmapscan;
 
 import com.haskov.Cmd;
+import com.haskov.NodeBenchMaster;
 import com.haskov.QueryGenerator;
 import com.haskov.bench.V2;
 import com.haskov.bench.v2.Configuration;
@@ -18,10 +19,9 @@ public class TestBitmapScanJson {
         String argArray = "-h localhost -j " + filePath + " -S " + size + " -q " + queryCount;
         Configuration conf = Cmd.args(argArray.split(" "));
         V2.init(conf);
-        QueryGenerator qb = new QueryGenerator();
-        List<String> queries = qb.generate(conf.tableSize, conf.plan, conf.queryCount);
-        TestUtils.testQueriesOnNode(queries.toArray(new String[0]), expectedNodeType);
-        TestUtils.testQueriesOnNode(queries.toArray(new String[0]), expectedNodeType2);
+        NodeBenchMaster master = new NodeBenchMaster(conf);
+        master.start();
+        V2.closeConnection();
     }
 
     @Test

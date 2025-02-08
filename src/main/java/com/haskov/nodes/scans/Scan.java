@@ -8,7 +8,7 @@ public interface Scan extends Node {
     /**
      * Required to be called first
      */
-    public TableBuildResult initScanNode(Long tableSize);
+    TableBuildResult initScanNode(Long tableSize);
 
 
     /**
@@ -16,10 +16,8 @@ public interface Scan extends Node {
      * @return результат генерации таблицы: название таблицы и sql-скрипты,
      * которые были использованы для ее создания
      */
-    public TableBuildResult createTable(Long tableSize);
+    TableBuildResult createTable(Long tableSize);
 
 
-    public default void prepareScanQuery() {
-
-    }
+    void prepareScanQuery();
 }

@@ -1,6 +1,7 @@
 package com.haskov.seqscan;
 
 import com.haskov.Cmd;
+import com.haskov.NodeBenchMaster;
 import com.haskov.PlanAnalyzer;
 import com.haskov.QueryGenerator;
 import com.haskov.bench.V2;
@@ -19,8 +20,8 @@ public class TestSeqScanJson {
         String argArray = "-h localhost -j " + filePath + " -S " + size + " -q " + queryCount;
         Configuration conf = Cmd.args(argArray.split(" "));
         V2.init(conf);
-        QueryGenerator qb = new QueryGenerator();
-        List<String> queries = qb.generate(conf.tableSize, conf.plan, conf.queryCount);
+        NodeBenchMaster master = new NodeBenchMaster(conf);
+        master.start();
         V2.closeConnection();
     }
 
