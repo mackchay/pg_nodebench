@@ -1,8 +1,0 @@
-{
-  "Node Type": "Aggregate",
-  "Plans": [
-    {
-      "Node Type": "Aggregate"
-    }
-  ]
-}
