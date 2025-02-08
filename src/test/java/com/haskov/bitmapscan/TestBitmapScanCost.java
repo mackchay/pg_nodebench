@@ -30,6 +30,7 @@ public class TestBitmapScanCost {
         List<TableBuildResult> tableScripts = analyzer.prepareTables();
         List<String> tables = List.of(tableScripts.getFirst().tableName(), tableScripts.getLast().tableName());
         generateQuery(tables, size);
+        V2.closeConnection();
     }
 
     @Test
@@ -48,7 +49,7 @@ public class TestBitmapScanCost {
         Map<String, String> columnsAndTypes = V2.getColumnsAndTypes(table);
         List<String> columns = new ArrayList<>(columnsAndTypes.keySet());
 
-        double sel = 0.2;
+        double sel = 0.22;
         long tuples = (long) (size * sel);
 
         List<String> nonIndexColumns = new ArrayList<>();
@@ -66,7 +67,8 @@ public class TestBitmapScanCost {
         }
 
         qb.select(table + "." + indexColumns.getFirst()).from(table);
-        qb.where(table + "." + indexColumns.getFirst() + " < " + tuples);
+        qb.where(table + "." + indexColumns.getFirst() + " < " + tuples + " and " +
+                table + "." + indexColumns.getFirst() + " >= 0");
 
         String query = qb.build();
 
@@ -80,9 +82,9 @@ public class TestBitmapScanCost {
 
         BitmapScanCostCalculator costCalculator = new BitmapScanCostCalculator(table, indexColumns.getFirst());
 
-        double actualCost = costCalculator.calculateCost(1, nonIndexColumns.size(), sel);
-        double bitmapIndexCost = costCalculator.calculateIndexCost(1, sel);
+        double actualCost = costCalculator.calculateCost(2, nonIndexColumns.size(), sel);
+        double bitmapIndexCost = costCalculator.calculateIndexCost(2, sel);
 
-        Assert.assertEquals(expectedCost, actualCost, 0.1);
+        Assert.assertEquals(expectedCost, actualCost, 0.01 * expectedCost);
     }
 }

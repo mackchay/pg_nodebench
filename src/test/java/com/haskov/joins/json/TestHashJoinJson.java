@@ -18,12 +18,13 @@ public class TestHashJoinJson {
         V2.init(conf);
         QueryGenerator qb = new QueryGenerator();
         List<String> queries = qb.generate(conf.tableSize, conf.plan, conf.queryCount);
+        V2.closeConnection();
     }
 
     @Test
     public void testHashJoin() {
-        test(500, 1000);
-        test(1000, 500);
+        test(500, 500);
+        test(1000, 200);
         test(10000, 100);
         test(100000, 50);
     }

@@ -41,7 +41,7 @@ public class BitmapScanCostCalculator {
 
         idxCostPerTuple = cpuIndexTupleCost + qualOpCost * indexConditionsCount;
 
-        idxCpuCost = sel * numIndexTuples * (idxCostPerTuple);
+        idxCpuCost = Math.ceil(sel * numIndexTuples) * (idxCostPerTuple);
         indexIOCost = Math.ceil(sel * numIndexPages) * randomPageCost;
         runCost = idxCpuCost + indexIOCost;
         return (double) Math.round(startup * 100) / 100 + (double) Math.round(runCost * 100) / 100;
@@ -52,15 +52,16 @@ public class BitmapScanCostCalculator {
         double idxCost = calculateIndexCost(indexConditionsCount, sel);
 
         double formula = 2 * numPages * numTuples * sel / (2 * numPages + numTuples * sel);
-        double pagesFetched = Math.min(numPages, formula);
-        double costPerPage = randomPageCost - (randomPageCost - seqPageCost) * Math.sqrt(pagesFetched / numPages);
+        long pagesFetched = Math.round(Math.min(numPages, formula));
+        long tuplesFetched = Math.round(numTuples * sel);
+        double costPerPage = randomPageCost - (randomPageCost - seqPageCost) * Math.sqrt((double) pagesFetched / numPages);
         if (pagesFetched == 1) {
             costPerPage = randomPageCost;
         }
         double startUpCost = idxCost + sel * 0.1 * cpuOperatorCost
                 * numIndexTuples * sel;
-        double runCost = costPerPage * pagesFetched + cpuTupleCost * numTuples * sel
-                + cpuOperatorCost * (conditionsCount + indexConditionsCount) * numTuples * sel;
+        double runCost = costPerPage * pagesFetched + cpuTupleCost * tuplesFetched
+                + cpuOperatorCost * (conditionsCount + indexConditionsCount) * tuplesFetched;
         return (double) Math.round(startUpCost * 100) / 100 + (double) Math.round(runCost * 100) / 100;
     }
 

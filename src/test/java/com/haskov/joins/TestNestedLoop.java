@@ -4,7 +4,6 @@ import com.haskov.Cmd;
 import com.haskov.QueryGenerator;
 import com.haskov.bench.V2;
 import com.haskov.bench.v2.Configuration;
-import com.haskov.test.TestUtils;
 import org.junit.Test;
 
 import java.util.List;
@@ -19,6 +18,7 @@ public class TestNestedLoop {
         V2.init(conf);
         QueryGenerator qb = new QueryGenerator();
         List<String> queries = qb.generate(conf.tableSize, conf.plan, conf.queryCount);
+        V2.closeConnection();
     }
 
     @Test

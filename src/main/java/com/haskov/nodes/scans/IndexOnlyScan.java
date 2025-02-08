@@ -44,8 +44,6 @@ public class IndexOnlyScan implements Node, Scan {
     public QueryBuilder buildQuery(QueryBuilder qb) {
         Pair<Long, Long> tupleRange = getTuplesRange();
         qb.setMinMaxTuples(tupleRange.getLeft(), tupleRange.getRight());
-
-        qb.setIndexConditionCount(indexColumnsCount * 2);
         qb.from(table);
 
         for (String column : indexColumns) {

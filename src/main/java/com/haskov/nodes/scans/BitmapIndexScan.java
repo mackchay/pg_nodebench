@@ -60,8 +60,6 @@ public class BitmapIndexScan implements Node, Scan {
         qb.setMinMaxTuples(tupleRange.getLeft(), tupleRange.getRight());
 
         qb.from(table);
-        qb.setIndexConditionCount((indexColumnsCount)*2);
-        qb.setConditionCount((nonIndexColumnsCount)*2);
 
         for (int j = 0; j < indexColumnsCount; j++) {
             qb.randomWhere(table, indexColumns.get(j));
@@ -92,7 +90,7 @@ public class BitmapIndexScan implements Node, Scan {
 
     @Override
     public Pair<Integer, Integer> getConditions() {
-        return new ImmutablePair<>(indexColumnsCount * 2, nonIndexColumnsCount * 2);
+        return new ImmutablePair<>(indexColumnsCount, nonIndexColumnsCount);
     }
 
     @Override

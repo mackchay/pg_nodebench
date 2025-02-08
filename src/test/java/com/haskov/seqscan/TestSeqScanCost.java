@@ -30,6 +30,7 @@ public class TestSeqScanCost {
         List<TableBuildResult> tableScripts = analyzer.prepareTables();
         List<String> tables = List.of(tableScripts.getFirst().tableName(), tableScripts.getLast().tableName());
         generateQuery(tables, size);
+        V2.closeConnection();
     }
 
     @Test

@@ -33,22 +33,6 @@ public class QueryBuilder {
     //Максимальное количество столбцов среди всех запросов с UNION ALL
     private int maxSelectColumns = 0;
 
-    @Setter
-    private int indexConditionCount = 0;
-
-    @Setter
-    private int conditionCount = 0;
-
-    public QueryBuilder merge(QueryBuilder qb) {
-        selectColumns.addAll(qb.selectColumns);
-        whereConditions.addAll(qb.whereConditions);
-        orderByColumns.addAll(qb.orderByColumns);
-        joins.addAll(qb.joins);
-        groupByColumns.addAll(qb.groupByColumns);
-        unionQueries.addAll(qb.unionQueries);
-        return this;
-    }
-
     // Метод для указания таблицы
     public QueryBuilder from(String table) {
         tableName = table;
@@ -140,6 +124,7 @@ public class QueryBuilder {
         long tuples = random.nextLong(minTuples, maxTuples + 1);
         //long tuples = maxTuples;
         long radius = random.nextLong(min, max - tuples + 2);
+
         this.where(table + "." + column + ">=" + radius).
                 where(table + "." + column + "<" + (radius + tuples));
 

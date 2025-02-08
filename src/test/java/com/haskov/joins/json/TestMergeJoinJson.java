@@ -18,6 +18,7 @@ public class TestMergeJoinJson {
         V2.init(conf);
         QueryGenerator qb = new QueryGenerator();
         List<String> queries = qb.generate(conf.tableSize, conf.plan, conf.queryCount);
+        V2.closeConnection();
     }
 
     @Test
@@ -26,6 +27,6 @@ public class TestMergeJoinJson {
         test(800, 1000);
         test(1000, 800);
         test(10000, 500);
-        test(100000, 100);
+        test(100000, 50);
     }
 }

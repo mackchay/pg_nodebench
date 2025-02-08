@@ -94,9 +94,12 @@ public class ScanTupleRangeCalculator {
                 .map(Pair::getValue)
                 .toList();
 
-        double error = 1.05;
-        Pair<Long, Long> range = new ImmutablePair<>((Math.round(costList.getFirst() * error)),
-                (Math.round(costList.getLast() / error)));
+        double error = 0.3;
+        double dist = (costList.getLast() - costList.getFirst());
+        long minTuple = Math.round(costList.getFirst() + dist * error);
+        long maxTuple = Math.round(costList.getLast() - dist * error);
+
+        Pair<Long, Long> range = new ImmutablePair<>(minTuple, maxTuple);
         cacheMapTuples.put(data, range);
         return range;
     }

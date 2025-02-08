@@ -61,8 +61,6 @@ public class IndexScan implements Scan {
         indexColumnsCount = 1;
 
         qb.from(table);
-        qb.setIndexConditionCount((indexColumnsCount)*2);
-        qb.setConditionCount((nonIndexColumnsCount)*2);
 
         for (int j = 0; j < indexColumnsCount; j++) {
             qb.randomWhere(table, indexColumns.get(j));

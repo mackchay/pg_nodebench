@@ -21,6 +21,7 @@ public class TestSeqScanJson {
         V2.init(conf);
         QueryGenerator qb = new QueryGenerator();
         List<String> queries = qb.generate(conf.tableSize, conf.plan, conf.queryCount);
+        V2.closeConnection();
     }
 
     @Test

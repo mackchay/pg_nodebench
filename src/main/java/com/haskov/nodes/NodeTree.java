@@ -53,7 +53,6 @@ public class NodeTree {
             scan.prepareScanQuery();
         }
 
-        List<TableBuildResult> tables = new ArrayList<>();
         for (NodeTree child : children) {
             child.prepareQuery();
         }
