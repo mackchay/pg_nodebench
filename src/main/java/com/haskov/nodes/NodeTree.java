@@ -1,13 +1,9 @@
 package com.haskov.nodes;
 
 import com.haskov.QueryBuilder;
-import com.haskov.QueryGenerator;
 import com.haskov.json.JsonPlan;
-import com.haskov.nodes.functions.Materialize;
-import com.haskov.nodes.joins.Join;
 import com.haskov.nodes.scans.Scan;
 import com.haskov.types.TableBuildResult;
-import org.apache.commons.lang3.tuple.Pair;
 
 import java.util.ArrayList;
 import java.util.List;

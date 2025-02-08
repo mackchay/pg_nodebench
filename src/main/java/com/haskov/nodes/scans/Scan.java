@@ -2,7 +2,6 @@ package com.haskov.nodes.scans;
 
 import com.haskov.nodes.Node;
 import com.haskov.types.TableBuildResult;
-import org.apache.commons.lang3.tuple.Pair;
 
 public interface Scan extends Node {
 

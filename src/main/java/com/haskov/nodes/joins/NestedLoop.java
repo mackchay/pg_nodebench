@@ -3,8 +3,6 @@ package com.haskov.nodes.joins;
 import com.haskov.QueryBuilder;
 import com.haskov.bench.V2;
 import com.haskov.costs.join.JoinTupleRangeCalculator;
-import com.haskov.costs.join.NestedLoopJoinCostCalculator;
-import com.haskov.costs.scan.JoinCostCalculator;
 import com.haskov.nodes.Node;
 import com.haskov.nodes.functions.Materialize;
 import com.haskov.types.JoinData;

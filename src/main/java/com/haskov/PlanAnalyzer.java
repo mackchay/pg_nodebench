@@ -2,22 +2,16 @@ package com.haskov;
 
 import com.haskov.json.JsonPlan;
 import com.haskov.json.PgJsonPlan;
-import com.haskov.nodes.Node;
-import com.haskov.nodes.NodeFactory;
 import com.haskov.nodes.NodeTree;
-import com.haskov.nodes.joins.Join;
-import com.haskov.nodes.scans.Scan;
-import com.haskov.types.QueryNodeData;
+
 import com.haskov.types.TableBuildResult;
 
-import java.util.ArrayList;
 import java.util.List;
 
 public class PlanAnalyzer {
     private final long tableSize;
     private final JsonPlan plan;
     private final NodeTree nodeTree;
-    private List<TableBuildResult> tableBuildResults;
 
     public PlanAnalyzer(long tableSize, JsonPlan plan) {
         this.tableSize = tableSize;
@@ -31,8 +25,7 @@ public class PlanAnalyzer {
     }
 
     public List<TableBuildResult> prepareTables() {
-        tableBuildResults = nodeTree.createTables(tableSize);
-        return tableBuildResults;
+        return nodeTree.createTables(tableSize);
     }
 
     public boolean comparePlans(PgJsonPlan pgJsonPlan) {

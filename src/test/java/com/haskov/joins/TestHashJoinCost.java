@@ -6,8 +6,6 @@ import com.haskov.QueryBuilder;
 import com.haskov.bench.V2;
 import com.haskov.bench.v2.Configuration;
 import com.haskov.costs.join.HashJoinCostCalculator;
-import com.haskov.costs.join.NestedLoopJoinCostCalculator;
-import com.haskov.costs.scan.JoinCostCalculator;
 import com.haskov.costs.scan.SeqScanCostCalculator;
 import com.haskov.json.JsonOperations;
 import com.haskov.json.PgJsonPlan;

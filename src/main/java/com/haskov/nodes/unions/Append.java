@@ -3,7 +3,6 @@ package com.haskov.nodes.unions;
 import com.haskov.QueryBuilder;
 import com.haskov.nodes.InternalNode;
 import com.haskov.nodes.Node;
-import com.haskov.types.TableBuildResult;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 

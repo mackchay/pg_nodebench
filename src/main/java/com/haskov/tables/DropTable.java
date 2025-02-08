@@ -2,8 +2,6 @@ package com.haskov.tables;
 
 import com.haskov.bench.V2;
 
-import java.util.Arrays;
-
 public class DropTable {
 
     public static void dropTable(String... tableNames) {

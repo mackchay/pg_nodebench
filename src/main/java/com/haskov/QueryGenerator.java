@@ -4,8 +4,6 @@ import com.haskov.bench.V2;
 import com.haskov.json.JsonOperations;
 import com.haskov.json.JsonPlan;
 import com.haskov.json.PgJsonPlan;
-import com.haskov.tables.DropTable;
-import com.haskov.test.TestUtils;
 import com.haskov.types.TableBuildResult;
 
 import java.util.ArrayList;
@@ -33,9 +31,9 @@ public class QueryGenerator {
                 System.out.println(plan);
                 V2.explain(V2.log, query);
                 throw new RuntimeException("Query: " + query + " failed");
-            };
+            }
         }
-        ReportGenerator generator = new ReportGenerator();
+        SQLScriptsGenerator generator = new SQLScriptsGenerator();
         generator.generate(
                 tableScripts.stream().map(TableBuildResult::sqlScripts)
                         .flatMap(List::stream).toList(), queries

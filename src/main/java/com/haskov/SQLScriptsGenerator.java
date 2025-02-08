@@ -5,7 +5,7 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.util.List;
 
-public class ReportGenerator {
+public class SQLScriptsGenerator {
 
     public void generate(List<String> tableScripts, List<String> queries) {
         generateFile("queries.txt", queries);

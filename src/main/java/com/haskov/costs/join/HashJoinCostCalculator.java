@@ -1,7 +1,5 @@
 package com.haskov.costs.join;
 
-import com.haskov.utils.SQLUtils;
-
 import static com.haskov.costs.CostParameters.cpuOperatorCost;
 import static com.haskov.costs.CostParameters.cpuTupleCost;
 import static com.haskov.utils.SQLUtils.getTableRowCount;

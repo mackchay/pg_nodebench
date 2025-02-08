@@ -14,5 +14,6 @@ public class Main {
         V2.init(conf);
         QueryGenerator g = new QueryGenerator();
         g.generate(conf.tableSize, conf.plan, conf.queryCount);
+        V2.closeConnection();
     }
 }
