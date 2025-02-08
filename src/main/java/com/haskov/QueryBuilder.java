@@ -1,12 +1,9 @@
 package com.haskov;
 
-import com.haskov.costs.ScanCostCalculator;
 import com.haskov.types.JoinData;
 import com.haskov.types.JoinType;
 import com.haskov.types.ReplaceOrAdd;
-import com.haskov.utils.SQLUtils;
 import lombok.Getter;
-import lombok.Setter;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 
@@ -128,12 +125,6 @@ public class QueryBuilder {
         this.where(table + "." + column + ">=" + radius).
                 where(table + "." + column + "<" + (radius + tuples));
 
-        return this;
-    }
-
-    public QueryBuilder setTuples(long minTuples, long maxTuples) {
-        this.minTuples = minTuples;
-        this.maxTuples = maxTuples;
         return this;
     }
 
