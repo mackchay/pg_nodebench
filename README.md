@@ -71,15 +71,17 @@ dql-запросы с заданным планом).
 Функциональные узлы:
 
 > Aggregate
+> 
 > Append
 
 Узлы соединения:
 
-> Nested Loop
+> Nested Loop (если 2 потомка узла Seq Scan)
 > 
-> Hash Join
+> Hash Join (если 2 потомка узла Seq Scan)
 > 
-> Merge Join
+> Merge Join (если 2 потомка узла Index Only Scan)
+
 
 Вспомогательные узлы:
 
