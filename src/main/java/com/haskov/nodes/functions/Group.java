@@ -3,7 +3,6 @@ package com.haskov.nodes.functions;
 import com.haskov.QueryBuilder;
 import com.haskov.nodes.InternalNode;
 import com.haskov.nodes.Node;
-import com.haskov.types.ReplaceOrAdd;
 import org.apache.commons.lang3.tuple.Pair;
 
 import java.util.ArrayList;
@@ -11,7 +10,7 @@ import java.util.List;
 
 import static com.haskov.bench.V2.getColumnsAndTypes;
 
-public class Aggregate implements InternalNode {
+public class Group implements InternalNode {
     private Node child;
     private String table;
     private final List<String> columns = new ArrayList<>();
@@ -24,7 +23,7 @@ public class Aggregate implements InternalNode {
         }
 
         for (String column : columns) {
-            qb.count(table + "." + column, ReplaceOrAdd.REPLACE);
+            qb.groupBy(table, column);
         }
         return qb;
     }

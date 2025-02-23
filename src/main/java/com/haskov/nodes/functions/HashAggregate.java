@@ -7,14 +7,16 @@ import com.haskov.types.ReplaceOrAdd;
 import org.apache.commons.lang3.tuple.Pair;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import static com.haskov.bench.V2.getColumnsAndTypes;
 
-public class Aggregate implements InternalNode {
+public class HashAggregate implements InternalNode {
     private Node child;
-    private String table;
-    private final List<String> columns = new ArrayList<>();
+    private List<String> tables;
+    private List<String> columns = new ArrayList<>();
 
     @Override
     public QueryBuilder buildQuery(QueryBuilder qb) {
@@ -23,9 +25,11 @@ public class Aggregate implements InternalNode {
             throw new RuntimeException("Aggregate requires a select columns: requires Scan or Result.");
         }
 
+        columns = qb.getAllSelectColumns();
         for (String column : columns) {
-            qb.count(table + "." + column, ReplaceOrAdd.REPLACE);
+            qb.count(column, ReplaceOrAdd.REPLACE);
         }
+        qb.select("NULL::INT");
         return qb;
     }
 
@@ -41,7 +45,7 @@ public class Aggregate implements InternalNode {
 
     @Override
     public List<String> getTables() {
-        return List.of(table);
+        return tables;
     }
 
     @Override
@@ -51,8 +55,10 @@ public class Aggregate implements InternalNode {
 
     @Override
     public void initInternalNode(List<Node> nodes) {
-        child = nodes.getFirst();
-        table = child.getTables().getFirst();
-        columns.addAll(getColumnsAndTypes(table).keySet());
+        child = nodes.getLast();
+        tables = child.getTables();
+        for (String table : tables) {
+            columns.addAll(getColumnsAndTypes(table).keySet());
+        }
     }
 }

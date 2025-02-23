@@ -1,0 +1,62 @@
+## Запросы:
+
+| Запросы             | Приоритетность | Готовность | Статус |
+|---------------------|----------------|------------|--------|
+| 1. Result           |                | X          | X      |
+| 2. Values Scan      |                | X          | X      |
+| 3. Function Scan    |                | X          | X      |
+| 4. Incremental Sort |                | X          | X      |
+| 5. Unique           |                | X          | X      |
+| 6. Append           |                | ✅          | ✅      |
+| 7. Merge Append     |                | X          | X      |
+| 8. Subquery Scan    |                | X          | X      |
+| 9. HashSetOp        |                | X          | X      |
+| 10. SetOp           |                | X          | X      |
+| 11. Materialize     |                | ✅          | ✅      |
+| 12. Memoize         |                | X          | X      |
+| 13. Group           |                | X          | X      |
+| 14. Aggregate       |                | ✅          | ✅      |
+| 15. GroupAggregate  |                | ✅          | ✅      |
+| 16. HashAggregate   |                | ✅          | ✅      |
+| 17. MixedAggregate  |                | X          | X      |
+| 18. WindowAgg       |                | X          | X      |
+| 19. Parallel Seq Scan | X              | X          | X      |
+| 20. Gather          | X              | X          | X      |
+| 21. Finalize Aggregate | X              | X          | X      |
+| 22. Gather Merge    | X              | X          | X      |
+| 23. Parallel Append | X              | X          | ✅      |
+| 24. Parallel Hash   | X              | X          | X      |
+| 25. Parallel Hash Join | X              | X          | X      |
+| 26. CTE Scan        |                | X          | X      |
+| 27. WorkTable Scan  |                | X          | X      |
+| 28. Nested Loop     |                | ✅          | ✅      |
+| 29. Recursive Union |                | X          | X      |
+| 30. ProjectSet      |                | X          | X      |
+| 31. LockRows        |                | X          | X      |
+| 32. Sample Scan     |                | X          | X      |
+| 33. Table Function Scan |                | X          | X      |
+| 34. Foreign Scan    |                | X          | X      |
+| 35. Tid Scan        |                | X          | X      |
+| 36. Insert          | X              | X          | X      |
+| 37. Update          | X              | X          | X      |
+| 38. Delete          | X              | X          | X      |
+| 39. Merge           |                | X          | X      |
+| 40. Semi Join       |                | X          | X      |
+| 41. Anti Join       |                | X          | X      |
+| 42. SubPlan         |                | X          | X      |
+| 43. Hash Join       |                | ✅          | ✅      |
+| 44. Sort            |                | ✅          | ✅      |
+
+## Действия:
+
+| Действие                                                                      | Статус |
+|-------------------------------------------------------------------------------|---|
+| Запуск всех тестов                                                            | ✅ |
+| Проверка на корректность плана <br/>(создать парсер сообщения в формате json) | ✅  |
+| Сделать удобное лог                                                           | ✅ |
+| Выводить время выполнения 1 запроса 1 процессом                               | ✅ |
+| Разделить таблицы на типы по размеру (малые, большие)                         | ✅ |
+| Создать 4 вида запуска на каждый тест в зависимости от размера таблицы        | ✅ |
+| Исследовать параллельное выполнение запросов                                  | ✅ |
+| Сделать отчет в конце запроса по некольким запросам одного плана              |  ✅ |
+| Добавить удаление таблиц на каждую группу таблиц по размеру                   | ✅ |

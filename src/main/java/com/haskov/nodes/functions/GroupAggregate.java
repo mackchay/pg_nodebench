@@ -11,7 +11,7 @@ import java.util.List;
 
 import static com.haskov.bench.V2.getColumnsAndTypes;
 
-public class Aggregate implements InternalNode {
+public class GroupAggregate implements InternalNode {
     private Node child;
     private String table;
     private final List<String> columns = new ArrayList<>();
@@ -24,7 +24,7 @@ public class Aggregate implements InternalNode {
         }
 
         for (String column : columns) {
-            qb.count(table + "." + column, ReplaceOrAdd.REPLACE);
+            qb.count(table + "." + column, ReplaceOrAdd.ADD);
         }
         return qb;
     }

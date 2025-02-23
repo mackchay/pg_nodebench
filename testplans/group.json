@@ -1,0 +1,13 @@
+{
+  "Node Type": "Group",
+  "Plans": [
+    {
+      "Node Type": "Sort",
+      "Plans": [
+        {
+          "Node Type": "SeqScan"
+        }
+      ]
+    }
+  ]
+}

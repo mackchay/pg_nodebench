@@ -20,7 +20,10 @@ public class QueryBuilder {
     private Integer limitValue;
     private final Random random = new Random();
     private final List<String> groupByColumns = new ArrayList<>();
-    private final List<String> unionQueries = new ArrayList<>();
+
+    private final List<QueryBuilder> unionQueryBuilders = new ArrayList<>();
+    private final List<QueryBuilder> intersectQueryBuilders = new ArrayList<>();
+
     private Long minTuples = 0L;
     private Long maxTuples = Long.MAX_VALUE;
 
@@ -50,6 +53,14 @@ public class QueryBuilder {
         this.maxTuples = maxTuples;
     }
 
+
+    public List<String> getAllSelectColumns() {
+        List<String> allSelectColumns = new ArrayList<>(selectColumns);
+        for (QueryBuilder queryBuilder : unionQueryBuilders) {
+            allSelectColumns.addAll(queryBuilder.getAllSelectColumns());
+        }
+        return allSelectColumns;
+    }
 
     /**
      * @return minTuples, maxTuples
@@ -85,16 +96,16 @@ public class QueryBuilder {
         if (currentColumnsSize < queryColumnsSize) {
             // Добавляем пустые столбцы (NULL) в текущий запрос
             for (int i = currentColumnsSize; i < queryColumnsSize; i++) {
-                this.selectColumns.add("1");
+                this.selectColumns.add("NULL::INT");
             }
         } else if (currentColumnsSize > queryColumnsSize) {
             // Добавляем пустые столбцы (NULL) в запрос, с которым выполняем объединение
             for (int i = queryColumnsSize; i < currentColumnsSize; i++) {
-                queryBuilder.selectColumns.add("1");
+                queryBuilder.selectColumns.add("NULL::INT");
             }
         }
 
-        unionQueries.add(queryBuilder.build());
+        unionQueryBuilders.add(queryBuilder);
         updateMaxSelectColumns();
         return this;
     }
@@ -104,11 +115,11 @@ public class QueryBuilder {
         maxSelectColumns = Math.max(maxSelectColumns, this.selectColumns.size());
     }
 
-    public boolean hasSelectColumns() {
-        return !selectColumns.isEmpty();
+    public boolean IsSelectColumnsEmpty() {
+        return selectColumns.isEmpty();
     }
-
     // Метод для добавления условий WHERE
+
     public QueryBuilder where(String condition) {
         this.whereConditions.add(condition);
         return this;
@@ -155,14 +166,59 @@ public class QueryBuilder {
         return this;
     }
 
+    // Метод для указания группировки GROUP BY
+    public QueryBuilder groupBy(String... columns) {
+        this.groupByColumns.addAll(Arrays.asList(columns));
+        return this;
+    }
+
+    // Метод для указания запросов с общими столбцами
+    public QueryBuilder intersect(QueryBuilder queryBuilder) {
+        // Проверяем количество столбцов в обоих запросах и выравниваем их
+        int currentColumnsSize = this.selectColumns.size();
+        int queryColumnsSize = queryBuilder.selectColumns.size();
+
+        if (currentColumnsSize < queryColumnsSize) {
+            // Добавляем пустые столбцы (NULL) в текущий запрос
+            for (int i = currentColumnsSize; i < queryColumnsSize; i++) {
+                this.selectColumns.add("NULL::INT");
+            }
+        } else if (currentColumnsSize > queryColumnsSize) {
+            // Добавляем пустые столбцы (NULL) в запрос, с которым выполняем объединение
+            for (int i = queryColumnsSize; i < currentColumnsSize; i++) {
+                queryBuilder.selectColumns.add("NULL::INT");
+            }
+        }
+
+        intersectQueryBuilders.add(queryBuilder);
+        updateMaxSelectColumns();
+        return this;
+    }
+
+    public QueryBuilder replaceUnionAllWithIntersect() {
+        intersectQueryBuilders.addAll(unionQueryBuilders);
+        unionQueryBuilders.clear();
+        orderByColumns.clear();
+        return this;
+    }
+
     //Методы для указания столбцов, над которыми будет агрегатные операции Aggregate
-    public void count(String table, String column, ReplaceOrAdd replaceOrAdd) {
+    public void count(String column, ReplaceOrAdd replaceOrAdd) {
         if (replaceOrAdd == ReplaceOrAdd.REPLACE) {
-            if (selectColumns.removeIf(e -> e.equals(table + "." + column))) {
-                selectColumns.add("COUNT(" + table + "." + column + ")");
+            if (selectColumns.removeIf(e -> e.equals(column))) {
+                selectColumns.add("COUNT(" + column + ")");
             }
         } else {
-            selectColumns.add("COUNT(" + table + "." + column + ")");
+            if (selectColumns.contains(column)) {
+                selectColumns.add("COUNT(" + column + ")");
+                groupByColumns.add(column);
+            }
+        }
+        for (QueryBuilder qb : unionQueryBuilders) {
+            qb.count(column, replaceOrAdd);
+        }
+        for (QueryBuilder qb : intersectQueryBuilders) {
+            qb.count(column, replaceOrAdd);
         }
     }
 
@@ -189,8 +245,8 @@ public class QueryBuilder {
     }
 
     public void syncMaxSelectColumns() {
-        while (selectColumns.size() > maxSelectColumns && selectColumns.contains("1") && maxSelectColumns != 0) {
-            selectColumns.remove("1");
+        while (selectColumns.size() > maxSelectColumns && selectColumns.contains("NULL::INT") && maxSelectColumns != 0) {
+            selectColumns.remove("NULL::INT");
         }
         if (maxSelectColumns != 0) {
             List<String> subList = new ArrayList<>(selectColumns.subList(0, maxSelectColumns));
@@ -246,6 +302,21 @@ public class QueryBuilder {
             query.append(" WHERE (").append(String.join(") AND (", whereConditions)).append(")");
         }
 
+
+        if (!groupByColumns.isEmpty()) {
+            query.append(" GROUP BY ").append(String.join(", ", groupByColumns));
+        }
+
+        // INTERSECT part
+        for (QueryBuilder intersectQueryBuilder : intersectQueryBuilders) {
+            query.append(" INTERSECT ").append(intersectQueryBuilder.build());
+        }
+
+        //UNION ALL part
+        for (QueryBuilder unionQueryBuilder : unionQueryBuilders) {
+            query.append(" UNION ALL ").append(unionQueryBuilder.build());
+        }
+
         // ORDER BY part
         if (!orderByColumns.isEmpty()) {
             query.append(" ORDER BY ").append(String.join(", ", orderByColumns));
@@ -254,11 +325,6 @@ public class QueryBuilder {
         // LIMIT part
         if (limitValue != null) {
             query.append(" LIMIT ").append(limitValue);
-        }
-
-        //UNION ALL part
-        for (String unionQuery : unionQueries) {
-            query.append(" UNION ALL ").append(unionQuery);
         }
 
         return query.toString();

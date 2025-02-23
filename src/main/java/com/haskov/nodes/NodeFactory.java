@@ -1,13 +1,14 @@
 package com.haskov.nodes;
 
-import com.haskov.nodes.functions.Aggregate;
-import com.haskov.nodes.functions.Materialize;
+import com.haskov.nodes.functions.*;
 import com.haskov.nodes.joins.Hash;
 import com.haskov.nodes.joins.HashJoin;
 import com.haskov.nodes.joins.MergeJoin;
 import com.haskov.nodes.joins.NestedLoop;
 import com.haskov.nodes.scans.*;
+import com.haskov.nodes.subquery.SubqueryScan;
 import com.haskov.nodes.unions.Append;
+import com.haskov.nodes.unions.SetOp;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -28,6 +29,12 @@ public class NodeFactory {
         nodeMap.put("MergeJoin", MergeJoin.class);
         nodeMap.put("Hash", Hash.class);
         nodeMap.put("Materialize", Materialize.class);
+        nodeMap.put("GroupAggregate", GroupAggregate.class);
+        nodeMap.put("HashAggregate", HashAggregate.class);
+        nodeMap.put("Sort", Sort.class);
+        nodeMap.put("Group", Group.class);
+        nodeMap.put("SetOp", SetOp.class);
+        nodeMap.put("SubqueryScan", SubqueryScan.class);
     }
 
     // Метод для создания узла
