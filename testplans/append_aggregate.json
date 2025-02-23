@@ -1,0 +1,45 @@
+{
+  "Node Type": "Append",
+  "Plans": [
+    {
+      "Node Type": "Aggregate",
+      "Plans": [
+        {
+          "Node Type": "SeqScan"
+        }
+      ]
+    },
+    {
+      "Node Type": "Aggregate",
+      "Plans": [
+        {
+          "Node Type": "SeqScan"
+        }
+      ]
+    },
+    {
+      "Node Type": "Aggregate",
+      "Plans": [
+        {
+          "Node Type": "SeqScan"
+        }
+      ]
+    },
+    {
+      "Node Type": "Aggregate",
+      "Plans": [
+        {
+          "Node Type": "SeqScan"
+        }
+      ]
+    },
+    {
+      "Node Type": "Aggregate",
+      "Plans": [
+        {
+          "Node Type": "SeqScan"
+        }
+      ]
+    }
+  ]
+}

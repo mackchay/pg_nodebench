@@ -5,6 +5,9 @@
       "Node Type": "SeqScan"
     },
     {
+      "Node Type": "SeqScan"
+    },
+    {
       "Node Type": "IndexScan"
     },
     {

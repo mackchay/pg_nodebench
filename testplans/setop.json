@@ -8,7 +8,17 @@
           "Node Type": "SubqueryScan",
           "Plans": [
             {
-              "Node Type": "SeqScan"
+              "Node Type": "Aggregate",
+              "Plans": [
+                {
+                  "Node Type": "BitmapHeapScan",
+                  "Plans": [
+                    {
+                      "Node Type": "BitmapIndexScan"
+                    }
+                  ]
+                }
+              ]
             }
           ]
         },
@@ -16,8 +26,12 @@
           "Node Type": "SubqueryScan",
           "Plans": [
             {
-              "Node Type": "SeqScan"
-
+              "Node Type": "Aggregate",
+              "Plans": [
+                {
+                  "Node Type": "SeqScan"
+                }
+              ]
             }
           ]
         }

@@ -6,15 +6,15 @@
 | 2. Values Scan      |                | X          | X      |
 | 3. Function Scan    |                | X          | X      |
 | 4. Incremental Sort |                | X          | X      |
-| 5. Unique           |                | X          | X      |
+| 5. Unique           |                | ✅          | ✅      |
 | 6. Append           |                | ✅          | ✅      |
 | 7. Merge Append     |                | X          | X      |
 | 8. Subquery Scan    |                | X          | X      |
 | 9. HashSetOp        |                | X          | X      |
-| 10. SetOp           |                | X          | X      |
+| 10. SetOp           |                | ✅         | ✅     |
 | 11. Materialize     |                | ✅          | ✅      |
 | 12. Memoize         |                | X          | X      |
-| 13. Group           |                | X          | X      |
+| 13. Group           |                |✅          | ✅     |
 | 14. Aggregate       |                | ✅          | ✅      |
 | 15. GroupAggregate  |                | ✅          | ✅      |
 | 16. HashAggregate   |                | ✅          | ✅      |

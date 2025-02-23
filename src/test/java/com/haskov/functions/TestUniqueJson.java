@@ -6,9 +6,8 @@ import com.haskov.bench.V2;
 import com.haskov.bench.v2.Configuration;
 import org.junit.Test;
 
-
-public class TestAppendJson {
-    private String filePath = "testplans/append_aggregate.json";
+public class TestUniqueJson {
+    private final static String filePath = "testplans/unique.json";
 
     public void test(long size, int queryCount) {
         String argArray = "-h localhost -j " + filePath + " -S " + size + " -q " + queryCount;
@@ -20,26 +19,9 @@ public class TestAppendJson {
     }
 
     @Test
-    public void testAppend() {
-        filePath = "testplans/append.json";
+    public void testAggregate() {
         test(1000, 1000);
         test(10000, 500);
-        test(100000, 50);
-    }
-
-    @Test
-    public void testAppendAggregate() {
-        filePath = "testplans/append_aggregate.json";
-        test(1000, 1000);
-        test(10000, 500);
-        test(100000, 50);
-    }
-
-    @Test
-    public void testAppendAggregateSubquery() {
-        filePath = "testplans/append_aggregate_subquery.json";
-        test(1000, 1000);
-        test(10000, 500);
-        test(100000, 50);
+        test(100000, 100);
     }
 }

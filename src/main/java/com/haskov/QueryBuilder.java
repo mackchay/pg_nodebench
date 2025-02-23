@@ -4,6 +4,7 @@ import com.haskov.types.JoinData;
 import com.haskov.types.JoinType;
 import com.haskov.types.ReplaceOrAdd;
 import lombok.Getter;
+import lombok.Setter;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 
@@ -21,10 +22,14 @@ public class QueryBuilder {
     private final Random random = new Random();
     private final List<String> groupByColumns = new ArrayList<>();
 
+    //Список запросов входящих в Union ALL
     private final List<QueryBuilder> unionQueryBuilders = new ArrayList<>();
+    //Список запросов входящих в Intersect
     private final List<QueryBuilder> intersectQueryBuilders = new ArrayList<>();
 
+    //Минимальное число строк которое можно прочитать
     private Long minTuples = 0L;
+    //Максимальное число строк которое можно прочитать
     private Long maxTuples = Long.MAX_VALUE;
 
     private Long min = 0L;
@@ -32,6 +37,10 @@ public class QueryBuilder {
 
     //Максимальное количество столбцов среди всех запросов с UNION ALL
     private int maxSelectColumns = 0;
+
+    //Нужно ли получить данные без дубликатов
+    @Setter
+    private boolean isDistinct = false;
 
     // Метод для указания таблицы
     public QueryBuilder from(String table) {
@@ -198,14 +207,17 @@ public class QueryBuilder {
     public QueryBuilder replaceUnionAllWithIntersect() {
         intersectQueryBuilders.addAll(unionQueryBuilders);
         unionQueryBuilders.clear();
-        orderByColumns.clear();
+        for (QueryBuilder queryBuilder : intersectQueryBuilders) {
+            queryBuilder.replaceUnionAllWithIntersect();
+        }
         return this;
     }
 
     //Методы для указания столбцов, над которыми будет агрегатные операции Aggregate
     public void count(String column, ReplaceOrAdd replaceOrAdd) {
         if (replaceOrAdd == ReplaceOrAdd.REPLACE) {
-            if (selectColumns.removeIf(e -> e.equals(column))) {
+            if (selectColumns.contains(column)) {
+                selectColumns.remove(column);
                 selectColumns.add("COUNT(" + column + ")");
             }
         } else {
@@ -213,12 +225,6 @@ public class QueryBuilder {
                 selectColumns.add("COUNT(" + column + ")");
                 groupByColumns.add(column);
             }
-        }
-        for (QueryBuilder qb : unionQueryBuilders) {
-            qb.count(column, replaceOrAdd);
-        }
-        for (QueryBuilder qb : intersectQueryBuilders) {
-            qb.count(column, replaceOrAdd);
         }
     }
 
@@ -268,7 +274,12 @@ public class QueryBuilder {
         StringBuilder query = new StringBuilder();
 
         // SELECT
-        query.append("SELECT ").append(String.join(", ", selectColumns));
+        if (isDistinct) {
+            query.append("SELECT DISTINCT ").append(String.join(", ", selectColumns));
+        } else {
+            query.append("SELECT ").append(String.join(", ", selectColumns));
+        }
+
 
         // FROM part
         query.append(" FROM ").append(String.join(",", tableName));

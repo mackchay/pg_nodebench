@@ -2,7 +2,7 @@
   "Node Type": "Sort",
   "Plans": [
     {
-      "Node Type": "SeqScan"
+      "Node Type": "IndexScan"
     }
   ]
 }

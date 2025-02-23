@@ -35,6 +35,7 @@ public class NodeFactory {
         nodeMap.put("Group", Group.class);
         nodeMap.put("SetOp", SetOp.class);
         nodeMap.put("SubqueryScan", SubqueryScan.class);
+        nodeMap.put("Unique", Unique.class);
     }
 
     // Метод для создания узла

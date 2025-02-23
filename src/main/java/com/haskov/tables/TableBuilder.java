@@ -20,7 +20,9 @@ public class TableBuilder {
         if (SQLUtils.isTableExists(tableName) &&
                 SQLUtils.getTableRowCount(tableName).equals(tableSize)) {
             if (tableNames.containsKey(tableName)) {
-                tableName += tableNames.get(tableName);
+                int index = tableNames.get(tableName);
+                tableNames.put(tableName, index + 1);
+                tableName += index;
             }
         }
 

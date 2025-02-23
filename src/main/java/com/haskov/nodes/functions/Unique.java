@@ -3,31 +3,21 @@ package com.haskov.nodes.functions;
 import com.haskov.QueryBuilder;
 import com.haskov.nodes.InternalNode;
 import com.haskov.nodes.Node;
-import com.haskov.types.ReplaceOrAdd;
+import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 
-import java.util.ArrayList;
 import java.util.List;
 
-import static com.haskov.bench.V2.getColumnsAndTypes;
-
-public class Aggregate implements InternalNode {
+public class Unique implements InternalNode {
     private Node child;
-    private String table;
 
     @Override
     public QueryBuilder buildQuery(QueryBuilder qb) {
         qb = child.buildQuery(qb);
-        if (qb.IsSelectColumnsEmpty()) {
-            throw new RuntimeException("Aggregate requires a select columns: requires Scan or Result.");
-        }
-
-        List<String> columns = new ArrayList<>(qb.getSelectColumns());
-        for (String column : columns) {
-             qb.count(column, ReplaceOrAdd.REPLACE);
-        }
+        qb.setDistinct(true);
         return qb;
     }
+
 
     @Override
     public Pair<Double, Double> getCosts(double sel) {
@@ -36,12 +26,12 @@ public class Aggregate implements InternalNode {
 
     @Override
     public Pair<Long, Long> getTuplesRange() {
-        return child.getTuplesRange();
+        return new ImmutablePair<>(0L, Long.MAX_VALUE);
     }
 
     @Override
     public List<String> getTables() {
-        return List.of(table);
+        return child.getTables();
     }
 
     @Override
@@ -51,7 +41,6 @@ public class Aggregate implements InternalNode {
 
     @Override
     public void initInternalNode(List<Node> nodes) {
-        child = nodes.getFirst();
-        table = child.getTables().getFirst();
+        child = nodes.getLast();
     }
 }
