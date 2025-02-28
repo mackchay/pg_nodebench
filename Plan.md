@@ -8,7 +8,7 @@
 | 4. Incremental Sort     |                | ✅           | ✅      |
 | 5. Unique               |                | ✅          | ✅      |
 | 6. Append               |                | ✅          | ✅      |
-| 7. Merge Append         |                | X          | X      |
+| 7. Merge Append         |                | ✅          | ✅      |
 | 8. Subquery Scan        |                | ✅          | ✅      |
 | 9. HashSetOp            |                | X          | X      |
 | 10. SetOp               |                | ✅         | ✅     |

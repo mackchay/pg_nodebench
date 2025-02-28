@@ -150,6 +150,9 @@ public class QueryBuilder {
     // Метод для добавления случайных диапазонов в WHERE
     public QueryBuilder randomWhere(String table, String column) {
         this.select(table + "." + column);
+        if (maxSelectColumns == selectColumns.size() && maxSelectColumns != 0) {
+            return this;
+        }
 
         long tuples = random.nextLong(minTuples, maxTuples + 1);
         //long tuples = maxTuples;
@@ -288,6 +291,17 @@ public class QueryBuilder {
     public QueryBuilder setAlias(String column, String alias) {
         selectColumns.remove(column);
         selectColumns.add(column + " as " + alias);
+        return this;
+    }
+
+    public QueryBuilder removeSelectColumnsExceptFirst() {
+        selectColumns.removeIf(e -> e.equals("NULL::INT"));
+        while (selectColumns.size() > 1) {
+            String column = selectColumns.removeLast();
+            orderByColumnsLocal.removeIf(e -> e.equals(column));
+            whereConditions.removeIf(e -> e.contains(column));
+        }
+
         return this;
     }
 

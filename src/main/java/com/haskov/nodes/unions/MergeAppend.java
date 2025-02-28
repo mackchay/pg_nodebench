@@ -15,26 +15,37 @@ public class MergeAppend implements InternalNode {
     @Override
     public QueryBuilder buildQuery(QueryBuilder qb) {
         Pair<Long, Long> minMaxTuples = qb.getMinMaxTuples();
+
         for (Node child : children.subList(0, children.size() - 1)) {
             qb = child.buildQuery(qb);
-            List<String> columns = qb.getSelectColumns().stream().
-                    filter(e -> !e.contains("NULL::INT")).toList();
-            qb.setAlias(columns.getFirst(), "dummy");
-            qb.orderBy("dummy");
+
+            qb.removeSelectColumnsExceptFirst();
+            List<String> columns = new ArrayList<>(qb.getSelectColumns());
+            for (int i = 0; i < columns.size(); i++) {
+                qb.setAlias(columns.get(i), "dummy" + i);
+                qb.orderBy("dummy" + i);
+            }
+
             qb = buildQueryHelper(qb);
             qb.setMinMaxTuples(minMaxTuples.getLeft(), minMaxTuples.getRight());
             qb.setMinMax(minMaxTuples.getLeft(), minMaxTuples.getRight());
         }
 
         qb = children.getLast().buildQuery(qb);
-        List<String> columns = qb.getSelectColumns().stream().
-                filter(e -> !e.contains("NULL::INT")).toList();
 
-        qb.setAlias(columns.getFirst(), "dummy");
-        qb.orderBy("dummy");
+
+        qb.removeSelectColumnsExceptFirst();
+        List<String> columns = new ArrayList<>(qb.getSelectColumns());
+        for (int i = 0; i < columns.size(); i++) {
+            qb.setAlias(columns.get(i), "dummy" + i);
+            qb.orderBy("dummy" + i);
+        }
+
         qb.setMinMaxTuples(minMaxTuples.getLeft(), minMaxTuples.getRight());
         qb.setMinMax(minMaxTuples.getLeft(), minMaxTuples.getRight());
-        qb.orderByGlobal("dummy");
+        for (int i = 0; i < 1; i++) {
+            qb.orderByGlobal("dummy" + i);
+        }
         return qb;
     }
 
