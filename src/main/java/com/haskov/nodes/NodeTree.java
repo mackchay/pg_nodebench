@@ -2,20 +2,22 @@ package com.haskov.nodes;
 
 import com.haskov.QueryBuilder;
 import com.haskov.json.JsonPlan;
-import com.haskov.nodes.scans.Scan;
+import com.haskov.nodes.nonscans.Result;
+import com.haskov.nodes.scans.TableScan;
 import com.haskov.types.TableBuildResult;
 
 import java.util.ArrayList;
 import java.util.List;
 
 public class NodeTree {
-    private Node parent;
-    private List<NodeTree> children;
+    private final Node parent;
+    private final List<NodeTree> children;
     private long tableSize = 0;
 
     public NodeTree(JsonPlan plan) {
         parent = NodeFactory.createNode(plan.getNodeType());
         children = new ArrayList<>();
+        parent.setParameters(plan.getParams());
         if (plan.getPlans() != null) {
             for (JsonPlan nodePlan : plan.getPlans()) {
                 children.add(new NodeTree(nodePlan));
@@ -25,8 +27,11 @@ public class NodeTree {
 
     public List<TableBuildResult> createTables(long tableSize) {
         this.tableSize = tableSize;
-        if (parent instanceof Scan scan) {
-            return new ArrayList<>(List.of(scan.initScanNode(tableSize)));
+        if (parent instanceof TableScan tableScan) {
+            return new ArrayList<>(List.of(tableScan.initScanNode(tableSize)));
+        }
+        if (parent instanceof Result) {
+            return new ArrayList<>();
         }
         if (children.isEmpty()) {
             throw new RuntimeException("Scan or result must be in leaf.");
@@ -45,8 +50,8 @@ public class NodeTree {
     }
 
     public void prepareQuery() {
-        if (parent instanceof Scan scan) {
-            scan.prepareScanQuery();
+        if (parent instanceof TableScan tableScan) {
+            tableScan.prepareScanQuery();
         }
 
         for (NodeTree child : children) {

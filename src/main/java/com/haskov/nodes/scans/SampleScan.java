@@ -1,24 +1,25 @@
 package com.haskov.nodes.scans;
 
 import com.haskov.QueryBuilder;
-import com.haskov.costs.scan.SeqScanCostCalculator;
 import com.haskov.types.InsertType;
 import com.haskov.types.TableBuildResult;
 import com.haskov.types.TableIndexType;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Random;
 
 import static com.haskov.bench.V2.getColumnsAndTypes;
 import static com.haskov.tables.TableBuilder.buildRandomTable;
 
-public class SeqScan implements TableScan {
+public class SampleScan implements TableScan {
     private int columnsConditionsCount = 0;
     private String table = "";
     private List<String> columns = new ArrayList<>();
     private long tableSize;
-    private SeqScanCostCalculator costCalculator;
 
     @Override
     public TableBuildResult initScanNode(Long tableSize) {
@@ -26,7 +27,6 @@ public class SeqScan implements TableScan {
         table = result.tableName();
         this.tableSize = tableSize;
         columns = new ArrayList<>(getColumnsAndTypes(table).keySet());
-        costCalculator = new SeqScanCostCalculator(table);
         return result;
     }
 
@@ -35,9 +35,11 @@ public class SeqScan implements TableScan {
         Pair<Long, Long> tupleRange = getTuplesRange();
         qb.setMinMaxTuples(tupleRange.getLeft(), tupleRange.getRight());
         qb.from(table);
-        for (String column : columns.subList(0, columnsConditionsCount)) {
-            qb.randomWhere(table, column);
+
+        for (int i = 0; i < columnsConditionsCount; i++) {
+            qb.select(table + "." + columns.get(i));
         }
+        qb.randomTableSample();
         return qb;
     }
 
@@ -56,13 +58,12 @@ public class SeqScan implements TableScan {
 
     @Override
     public Pair<Double, Double> getCosts(double sel) {
-        double totalCost = costCalculator.calculateCost(columnsConditionsCount * 2);
-        return new ImmutablePair<>(0.0, totalCost);
+        return new ImmutablePair<>(0.0, 0.0);
     }
 
     @Override
     public Pair<Integer, Integer> getConditions() {
-        return new ImmutablePair<>(0, columnsConditionsCount);
+        return new ImmutablePair<>(0, 1);
     }
 
     @Override

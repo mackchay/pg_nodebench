@@ -1,5 +1,6 @@
 {
-  "Node Type": "GroupAggregate",
+  "Node Type": "Aggregate",
+  "Strategy": "Sorted",
   "Plans": [
     {
       "Node Type": "Sort",

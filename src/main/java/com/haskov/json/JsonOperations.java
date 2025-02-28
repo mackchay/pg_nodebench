@@ -86,7 +86,8 @@ public class JsonOperations {
     }
 
     public static JsonPlan getJsonPlan(String filePath) {
-        Gson gson = new GsonBuilder().setPrettyPrinting().create();
+        Gson gson = new GsonBuilder().registerTypeAdapter(JsonPlan.class, new JsonPlanDeserializer())
+                .create();
         try (FileReader reader = new FileReader(filePath)) {
             JsonPlan jsonPlan = gson.fromJson(reader, JsonPlan.class);
             System.out.println(jsonPlan);

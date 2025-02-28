@@ -3,27 +3,39 @@ package com.haskov.nodes.functions;
 import com.haskov.QueryBuilder;
 import com.haskov.nodes.InternalNode;
 import com.haskov.nodes.Node;
-import com.haskov.types.AggregateParams;
+import com.haskov.utils.SQLUtils;
 import org.apache.commons.lang3.tuple.Pair;
 
+import java.util.ArrayList;
 import java.util.List;
 
-public class HashAggregate implements InternalNode {
+public class IncrementalSort implements InternalNode {
     private Node child;
-    private List<String> tables;
+    private String table;
+    private List<String> indexedColumnsCache = new ArrayList<>();
 
     @Override
     public QueryBuilder buildQuery(QueryBuilder qb) {
         qb = child.buildQuery(qb);
         if (qb.IsSelectColumnsEmpty()) {
-            throw new RuntimeException("Aggregate requires a select columns: requires Scan or Result.");
+            throw new RuntimeException("Sort requires a select columns: requires Scan or Result.");
         }
 
+        boolean hasIndex = false;
         List<String> columns = qb.getAllSelectColumns();
         for (String column : columns) {
-            qb.count(column, AggregateParams.REPLACE);
+            qb.orderBy(column);
+            if (indexedColumnsCache.contains(column)) {
+                hasIndex = true;
+            }
+            if (SQLUtils.hasIndexOnColumn(table, column.split("\\.")[1])) {
+                indexedColumnsCache.add(column);
+                hasIndex = true;
+            }
         }
-        qb.select("NULL::INT");
+        if (!hasIndex) {
+            throw new RuntimeException("There is no indexed columns in selected.");
+        }
         return qb;
     }
 
@@ -39,7 +51,7 @@ public class HashAggregate implements InternalNode {
 
     @Override
     public List<String> getTables() {
-        return tables;
+        return List.of(table);
     }
 
     @Override
@@ -50,6 +62,6 @@ public class HashAggregate implements InternalNode {
     @Override
     public void initInternalNode(List<Node> nodes) {
         child = nodes.getLast();
-        tables = child.getTables();
+        table = child.getTables().getLast();
     }
 }

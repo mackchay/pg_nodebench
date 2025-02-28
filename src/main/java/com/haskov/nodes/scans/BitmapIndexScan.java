@@ -18,7 +18,7 @@ import java.util.*;
 import static com.haskov.tables.TableBuilder.buildRandomTable;
 
 
-public class BitmapIndexScan implements Node, Scan {
+public class BitmapIndexScan implements Node, TableScan {
     private final List<String> nonIndexColumns = new ArrayList<>();
     private final List<String> indexColumns = new ArrayList<>();
     private int nonIndexColumnsCount = 0;

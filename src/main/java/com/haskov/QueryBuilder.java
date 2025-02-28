@@ -2,7 +2,7 @@ package com.haskov;
 
 import com.haskov.types.JoinData;
 import com.haskov.types.JoinType;
-import com.haskov.types.ReplaceOrAdd;
+import com.haskov.types.AggregateParams;
 import lombok.Getter;
 import lombok.Setter;
 import org.apache.commons.lang3.tuple.ImmutablePair;
@@ -16,11 +16,19 @@ public class QueryBuilder {
     @Getter
     private final List<String> selectColumns = new ArrayList<>();
     private final List<String> whereConditions = new ArrayList<>();
-    private final List<String> orderByColumns = new ArrayList<>();
+    private final List<String> orderByColumnsLocal = new ArrayList<>();
+
+    private final List<String> orderByColumnsGlobal = new ArrayList<>();
+
     private final List<JoinData> joins = new ArrayList<>();
     private Integer limitValue;
     private final Random random = new Random();
     private final List<String> groupByColumns = new ArrayList<>();
+
+    private String tableSample;
+
+    //Если values > 0, то запрос сгенерируется с планом "ValuesScan"
+    private List<Integer> values = new ArrayList<>();
 
     //Список запросов входящих в Union ALL
     private final List<QueryBuilder> unionQueryBuilders = new ArrayList<>();
@@ -134,7 +142,12 @@ public class QueryBuilder {
         return this;
     }
 
-    // Метод для добавления случайного метода
+    public QueryBuilder whereCTid(Pair<Integer, Integer> coords) {
+        this.whereConditions.add("ctid = '(" + coords.getLeft() + "," + coords.getRight() + ")'");
+        return this;
+    }
+
+    // Метод для добавления случайных диапазонов в WHERE
     public QueryBuilder randomWhere(String table, String column) {
         this.select(table + "." + column);
 
@@ -165,7 +178,12 @@ public class QueryBuilder {
 
     // Метод для указания сортировки ORDER BY
     public QueryBuilder orderBy(String... columns) {
-        this.orderByColumns.addAll(Arrays.asList(columns));
+        this.orderByColumnsLocal.addAll(Arrays.asList(columns));
+        return this;
+    }
+
+    public QueryBuilder orderByGlobal(String... columns) {
+        this.orderByColumnsGlobal.addAll(Arrays.asList(columns));
         return this;
     }
 
@@ -214,22 +232,28 @@ public class QueryBuilder {
     }
 
     //Методы для указания столбцов, над которыми будет агрегатные операции Aggregate
-    public void count(String column, ReplaceOrAdd replaceOrAdd) {
-        if (replaceOrAdd == ReplaceOrAdd.REPLACE) {
+    public void count(String column, AggregateParams aggregateParams) {
+        if (aggregateParams.equals(AggregateParams.REPLACE)) {
             if (selectColumns.contains(column)) {
                 selectColumns.remove(column);
                 selectColumns.add("COUNT(" + column + ")");
             }
-        } else {
+        }
+        if (aggregateParams.equals(AggregateParams.ADD)){
             if (selectColumns.contains(column)) {
                 selectColumns.add("COUNT(" + column + ")");
                 groupByColumns.add(column);
             }
         }
+        if (aggregateParams.equals(AggregateParams.OVER)) {
+            if (selectColumns.contains(column)) {
+                selectColumns.add("COUNT(" + column + ") OVER()");
+            }
+        }
     }
 
-    public QueryBuilder max(String table, String column, ReplaceOrAdd replaceOrAdd) {
-        if (replaceOrAdd == ReplaceOrAdd.REPLACE) {
+    public QueryBuilder max(String table, String column, AggregateParams aggregateParams) {
+        if (aggregateParams == AggregateParams.REPLACE) {
             if (selectColumns.removeIf(e -> e.equals(table + "." + column))) {
                 selectColumns.add("MAX(" + table + "." + column + ")");
             }
@@ -239,14 +263,31 @@ public class QueryBuilder {
         return this;
     }
 
-    public QueryBuilder min(String table, String column, ReplaceOrAdd replaceOrAdd) {
-        if (replaceOrAdd == ReplaceOrAdd.REPLACE) {
+    public QueryBuilder min(String table, String column, AggregateParams aggregateParams) {
+        if (aggregateParams == AggregateParams.REPLACE) {
             if (selectColumns.removeIf(e -> e.equals(table + "." + column))) {
                 selectColumns.add("MIN(" + table + "." + column + ")");
             }
         } else {
             selectColumns.add("MIN(" + table + "." + column + ")");
         }
+        return this;
+    }
+
+    public QueryBuilder setValues(List<Integer> values) {
+        this.values = values;
+        return this;
+    }
+
+    public QueryBuilder randomTableSample() {
+        int randomPagesPercent = random.nextInt(100) + 1;
+        tableSample = "TABLESAMPLE SYSTEM (" + randomPagesPercent + ")";
+        return this;
+    }
+
+    public QueryBuilder setAlias(String column, String alias) {
+        selectColumns.remove(column);
+        selectColumns.add(column + " as " + alias);
         return this;
     }
 
@@ -263,7 +304,8 @@ public class QueryBuilder {
 
     // Метод для сборки финального запроса
     public String build() {
-        if (tableName.isEmpty()) {
+
+        if (tableName == null) {
             throw new IllegalStateException("Table name must be specified");
         }
 
@@ -273,16 +315,33 @@ public class QueryBuilder {
 
         StringBuilder query = new StringBuilder();
 
-        // SELECT
-        if (isDistinct) {
-            query.append("SELECT DISTINCT ").append(String.join(", ", selectColumns));
+        //VALUES OR SCAN
+        if (!values.isEmpty()) {
+            query.append("VALUES ");
+            for (Integer i : values) {
+                query.append("(").append(i).append("),");
+            }
+            query.deleteCharAt(query.length() - 1);
         } else {
-            query.append("SELECT ").append(String.join(", ", selectColumns));
+
+            // SELECT
+            if (isDistinct) {
+                query.append("SELECT DISTINCT ").append(String.join(", ", selectColumns));
+            } else {
+                query.append("SELECT ").append(String.join(", ", selectColumns));
+            }
         }
 
 
         // FROM part
-        query.append(" FROM ").append(String.join(",", tableName));
+        if (!tableName.isEmpty()) {
+            query.append(" FROM ").append(String.join(",", tableName));
+        }
+
+        //TABLESAMPLE
+        if (tableSample != null && !tableSample.isEmpty()) {
+            query.append(" ").append(tableSample);
+        }
 
         for (JoinData join : joins) {
             if (join.joinType().equals(JoinType.CROSS)) {
@@ -318,19 +377,10 @@ public class QueryBuilder {
             query.append(" GROUP BY ").append(String.join(", ", groupByColumns));
         }
 
-        // INTERSECT part
-        for (QueryBuilder intersectQueryBuilder : intersectQueryBuilders) {
-            query.append(" INTERSECT ").append(intersectQueryBuilder.build());
-        }
-
-        //UNION ALL part
-        for (QueryBuilder unionQueryBuilder : unionQueryBuilders) {
-            query.append(" UNION ALL ").append(unionQueryBuilder.build());
-        }
 
         // ORDER BY part
-        if (!orderByColumns.isEmpty()) {
-            query.append(" ORDER BY ").append(String.join(", ", orderByColumns));
+        if (!orderByColumnsLocal.isEmpty()) {
+            query.append(" ORDER BY ").append(String.join(", ", orderByColumnsLocal));
         }
 
         // LIMIT part
@@ -338,21 +388,25 @@ public class QueryBuilder {
             query.append(" LIMIT ").append(limitValue);
         }
 
+        // INTERSECT part
+        for (QueryBuilder intersectQueryBuilder : intersectQueryBuilders) {
+            query.append(" INTERSECT ").append(intersectQueryBuilder.build());
+        }
+
+        //UNION ALL part
+        if (!unionQueryBuilders.isEmpty()) {
+            query.insert(0, "(").append(")");
+        }
+        for (QueryBuilder unionQueryBuilder : unionQueryBuilders) {
+            query.append(" UNION ALL (").append(unionQueryBuilder.build()).append(")");
+        }
+
+        //global ORDER BY part
+        if (!orderByColumnsGlobal.isEmpty()) {
+            query.append(" ORDER BY ").append(String.join(", ", orderByColumnsGlobal));
+        }
+
         return query.toString();
     }
 
-
-    public static void main(String[] args) {
-        QueryBuilder query = new QueryBuilder()
-                .select("id", "name", "age")
-                .from("users")
-                .where("age > 18")
-                .where("name LIKE 'John%'")
-                .where("age < 30")
-                .orderBy("age", "name")
-                .limit(10);
-
-        System.out.println(query.build());
-        // Вывод: SELECT id, name, age FROM users WHERE age > 18 AND name LIKE 'John%' ORDER BY age, name LIMIT 10
-    }
 }

@@ -6,24 +6,24 @@ import com.haskov.nodes.Node;
 import com.haskov.types.AggregateParams;
 import org.apache.commons.lang3.tuple.Pair;
 
+import java.util.ArrayList;
 import java.util.List;
 
-public class HashAggregate implements InternalNode {
+public class WindowAgg implements InternalNode {
     private Node child;
-    private List<String> tables;
+    private String table;
 
     @Override
     public QueryBuilder buildQuery(QueryBuilder qb) {
         qb = child.buildQuery(qb);
         if (qb.IsSelectColumnsEmpty()) {
-            throw new RuntimeException("Aggregate requires a select columns: requires Scan or Result.");
+            throw new RuntimeException("WindowsAgg requires a select columns: requires Scan or Result.");
         }
 
-        List<String> columns = qb.getAllSelectColumns();
+        List<String> columns = new ArrayList<>(qb.getSelectColumns());
         for (String column : columns) {
-            qb.count(column, AggregateParams.REPLACE);
+                qb.count(column, AggregateParams.OVER);
         }
-        qb.select("NULL::INT");
         return qb;
     }
 
@@ -39,7 +39,7 @@ public class HashAggregate implements InternalNode {
 
     @Override
     public List<String> getTables() {
-        return tables;
+        return List.of(table);
     }
 
     @Override
@@ -49,7 +49,7 @@ public class HashAggregate implements InternalNode {
 
     @Override
     public void initInternalNode(List<Node> nodes) {
-        child = nodes.getLast();
-        tables = child.getTables();
+        child = nodes.getFirst();
+        table = child.getTables().getFirst();
     }
 }

@@ -42,4 +42,12 @@ public class TestAppendJson {
         test(10000, 500);
         test(100000, 50);
     }
+
+    @Test
+    public void testAppendResult() {
+        filePath = "testplans/append_result.json";
+        test(1000, 1000);
+        test(10000, 500);
+        test(100000, 50);
+    }
 }

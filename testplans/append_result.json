@@ -1,0 +1,28 @@
+{
+  "Node Type": "Append",
+  "Plans": [
+    {
+      "Node Type": "Result"
+    },
+    {
+      "Node Type": "SeqScan"
+    },
+    {
+      "Node Type": "IndexScan"
+    },
+    {
+      "Node Type": "SeqScan"
+    },
+    {
+      "Node Type": "BitmapHeapScan",
+      "Plans": [
+        {
+          "Node Type": "BitmapIndexScan"
+        }
+      ]
+    },
+    {
+      "Node Type": "IndexOnlyScan"
+    }
+  ]
+}

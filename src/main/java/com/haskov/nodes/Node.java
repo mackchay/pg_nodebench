@@ -4,6 +4,7 @@ import com.haskov.QueryBuilder;
 import org.apache.commons.lang3.tuple.Pair;
 
 import java.util.List;
+import java.util.Map;
 
 public interface Node {
 
@@ -22,4 +23,8 @@ public interface Node {
      * @return indexConditionsCount, nonIndexConditionsCount
      */
     Pair<Integer, Integer> getConditions();
+
+    default void setParameters(Map<String, String> params) {
+
+    }
 }

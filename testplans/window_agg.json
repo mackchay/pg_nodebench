@@ -1,6 +1,5 @@
 {
-  "Node Type": "Aggregate",
-  "Strategy": "Hashed",
+  "Node Type": "WindowAgg",
   "Plans": [
     {
       "Node Type": "SeqScan"

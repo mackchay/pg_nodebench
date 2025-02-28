@@ -40,7 +40,7 @@ public class NodeBenchMaster {
                 System.out.println(query);
                 System.out.println(plan);
                 V2.explain(V2.log, query);
-                throw new RuntimeException("Invalid result query plan!");
+                throw new RuntimeException("Invalid result query plan!:");
             }
         }
 

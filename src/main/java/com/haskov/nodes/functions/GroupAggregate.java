@@ -3,18 +3,15 @@ package com.haskov.nodes.functions;
 import com.haskov.QueryBuilder;
 import com.haskov.nodes.InternalNode;
 import com.haskov.nodes.Node;
-import com.haskov.types.ReplaceOrAdd;
+import com.haskov.types.AggregateParams;
 import org.apache.commons.lang3.tuple.Pair;
 
 import java.util.ArrayList;
 import java.util.List;
 
-import static com.haskov.bench.V2.getColumnsAndTypes;
-
 public class GroupAggregate implements InternalNode {
     private Node child;
     private String table;
-    private final List<String> columns = new ArrayList<>();
 
     @Override
     public QueryBuilder buildQuery(QueryBuilder qb) {
@@ -23,8 +20,9 @@ public class GroupAggregate implements InternalNode {
             throw new RuntimeException("Aggregate requires a select columns: requires Scan or Result.");
         }
 
+        List<String> columns = new ArrayList<>(qb.getSelectColumns());
         for (String column : columns) {
-            qb.count(table + "." + column, ReplaceOrAdd.ADD);
+            qb.count(column, AggregateParams.ADD);
         }
         return qb;
     }
@@ -53,6 +51,5 @@ public class GroupAggregate implements InternalNode {
     public void initInternalNode(List<Node> nodes) {
         child = nodes.getFirst();
         table = child.getTables().getFirst();
-        columns.addAll(getColumnsAndTypes(table).keySet());
     }
 }

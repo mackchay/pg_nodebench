@@ -3,13 +3,16 @@ package com.haskov.nodes.functions;
 import com.haskov.QueryBuilder;
 import com.haskov.nodes.InternalNode;
 import com.haskov.nodes.Node;
+import com.haskov.utils.SQLUtils;
 import org.apache.commons.lang3.tuple.Pair;
 
+import java.util.ArrayList;
 import java.util.List;
 
 public class Sort implements InternalNode {
     private Node child;
     private String table;
+    private List<String> nonIndexedColumnsCache = new ArrayList<>();
 
     @Override
     public QueryBuilder buildQuery(QueryBuilder qb) {
@@ -18,9 +21,18 @@ public class Sort implements InternalNode {
             throw new RuntimeException("Sort requires a select columns: requires Scan or Result.");
         }
 
-        List<String> columns = qb.getAllSelectColumns();
+        List<String> columns = new ArrayList<>(qb.getSelectColumns());
         for (String column : columns) {
-            qb.orderBy(column);
+            if (nonIndexedColumnsCache.contains(column)) {
+                qb.orderBy(column);
+                continue;
+            }
+            if (!column.contains("NULL::INT") && !column.contains("dummy")) {
+                if (!SQLUtils.hasIndexOnColumn(table, column.split("\\.")[1])) {
+                    qb.orderBy(column);
+                    nonIndexedColumnsCache.add(column);
+                }
+            }
         }
         return qb;
     }

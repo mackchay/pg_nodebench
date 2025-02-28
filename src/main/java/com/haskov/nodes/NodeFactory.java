@@ -5,9 +5,12 @@ import com.haskov.nodes.joins.Hash;
 import com.haskov.nodes.joins.HashJoin;
 import com.haskov.nodes.joins.MergeJoin;
 import com.haskov.nodes.joins.NestedLoop;
+import com.haskov.nodes.nonscans.Result;
+import com.haskov.nodes.nonscans.ValuesScan;
 import com.haskov.nodes.scans.*;
 import com.haskov.nodes.subquery.SubqueryScan;
 import com.haskov.nodes.unions.Append;
+import com.haskov.nodes.unions.MergeAppend;
 import com.haskov.nodes.unions.SetOp;
 
 import java.util.HashMap;
@@ -29,13 +32,21 @@ public class NodeFactory {
         nodeMap.put("MergeJoin", MergeJoin.class);
         nodeMap.put("Hash", Hash.class);
         nodeMap.put("Materialize", Materialize.class);
-        nodeMap.put("GroupAggregate", GroupAggregate.class);
-        nodeMap.put("HashAggregate", HashAggregate.class);
+//        nodeMap.put("GroupAggregate", GroupAggregate.class);
+//        nodeMap.put("HashAggregate", HashAggregate.class);
         nodeMap.put("Sort", Sort.class);
         nodeMap.put("Group", Group.class);
         nodeMap.put("SetOp", SetOp.class);
         nodeMap.put("SubqueryScan", SubqueryScan.class);
         nodeMap.put("Unique", Unique.class);
+        nodeMap.put("IncrementalSort", IncrementalSort.class);
+        nodeMap.put("WindowAgg", WindowAgg.class);
+        nodeMap.put("TidScan", TidScan.class);
+        nodeMap.put("SampleScan", SampleScan.class);
+        nodeMap.put("Result", Result.class);
+        nodeMap.put("FunctionScan", FunctionScan.class);
+        nodeMap.put("ValuesScan", ValuesScan.class);
+        nodeMap.put("MergeAppend", MergeAppend.class);
     }
 
     // Метод для создания узла

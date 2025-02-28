@@ -3,17 +3,16 @@ package com.haskov.nodes.functions;
 import com.haskov.QueryBuilder;
 import com.haskov.nodes.InternalNode;
 import com.haskov.nodes.Node;
-import com.haskov.types.ReplaceOrAdd;
+import com.haskov.types.AggregateParams;
 import org.apache.commons.lang3.tuple.Pair;
 
 import java.util.ArrayList;
 import java.util.List;
-
-import static com.haskov.bench.V2.getColumnsAndTypes;
+import java.util.Map;
 
 public class Aggregate implements InternalNode {
     private Node child;
-    private String table;
+    private String strategy = "Default";
 
     @Override
     public QueryBuilder buildQuery(QueryBuilder qb) {
@@ -24,7 +23,17 @@ public class Aggregate implements InternalNode {
 
         List<String> columns = new ArrayList<>(qb.getSelectColumns());
         for (String column : columns) {
-             qb.count(column, ReplaceOrAdd.REPLACE);
+            if (strategy.equals("Sorted")) {
+                qb.count(column, AggregateParams.ADD);
+                qb.groupBy(column);
+            } else {
+                qb.count(column, AggregateParams.REPLACE);
+            }
+        }
+
+        if (strategy.equals("Hashed")) {
+            qb.select(columns.getFirst());
+            qb.groupBy(columns.getFirst());
         }
         return qb;
     }
@@ -41,7 +50,7 @@ public class Aggregate implements InternalNode {
 
     @Override
     public List<String> getTables() {
-        return List.of(table);
+        return child.getTables();
     }
 
     @Override
@@ -52,6 +61,13 @@ public class Aggregate implements InternalNode {
     @Override
     public void initInternalNode(List<Node> nodes) {
         child = nodes.getFirst();
-        table = child.getTables().getFirst();
+    }
+
+    @Override
+    public void setParameters(Map<String, String> params) {
+        String strategy = params.get("Strategy");
+        if (strategy != null) {
+            this.strategy = strategy;
+        }
     }
 }

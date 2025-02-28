@@ -15,12 +15,11 @@ import java.util.*;
 import static com.haskov.tables.TableBuilder.buildRandomTable;
 
 
-public class IndexScan implements Scan {
-    private List<String> nonIndexColumns = new ArrayList<>();
-    private List<String> indexColumns = new ArrayList<>();
+public class IndexScan implements TableScan {
+    private final List<String> nonIndexColumns = new ArrayList<>();
+    private final List<String> indexColumns = new ArrayList<>();
     private int nonIndexColumnsCount = 0;
     private int indexColumnsCount = 0;
-    private String indexColumn = "";
     private String table = "";
     private ScanTupleRangeCalculator tupleCalculator;
 
@@ -50,7 +49,6 @@ public class IndexScan implements Scan {
         indexColumnsCount = 1;
         Collections.shuffle(nonIndexColumns);
         Collections.shuffle(indexColumns);
-        indexColumn = indexColumns.getFirst();
     }
 
     @Override

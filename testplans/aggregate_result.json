@@ -1,9 +1,9 @@
 {
   "Node Type": "Aggregate",
-  "Strategy": "Hashed",
   "Plans": [
     {
-      "Node Type": "SeqScan"
+      "Node Type": "Result"
     }
   ]
 }
+

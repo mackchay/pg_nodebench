@@ -3,7 +3,7 @@ package com.haskov.nodes.scans;
 import com.haskov.nodes.Node;
 import com.haskov.types.TableBuildResult;
 
-public interface Scan extends Node {
+public interface TableScan extends Node {
 
     /**
      * Required to be called first

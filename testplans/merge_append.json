@@ -1,0 +1,21 @@
+{
+  "Node Type": "MergeAppend",
+  "Plans": [
+    {
+      "Node Type": "Sort",
+      "Plans": [
+        {
+          "Node Type": "SeqScan"
+        }
+      ]
+    },
+    {
+      "Node Type": "Sort",
+      "Plans": [
+        {
+          "Node Type": "SeqScan"
+        }
+      ]
+    }
+  ]
+}

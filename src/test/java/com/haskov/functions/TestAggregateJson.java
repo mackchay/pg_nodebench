@@ -11,8 +11,7 @@ import org.junit.Test;
 import java.util.List;
 
 public class TestAggregateJson {
-    private final static String expectedNodeType = "Aggregate";
-    private final static String filePath = "testplans/aggregate.json";
+    private String filePath = "testplans/aggregate.json";
 
     public void test(long size, int queryCount) {
         String argArray = "-h localhost -j " + filePath + " -S " + size + " -q " + queryCount;
@@ -25,8 +24,17 @@ public class TestAggregateJson {
 
     @Test
     public void testAggregate() {
+        filePath = "testplans/aggregate.json";
         test(1000, 1000);
         test(10000, 500);
         test(100000, 100);
+    }
+
+    @Test
+    public void testAggregateResult() {
+        filePath = "testplans/aggregate_result.json";
+        test(1000, 1000);
+        test(10000, 500);
+        test(100000, 50);
     }
 }

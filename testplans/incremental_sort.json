@@ -1,0 +1,8 @@
+{
+  "Node Type": "IncrementalSort",
+  "Plans": [
+    {
+      "Node Type": "IndexScan"
+    }
+  ]
+}
