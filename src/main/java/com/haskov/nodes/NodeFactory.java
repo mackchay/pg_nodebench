@@ -7,10 +7,13 @@ import com.haskov.nodes.joins.MergeJoin;
 import com.haskov.nodes.joins.NestedLoop;
 import com.haskov.nodes.nonscans.Result;
 import com.haskov.nodes.nonscans.ValuesScan;
+import com.haskov.nodes.nonscans.WorkTableScan;
 import com.haskov.nodes.scans.*;
+import com.haskov.nodes.subquery.CTEScan;
 import com.haskov.nodes.subquery.SubqueryScan;
 import com.haskov.nodes.unions.Append;
 import com.haskov.nodes.unions.MergeAppend;
+import com.haskov.nodes.unions.RecursiveUnion;
 import com.haskov.nodes.unions.SetOp;
 
 import java.util.HashMap;
@@ -47,6 +50,11 @@ public class NodeFactory {
         nodeMap.put("FunctionScan", FunctionScan.class);
         nodeMap.put("ValuesScan", ValuesScan.class);
         nodeMap.put("MergeAppend", MergeAppend.class);
+        nodeMap.put("CTEScan", CTEScan.class);
+        nodeMap.put("WorkTableScan", WorkTableScan.class);
+        nodeMap.put("RecursiveUnion", RecursiveUnion.class);
+        nodeMap.put("ProjectSet", ProjectSet.class);
+        nodeMap.put("LockRows", LockRows.class);
     }
 
     // Метод для создания узла

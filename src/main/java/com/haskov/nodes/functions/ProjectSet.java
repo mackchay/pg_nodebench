@@ -8,21 +8,17 @@ import org.apache.commons.lang3.tuple.Pair;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Random;
 
-public class WindowAgg implements InternalNode {
+public class ProjectSet implements InternalNode {
     private Node child;
 
     @Override
     public QueryBuilder buildQuery(QueryBuilder qb) {
         qb = child.buildQuery(qb);
-        if (qb.IsSelectColumnsEmpty()) {
-            throw new RuntimeException("WindowsAgg requires a select columns: requires Scan or Result.");
-        }
-
-        List<String> columns = new ArrayList<>(qb.getSelectColumns());
-        for (String column : columns) {
-                qb.count(column, AggregateParams.OVER);
-        }
+        Random random = new Random();
+        int elems = random.nextInt(1, 100) + 1;
+        qb.select("generate_series(1, " + elems + ")");
         return qb;
     }
 

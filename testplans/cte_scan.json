@@ -1,0 +1,8 @@
+{
+  "Node Type": "CTEScan",
+  "Plans": [
+    {
+      "Node Type": "SeqScan"
+    }
+  ]
+}

@@ -1,0 +1,16 @@
+{
+  "Node Type": "CTEScan",
+  "Plans": [
+    {
+      "Node Type": "RecursiveUnion",
+      "Plans" : [
+        {
+          "Node Type": "WorkTableScan"
+        },
+        {
+          "Node Type": "SeqScan"
+        }
+      ]
+    }
+  ]
+}

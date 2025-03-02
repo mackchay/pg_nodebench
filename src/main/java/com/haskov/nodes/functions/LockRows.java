@@ -3,26 +3,18 @@ package com.haskov.nodes.functions;
 import com.haskov.QueryBuilder;
 import com.haskov.nodes.InternalNode;
 import com.haskov.nodes.Node;
-import com.haskov.types.AggregateParams;
 import org.apache.commons.lang3.tuple.Pair;
 
-import java.util.ArrayList;
 import java.util.List;
+import java.util.Random;
 
-public class WindowAgg implements InternalNode {
+public class LockRows implements InternalNode {
     private Node child;
 
     @Override
     public QueryBuilder buildQuery(QueryBuilder qb) {
         qb = child.buildQuery(qb);
-        if (qb.IsSelectColumnsEmpty()) {
-            throw new RuntimeException("WindowsAgg requires a select columns: requires Scan or Result.");
-        }
-
-        List<String> columns = new ArrayList<>(qb.getSelectColumns());
-        for (String column : columns) {
-                qb.count(column, AggregateParams.OVER);
-        }
+        qb.setLockRows(true);
         return qb;
     }
 

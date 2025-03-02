@@ -2,6 +2,7 @@ package com.haskov.nodes;
 
 import com.haskov.QueryBuilder;
 import com.haskov.json.JsonPlan;
+import com.haskov.nodes.nonscans.NonTableScan;
 import com.haskov.nodes.nonscans.Result;
 import com.haskov.nodes.scans.TableScan;
 import com.haskov.types.TableBuildResult;
@@ -30,7 +31,7 @@ public class NodeTree {
         if (parent instanceof TableScan tableScan) {
             return new ArrayList<>(List.of(tableScan.initScanNode(tableSize)));
         }
-        if (parent instanceof Result) {
+        if (parent instanceof NonTableScan) {
             return new ArrayList<>();
         }
         if (children.isEmpty()) {

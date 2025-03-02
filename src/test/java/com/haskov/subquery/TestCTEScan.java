@@ -1,4 +1,4 @@
-package com.haskov.functions;
+package com.haskov.subquery;
 
 import com.haskov.Cmd;
 import com.haskov.NodeBenchMaster;
@@ -6,8 +6,8 @@ import com.haskov.bench.V2;
 import com.haskov.bench.v2.Configuration;
 import org.junit.Test;
 
-public class TestHashAggregateJson {
-    private final static String filePath = "testplans/hashaggregate.json";
+public class TestCTEScan {
+    private final static String filePath = "testplans/cte_scan.json";
 
     public void test(long size, int queryCount) {
         String argArray = "-h localhost -j " + filePath + " -S " + size + " -q " + queryCount;
@@ -19,8 +19,9 @@ public class TestHashAggregateJson {
     }
 
     @Test
-    public void testHashAggregate() {
-        //test(10000, 500);
+    public void testSeqScan() {
+        test(1000, 1000);
+        test(10000, 500);
         test(100000, 100);
     }
 }

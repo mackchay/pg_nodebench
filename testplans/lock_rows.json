@@ -1,0 +1,8 @@
+{
+  "Node Type": "LockRows",
+  "Plans": [
+    {
+      "Node Type": "SeqScan"
+    }
+  ]
+}

@@ -46,9 +46,20 @@ public class QueryBuilder {
     //Максимальное количество столбцов среди всех запросов с UNION ALL
     private int maxSelectColumns = 0;
 
+    // Название подзапроса для CTE Scan
+    @Setter
+    private String subQueryCTESource = "";
+
+    // Название счетчика (counter) в Recursive Union
+    private String recursiveCounter = "";
+
+
     //Нужно ли получить данные без дубликатов
     @Setter
     private boolean isDistinct = false;
+
+    @Setter
+    private boolean isLockRows = false;
 
     // Метод для указания таблицы
     public QueryBuilder from(String table) {
@@ -104,6 +115,14 @@ public class QueryBuilder {
         return this;
     }
 
+    public QueryBuilder selectRecursiveCounter(String counter, int step, int iterations) {
+        this.recursiveCounter = counter;
+        this.selectColumns.add(counter + " + " + step);
+        this.whereConditions.add(counter + " < " + iterations);
+        syncMaxSelectColumns();
+        return this;
+    }
+
     // Метод для добавления запроса с UNION ALL
     public QueryBuilder unionAll(QueryBuilder queryBuilder) {
         // Проверяем количество столбцов в обоих запросах и выравниваем их
@@ -150,9 +169,7 @@ public class QueryBuilder {
     // Метод для добавления случайных диапазонов в WHERE
     public QueryBuilder randomWhere(String table, String column) {
         this.select(table + "." + column);
-        if (maxSelectColumns == selectColumns.size() && maxSelectColumns != 0) {
-            return this;
-        }
+
 
         long tuples = random.nextLong(minTuples, maxTuples + 1);
         //long tuples = maxTuples;
@@ -160,7 +177,6 @@ public class QueryBuilder {
 
         this.where(table + "." + column + ">=" + radius).
                 where(table + "." + column + "<" + (radius + tuples));
-
         return this;
     }
 
@@ -199,29 +215,6 @@ public class QueryBuilder {
     // Метод для указания группировки GROUP BY
     public QueryBuilder groupBy(String... columns) {
         this.groupByColumns.addAll(Arrays.asList(columns));
-        return this;
-    }
-
-    // Метод для указания запросов с общими столбцами
-    public QueryBuilder intersect(QueryBuilder queryBuilder) {
-        // Проверяем количество столбцов в обоих запросах и выравниваем их
-        int currentColumnsSize = this.selectColumns.size();
-        int queryColumnsSize = queryBuilder.selectColumns.size();
-
-        if (currentColumnsSize < queryColumnsSize) {
-            // Добавляем пустые столбцы (NULL) в текущий запрос
-            for (int i = currentColumnsSize; i < queryColumnsSize; i++) {
-                this.selectColumns.add("NULL::INT");
-            }
-        } else if (currentColumnsSize > queryColumnsSize) {
-            // Добавляем пустые столбцы (NULL) в запрос, с которым выполняем объединение
-            for (int i = queryColumnsSize; i < currentColumnsSize; i++) {
-                queryBuilder.selectColumns.add("NULL::INT");
-            }
-        }
-
-        intersectQueryBuilders.add(queryBuilder);
-        updateMaxSelectColumns();
         return this;
     }
 
@@ -305,7 +298,8 @@ public class QueryBuilder {
         return this;
     }
 
-    public void syncMaxSelectColumns() {
+
+    private void syncMaxSelectColumns() {
         while (selectColumns.size() > maxSelectColumns && selectColumns.contains("NULL::INT") && maxSelectColumns != 0) {
             selectColumns.remove("NULL::INT");
         }
@@ -420,7 +414,25 @@ public class QueryBuilder {
             query.append(" ORDER BY ").append(String.join(", ", orderByColumnsGlobal));
         }
 
+        if (isLockRows) {
+            query.append(" FOR UPDATE");
+        }
+
+        if (!subQueryCTESource.isEmpty()) {
+            query = generateSubQuery(query);
+        }
+
         return query.toString();
+    }
+
+    private StringBuilder generateSubQuery(StringBuilder query) {
+        if (!recursiveCounter.isEmpty()) {
+            return new StringBuilder("with recursive " + subQueryCTESource + "(" + recursiveCounter
+                    + ")" +" as materialized (" + query + ") select * from "
+                    + subQueryCTESource);
+        }
+        return new StringBuilder("with " + subQueryCTESource + " as materialized (" + query + ") select * from "
+                + subQueryCTESource);
     }
 
 }

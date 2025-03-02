@@ -1,28 +1,24 @@
-package com.haskov.nodes.functions;
+package com.haskov.nodes.subquery;
 
 import com.haskov.QueryBuilder;
 import com.haskov.nodes.InternalNode;
 import com.haskov.nodes.Node;
-import com.haskov.types.AggregateParams;
 import org.apache.commons.lang3.tuple.Pair;
 
-import java.util.ArrayList;
 import java.util.List;
 
-public class WindowAgg implements InternalNode {
+public class CTEScan implements InternalNode {
     private Node child;
+
+    @Override
+    public void initInternalNode(List<Node> nodes) {
+        child = nodes.getFirst();
+    }
 
     @Override
     public QueryBuilder buildQuery(QueryBuilder qb) {
         qb = child.buildQuery(qb);
-        if (qb.IsSelectColumnsEmpty()) {
-            throw new RuntimeException("WindowsAgg requires a select columns: requires Scan or Result.");
-        }
-
-        List<String> columns = new ArrayList<>(qb.getSelectColumns());
-        for (String column : columns) {
-                qb.count(column, AggregateParams.OVER);
-        }
+        qb.setSubQueryCTESource("CTESource");
         return qb;
     }
 
@@ -44,10 +40,5 @@ public class WindowAgg implements InternalNode {
     @Override
     public Pair<Integer, Integer> getConditions() {
         return child.getConditions();
-    }
-
-    @Override
-    public void initInternalNode(List<Node> nodes) {
-        child = nodes.getFirst();
     }
 }

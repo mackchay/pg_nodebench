@@ -1,0 +1,8 @@
+{
+  "Node Type": "ProjectSet",
+  "Plans": [
+    {
+      "Node Type": "IndexScan"
+    }
+  ]
+}
