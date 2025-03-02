@@ -142,6 +142,7 @@ public class QueryBuilder {
         }
 
         unionQueryBuilders.add(queryBuilder);
+        recursiveCounter = queryBuilder.recursiveCounter;
         updateMaxSelectColumns();
         return this;
     }
@@ -293,6 +294,9 @@ public class QueryBuilder {
             String column = selectColumns.removeLast();
             orderByColumnsLocal.removeIf(e -> e.equals(column));
             whereConditions.removeIf(e -> e.contains(column));
+        }
+        while (whereConditions.size() > 2) {
+            whereConditions.removeLast();
         }
 
         return this;
