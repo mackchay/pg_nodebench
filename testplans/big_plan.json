@@ -1,0 +1,31 @@
+{
+  "Node Type": "CTEScan",
+  "Plans": [
+    {
+      "Node Type": "Sort",
+      "Plans": [
+        {
+          "Node Type": "Aggregate",
+          "Plans": [
+            {
+              "Node Type": "HashJoin",
+              "Plans": [
+                {
+                  "Node Type": "SeqScan"
+                },
+                {
+                  "Node Type": "Hash",
+                  "Plans": [
+                    {
+                      "Node Type": "SeqScan"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

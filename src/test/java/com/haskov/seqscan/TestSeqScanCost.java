@@ -34,7 +34,7 @@ public class TestSeqScanCost {
     }
 
     @Test
-    public void testIndexScan() {
+    public void testSeqScan() {
         //test(200, 200);
         test(500, 500);
         test(1000, 200);
@@ -57,7 +57,7 @@ public class TestSeqScanCost {
 
         QueryBuilder qb = new QueryBuilder();
         for (String column : columns) {
-            qb.select(table + "." + column).from(table);
+            qb.select(table + "." + column);
             qb.where(table + "." + column + " < " + tuples);
             if (SQLUtils.hasIndexOnColumn(table, column)) {
                 indexColumns.add(column);
@@ -65,6 +65,7 @@ public class TestSeqScanCost {
                 nonIndexColumns.add(column);
             }
         }
+        qb.from(table);
 
         String query = qb.build();
 

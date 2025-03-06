@@ -7,8 +7,6 @@ import com.haskov.bench.V2;
 import com.haskov.bench.v2.Configuration;
 import org.junit.Test;
 
-import java.util.List;
-
 public class TestMergeJoinJson {
     private final static String expectedNodeType = "MergeJoin";
     private final static String filePath = "testplans/mergejoin.json";

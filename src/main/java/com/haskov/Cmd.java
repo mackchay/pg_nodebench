@@ -14,7 +14,7 @@ public class Cmd {
     public static Configuration params;
     private static final String DEF_PGPORT = "5432";
     private static final String DEF_TIMEOUT = "10";
-    private static final String DEF_WORKERS = "5";
+    private static final String DEF_WORKERS = "1";
     private static final String DEF_CONCURRENCY = "10";
     private static final String DEF_VOLUME = "10";
     private static final String DEF_RUNTYPE = Configuration.Phase.EXECUTE.toString();

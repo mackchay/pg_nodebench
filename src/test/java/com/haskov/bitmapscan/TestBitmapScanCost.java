@@ -61,7 +61,7 @@ public class TestBitmapScanCost {
                 indexColumns.add(column);
             } else {
                 nonIndexColumns.add(column);
-                qb.select(table + "." + column).from(table);
+                qb.select(table + "." + column);
                 qb.where(table + "." + column + " < " + tuples);
             }
         }

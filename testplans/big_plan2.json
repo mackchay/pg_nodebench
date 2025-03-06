@@ -1,0 +1,93 @@
+{
+  "Node Type" : "Append",
+  "Plans" : [
+    {
+      "Node Type": "CTEScan",
+      "Plans": [
+        {
+          "Node Type": "Sort",
+          "Plans": [
+            {
+              "Node Type": "Aggregate",
+              "Plans": [
+                {
+                  "Node Type": "MergeJoin",
+                  "Plans": [
+                    {
+                      "Node Type": "IndexOnlyScan"
+                    },
+                    {
+                      "Node Type": "IndexOnlyScan"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "Node Type": "CTEScan",
+      "Plans": [
+        {
+          "Node Type": "Unique",
+          "Plans": [
+            {
+              "Node Type": "Sort",
+              "Plans": [
+                {
+                  "Node Type": "Aggregate",
+                  "Plans": [
+                    {
+                      "Node Type": "NestedLoop",
+                      "Plans": [
+                        {
+                          "Node Type": "SeqScan"
+                        },
+                        {
+                          "Node Type": "SeqScan"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "Node Type": "CTEScan",
+      "Plans": [
+        {
+          "Node Type": "Sort",
+          "Plans": [
+            {
+              "Node Type": "Aggregate",
+              "Plans": [
+                {
+                  "Node Type": "HashJoin",
+                  "Plans": [
+                    {
+                      "Node Type": "SeqScan"
+                    },
+                    {
+                      "Node Type": "Hash",
+                      "Plans": [
+                        {
+                          "Node Type": "SeqScan"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

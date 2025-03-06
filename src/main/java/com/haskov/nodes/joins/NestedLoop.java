@@ -42,14 +42,7 @@ public class NestedLoop implements Join {
         Collections.shuffle(leftTableColumns);
         List<String> selectColumns = qb.getSelectColumns();
 
-        qb.join(new JoinData(
-                        rightTable,
-                        leftTable,
-                        JoinType.NON_EQUAL,
-                        selectColumns.getLast().substring(selectColumns.getLast().indexOf(".")).replace(".", ""),
-                        selectColumns.getFirst().substring(selectColumns.getFirst().indexOf(".")).replace(".", "")
-                )
-        );
+        qb.join(JoinType.NON_EQUAL);
         //qb.addRandomWhere(tables.getLast(), joinColumns.getKey());
         //qb.where(tables.getFirst() + "." + joinColumns.getValue() + " < 2");
 
@@ -59,8 +52,8 @@ public class NestedLoop implements Join {
 
     @Override
     public Pair<Double, Double> getCosts(double sel) {
-        Pair<Double, Double> rightCosts = getCosts(sel);
-        Pair<Double, Double> leftCosts = getCosts(sel);
+        Pair<Double, Double> rightCosts = nodeRight.getCosts(sel);
+        Pair<Double, Double> leftCosts = nodeLeft.getCosts(sel);
 
         int leftConditionsCount = nodeLeft.getConditions().getLeft() +
                 nodeLeft.getConditions().getRight();
@@ -141,8 +134,8 @@ public class NestedLoop implements Join {
         nodeLeft = nodes.getFirst();
         nodeRight = nodes.getLast();
 
-        rightTable = nodeRight.getTables().getFirst();
         leftTable = nodeLeft.getTables().getFirst();
+        rightTable = nodeRight.getTables().getLast();
 
         Map<String, String> columnsAndTypesParent = V2.getColumnsAndTypes(rightTable);
         rightTableColumns = new ArrayList<>(columnsAndTypesParent.keySet());

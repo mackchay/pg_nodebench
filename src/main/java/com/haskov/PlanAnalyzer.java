@@ -7,8 +7,7 @@ import com.haskov.nodes.NodeTree;
 import com.haskov.types.TableBuildResult;
 import lombok.Getter;
 
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 public class PlanAnalyzer {
     private final long tableSize;
@@ -30,36 +29,20 @@ public class PlanAnalyzer {
         return comparePlans(plan, pgJsonPlan);
     }
 
-    /**
-     * Сравнение исхождного плана в json-файле и реального полученного из EXPLAIN
-     * @param jsonPlan исходный план запроса
-     * @param pgJsonPlan реальный план запроса
-     * @return совпали планы или нет?
-     */
     private static boolean comparePlans(JsonPlan jsonPlan, PgJsonPlan pgJsonPlan) {
-        //Если два планы пустые, то планы равны
         if (jsonPlan == null && pgJsonPlan == null) {
             return true;
         }
-
-        //Если один из планов null, а другой - нет, то планы не равны
         if (jsonPlan == null || pgJsonPlan == null) {
             return false;
         }
-
-        //Если узлы не совпадают по типу, то планы не равны
         if (!jsonPlan.getNodeType().equals(pgJsonPlan.getNodeType().replace(" ", ""))) {
             return false;
         }
 
-
-        //Если узел в одном плане имеет узлы потомков а в другом - нет, то планы не равны
         if (jsonPlan.getPlans() == null ^ pgJsonPlan.getJson().getAsJsonArray("Plans") == null) {
             return false;
         }
-
-        //Если текущий узел что в исходном, что в реальном планах не имеет потомков узлов,
-        // то сравнение закончено и они равны
         if (jsonPlan.getPlans() == null && pgJsonPlan.getJson().getAsJsonArray("Plans") == null) {
             return true;
         }
@@ -71,25 +54,80 @@ public class PlanAnalyzer {
             }
         }
 
-        //Если узел в одном плане имеет X узлов потомков а в другом - Y, то планы не равны
-        if (jsonPlan.getPlans().size() != pgJsonPlan.getJson().getAsJsonArray("Plans").size()) {
+        List<JsonPlan> leftPlans = jsonPlan.getPlans();
+        List<PgJsonPlan> rightPlans = new ArrayList<>();
+        pgJsonPlan.getJson().getAsJsonArray("Plans").forEach(plan ->
+                rightPlans.add(new PgJsonPlan(plan.getAsJsonObject()))
+        );
+
+        return compareUnorderedPlans(leftPlans, rightPlans);
+    }
+
+    /**
+     * Сравнивает список подузлов без учета порядка (для Hash Join и Merge Join).
+     */
+    private static boolean compareUnorderedPlans(List<JsonPlan> leftPlans, List<PgJsonPlan> rightPlans) {
+        if (leftPlans.size() != rightPlans.size()) {
             return false;
         }
 
-        int size = jsonPlan.getPlans().size();
+        // Генерируем все возможные перестановки правого списка
+        List<List<PgJsonPlan>> permutations = generatePermutations(rightPlans);
 
-        // Рекурсия по деревьям планов.
-        for (int i = 0; i < size; i++) {
-            if (!comparePlans(
-                    jsonPlan.getPlans().get(size - i - 1),
-                    new PgJsonPlan(
-                            pgJsonPlan.getJson().getAsJsonArray("Plans").get(i).getAsJsonObject()
-                    )
-            )) {
+        for (List<PgJsonPlan> permutedRightPlans : permutations) {
+            boolean allMatch = true;
+            for (int i = 0; i < leftPlans.size(); i++) {
+                if (!comparePlans(leftPlans.get(i), permutedRightPlans.get(i))) {
+                    allMatch = false;
+                    break;
+                }
+            }
+            if (allMatch) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Сравнивает список подузлов с сортировкой (для Append, Merge Append).
+     */
+    private static boolean compareOrderedPlans(List<JsonPlan> leftPlans, List<PgJsonPlan> rightPlans) {
+        if (leftPlans.size() != rightPlans.size()) {
+            return false;
+        }
+
+        leftPlans.sort(Comparator.comparing(JsonPlan::getNodeType));
+        rightPlans.sort(Comparator.comparing(p -> p.getJson().get("Node Type").getAsString()));
+
+        for (int i = 0; i < leftPlans.size(); i++) {
+            if (!comparePlans(leftPlans.get(i), rightPlans.get(i))) {
                 return false;
             }
         }
         return true;
     }
+
+    /**
+     * Генерирует все возможные перестановки списка.
+     */
+    private static <T> List<List<T>> generatePermutations(List<T> list) {
+        List<List<T>> result = new ArrayList<>();
+        permute(list, 0, result);
+        return result;
+    }
+
+    private static <T> void permute(List<T> arr, int k, List<List<T>> result) {
+        if (k == arr.size()) {
+            result.add(new ArrayList<>(arr));
+        } else {
+            for (int i = k; i < arr.size(); i++) {
+                Collections.swap(arr, i, k);
+                permute(arr, k + 1, result);
+                Collections.swap(arr, i, k);
+            }
+        }
+    }
+
 
 }

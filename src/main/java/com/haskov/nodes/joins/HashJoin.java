@@ -27,24 +27,17 @@ public class HashJoin implements Join {
     @Override
     public QueryBuilder buildQuery(QueryBuilder qb) {
         Pair<Long, Long> tupleRange = getTuplesRange();
-        qb.setMinMaxTuples(tupleRange.getLeft(), tupleRange.getRight());
-        qb = nodeLeft.buildQuery(qb);
-
         qb.setMinMaxTuplesForce(tupleRange.getLeft(), tupleRange.getRight());
         qb = nodeRight.buildQuery(qb);
+
+        qb.setMinMaxTuples(tupleRange.getLeft(), tupleRange.getRight());
+        qb = nodeLeft.buildQuery(qb);
 
         Collections.shuffle(rightTableColumns);
         Collections.shuffle(leftTableColumns);
         List<String> selectColumns = qb.getSelectColumns();
 
-        qb.join(new JoinData(
-                rightTable,
-                leftTable,
-                JoinType.USUAL,
-                selectColumns.getLast().substring(selectColumns.getLast().indexOf(".")).replace(".", ""),
-                selectColumns.getFirst().substring(selectColumns.getFirst().indexOf(".")).replace(".", "")
-                )
-        );
+        qb.join(JoinType.USUAL);
         //qb.addRandomWhere(tables.getLast(), joinColumns.getKey());
         //qb.where(tables.getFirst() + "." + joinColumns.getValue() + " < 2");
 
@@ -54,8 +47,8 @@ public class HashJoin implements Join {
 
     @Override
     public Pair<Double, Double> getCosts(double sel) {
-        Pair<Double, Double> rightCosts = getCosts(sel);
-        Pair<Double, Double> leftCosts = getCosts(sel);
+        Pair<Double, Double> rightCosts = nodeRight.getCosts(sel);
+        Pair<Double, Double> leftCosts = nodeLeft.getCosts(sel);
 
         int leftConditionsCount = nodeLeft.getConditions().getLeft() +
                 nodeLeft.getConditions().getRight();

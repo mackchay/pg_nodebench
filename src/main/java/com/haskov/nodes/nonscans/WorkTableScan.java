@@ -8,7 +8,7 @@ import java.util.List;
 import java.util.Random;
 
 public class WorkTableScan implements NonTableScan {
-    private String table = "CTESource";
+    private String table = "CTEGlobalSource";
 
     @Override
     public QueryBuilder buildQuery(QueryBuilder queryBuilder) {
@@ -17,6 +17,8 @@ public class WorkTableScan implements NonTableScan {
         int steps = random.nextInt(5) + 1;
         queryBuilder.selectRecursiveCounter("counter", steps, iterations);
         queryBuilder.from(table);
+        queryBuilder.setGlobalCTESource(table);
+        queryBuilder.setGlobalCTERequired(true);
         return queryBuilder;
     }
 

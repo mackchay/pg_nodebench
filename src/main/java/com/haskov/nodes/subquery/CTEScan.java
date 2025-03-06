@@ -18,7 +18,11 @@ public class CTEScan implements InternalNode {
     @Override
     public QueryBuilder buildQuery(QueryBuilder qb) {
         qb = child.buildQuery(qb);
-        qb.setSubQueryCTESource("CTESource");
+        if (qb.isGlobalCTERequired()) {
+            qb.setGlobalCTERequired(false);
+        } else {
+            qb.setSubQueryCTESource("CTESource");
+        }
         return qb;
     }
 

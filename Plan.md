@@ -32,7 +32,7 @@
 | 28. Nested Loop         |                | ✅          | ✅     |
 | 29. Recursive Union     |                | ✅           | ✅      |
 | 30. ProjectSet          |                | ✅          | ✅     |
-| 31. LockRows            |                | X          | X     |
+| 31. LockRows            |                | ✅         | ✅    |
 | 32. Sample Scan         |                | ✅           | ✅     |
 | 33. Table Function Scan |                | X          | X     |
 | 34. Foreign Scan        |                | X          | X     |

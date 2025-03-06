@@ -72,7 +72,7 @@ public class Database {
 							config.setAutoCommit(V2.autoCommit);
 							config.addDataSourceProperty("cachePrepStmts", "true");
 							config.addDataSourceProperty("prepStmtCacheSize", "250");
-							config.addDataSourceProperty("prepStmtCacheSqlLimit", "2048");
+							config.addDataSourceProperty("prepStmtCacheSqlLimit", "8192");
 							config.setInitializationFailTimeout(1);
 							config.setConnectionTimeout(300000);
 							config.setConnectionInitSql("set search_path=dev,public");

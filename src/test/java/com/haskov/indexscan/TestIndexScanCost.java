@@ -57,7 +57,7 @@ public class TestIndexScanCost {
 
         QueryBuilder qb = new QueryBuilder();
         for (String column : columns) {
-            qb.select(table + "." + column).from(table);
+            qb.select(table + "." + column);
             qb.where(table + "." + column + " < " + tuples);
             if (SQLUtils.hasIndexOnColumn(table, column)) {
                 indexColumns.add(column);
@@ -65,7 +65,7 @@ public class TestIndexScanCost {
                 nonIndexColumns.add(column);
             }
         }
-
+        qb.from(table);
         String query = qb.build();
 
 

@@ -12,7 +12,7 @@ import java.util.*;
 
 public class QueryBuilder {
 
-    private String tableName;
+    private List<String> tableNames;
     @Getter
     private final List<String> selectColumns = new ArrayList<>();
     private final List<String> whereConditions = new ArrayList<>();
@@ -50,6 +50,13 @@ public class QueryBuilder {
     @Setter
     private String subQueryCTESource = "";
 
+    @Setter
+    private String globalCTESource = "";
+
+    @Setter
+    @Getter
+    private boolean isGlobalCTERequired = false;
+
     // Название счетчика (counter) в Recursive Union
     private String recursiveCounter = "";
 
@@ -63,7 +70,12 @@ public class QueryBuilder {
 
     // Метод для указания таблицы
     public QueryBuilder from(String table) {
-        tableName = table;
+        if (tableNames == null) {
+            tableNames = new ArrayList<>();
+        }
+        if (table != null && !table.isEmpty()) {
+            tableNames.add(table);
+        }
         return this;
     }
 
@@ -143,6 +155,10 @@ public class QueryBuilder {
 
         unionQueryBuilders.add(queryBuilder);
         recursiveCounter = queryBuilder.recursiveCounter;
+        queryBuilder.recursiveCounter = "";
+        globalCTESource = queryBuilder.globalCTESource;
+        queryBuilder.globalCTESource = "";
+        isGlobalCTERequired = queryBuilder.isGlobalCTERequired;
         updateMaxSelectColumns();
         return this;
     }
@@ -181,8 +197,24 @@ public class QueryBuilder {
         return this;
     }
 
-    public QueryBuilder join(JoinData join) {
-        joins.add(join);
+    public QueryBuilder join(JoinData joinData) {
+        joins.add(joinData);
+        return this;
+    }
+
+    public QueryBuilder join(JoinType joinType) {
+        String parentTable = tableNames.getFirst();
+        String childTable = tableNames.getLast();
+        joins.add(new JoinData(
+                parentTable,
+                childTable,
+                joinType,
+                selectColumns.stream().filter(e -> e.split("\\.")[0].equals(parentTable)).findFirst()
+                        .orElse(".x1").split("\\.")[1],
+                selectColumns.stream().filter(e -> e.split("\\.")[0].equals(childTable)).findFirst()
+                        .orElse(".x1").split("\\.")[1]
+        ));
+        tableNames.removeLast();
         return this;
     }
 
@@ -317,7 +349,7 @@ public class QueryBuilder {
     // Метод для сборки финального запроса
     public String build() {
 
-        if (tableName == null) {
+        if (tableNames == null) {
             throw new IllegalStateException("Table name must be specified");
         }
 
@@ -346,8 +378,8 @@ public class QueryBuilder {
 
 
         // FROM part
-        if (!tableName.isEmpty()) {
-            query.append(" FROM ").append(String.join(",", tableName));
+        if (!tableNames.isEmpty()) {
+            query.append(" FROM ").append(String.join(",", tableNames));
         }
 
         //TABLESAMPLE
@@ -357,26 +389,31 @@ public class QueryBuilder {
 
         for (JoinData join : joins) {
             if (join.joinType().equals(JoinType.CROSS)) {
-                query.append(" ").append(join.joinType()).append(" JOIN ").append(join.childTable()).append(" ");
+                query.append(" ").append(join.joinType()).append(" JOIN ").
+                        append(join.childTable()).append(" ");
                 continue;
             }
             if (join.joinType().equals(JoinType.NON_EQUAL)) {
                 query.append(" ").append(" JOIN ").append(join.childTable()).append(" ON ").
-                        append(join.childTable()).append(".").append(join.foreignKeyColumn())
-                        .append(" != ").append(join.parentTable()).append(".").append(join.referencedColumn());
+                        append(join.childTable()).append(".").
+                        append(join.childColumn()).
+                        append(" != ").
+                        append(join.parentTable()).append(".").append(join.parentColumn());
                 continue;
             }
             if (join.joinType().equals(JoinType.USUAL)) {
                 query.append(" ").append(" JOIN ").append(join.childTable()).append(" ON ").
-                        append(join.parentTable()).append(".").append(join.referencedColumn())
-                        .append(" = ").append(join.childTable()).append(".")
-                        .append(join.foreignKeyColumn());
+                        append(join.childTable()).append(".").
+                        append(join.childColumn()).
+                        append(" = ").
+                        append(join.parentTable()).append(".").append(join.parentColumn());
                 continue;
             }
-            query.append(" ").append(join.joinType()).append(" JOIN ").append(join.childTable()).append(" ON ").
-                    append(join.parentTable()).append(".").append(join.referencedColumn())
-                    .append(" = ").append(join.childTable()).append(".")
-                    .append(join.foreignKeyColumn());
+            query.append(" ").append(" JOIN ").append(join.childTable()).append(" ON ").
+                    append(join.childTable()).append(".").
+                    append(join.childColumn()).
+                    append(" = ").
+                    append(join.parentTable()).append(".").append(join.parentColumn());
         }
 
         // WHERE part
@@ -400,9 +437,17 @@ public class QueryBuilder {
             query.append(" LIMIT ").append(limitValue);
         }
 
+        if (!subQueryCTESource.isEmpty()) {
+            query = generateSubQuery(query);
+        }
+
         // INTERSECT part
+        if (!intersectQueryBuilders.isEmpty()) {
+            query.insert(0, "(").append(")");
+        }
+
         for (QueryBuilder intersectQueryBuilder : intersectQueryBuilders) {
-            query.append(" INTERSECT ").append(intersectQueryBuilder.build());
+            query.append(" INTERSECT (").append(intersectQueryBuilder.build()).append(")");
         }
 
         //UNION ALL part
@@ -418,12 +463,12 @@ public class QueryBuilder {
             query.append(" ORDER BY ").append(String.join(", ", orderByColumnsGlobal));
         }
 
-        if (isLockRows) {
-            query.append(" FOR UPDATE");
+        if (!globalCTESource.isEmpty()) {
+            query = generateGlobalQuery(query);
         }
 
-        if (!subQueryCTESource.isEmpty()) {
-            query = generateSubQuery(query);
+        if (isLockRows) {
+            query.append(" FOR UPDATE");
         }
 
         return query.toString();
@@ -437,6 +482,16 @@ public class QueryBuilder {
         }
         return new StringBuilder("with " + subQueryCTESource + " as materialized (" + query + ") select * from "
                 + subQueryCTESource);
+    }
+
+    private StringBuilder generateGlobalQuery(StringBuilder query) {
+        if (!recursiveCounter.isEmpty()) {
+            return new StringBuilder("with recursive " + globalCTESource + "(" + recursiveCounter
+                    + ")" +" as materialized (" + query + ") select * from "
+                    + globalCTESource);
+        }
+        return new StringBuilder("with " + globalCTESource + " as materialized (" + query + ") select * from "
+                + globalCTESource);
     }
 
 }
