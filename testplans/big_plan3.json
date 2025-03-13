@@ -1,0 +1,49 @@
+{
+  "Node Type": "Append",
+  "Plans": [
+    {
+      "Node Type": "SetOp",
+      "Plans": [
+        {
+          "Node Type": "Append",
+          "Plans": [
+            {
+              "Node Type": "SubqueryScan",
+              "Plans": [
+                {
+                  "Node Type": "Aggregate",
+                  "Plans": [
+                    {
+                      "Node Type": "BitmapHeapScan",
+                      "Plans": [
+                        {
+                          "Node Type": "BitmapIndexScan"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "Node Type": "SubqueryScan",
+              "Plans": [
+                {
+                  "Node Type": "Aggregate",
+                  "Plans": [
+                    {
+                      "Node Type": "SeqScan"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "Node Type": "SeqScan"
+    }
+  ]
+}

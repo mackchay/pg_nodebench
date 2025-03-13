@@ -1,0 +1,27 @@
+{
+  "Node Type": "HashJoin",
+  "Plans": [
+    {
+      "Node Type": "Hash",
+      "Plans": [ {
+        "Node Type": "HashJoin",
+        "Plans": [
+          {
+            "Node Type": "Hash",
+            "Plans": [ {
+              "Node Type": "SeqScan"
+            }
+            ]
+          },
+          {
+            "Node Type": "SeqScan"
+          }
+        ]
+      }
+      ]
+    },
+    {
+      "Node Type": "SeqScan"
+    }
+  ]
+}

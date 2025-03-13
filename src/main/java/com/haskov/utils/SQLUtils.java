@@ -238,6 +238,8 @@ public class SQLUtils {
     }
 
     public static Long getBtreeHeight(String indexName) {
+        String extensionQuery = "CREATE EXTENSION IF NOT EXISTS pageinspect";
+        sql(extensionQuery);
         String query = """
                 select level from bt_metap(?)
                 """;
